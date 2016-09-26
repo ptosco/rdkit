@@ -83,16 +83,32 @@ boost::uint8_t getTwoBitCell(boost::shared_array<boost::uint8_t> &res,
                              unsigned int pos);
 boost::shared_array<boost::uint8_t> buildNeighborMatrix(const ROMol &mol);
 void addBonds(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
+              void *field, int ffOpts);
+void addBonds(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
               ForceFields::ForceField *field);
+void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
+               void *field, int ffOpts);
 void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                ForceFields::ForceField *field);
 void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
+                    void *field, int ffOpts);
+void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                     ForceFields::ForceField *field);
+void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
+            void *field, int ffOpts);
 void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
             ForceFields::ForceField *field);
 void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
-                 ForceFields::ForceField *field,
-                 std::string torsionBondSmarts = "[!$(*#*)&!D1]~[!$(*#*)&!D1]");
+                 void *field, std::string torsionBondSmarts =
+                 "[!$(*#*)&!D1]~[!$(*#*)&!D1]", int ffOpts);
+void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
+                 void *field, std::string torsionBondSmarts =
+                 "[!$(*#*)&!D1]~[!$(*#*)&!D1]");
+void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
+            ForceFields::ForceField *field,
+            boost::shared_array<boost::uint8_t> neighborMatrix,
+            double nonBondedThresh = 100.0,
+            bool ignoreInterfragInteractions = true, int ffOpts);
 void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
             ForceFields::ForceField *field,
             boost::shared_array<boost::uint8_t> neighborMatrix,
@@ -103,6 +119,11 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
             boost::shared_array<boost::uint8_t> neighborMatrix,
             double nonBondedThresh = 100.0,
             bool ignoreInterfragInteractions = true);
+void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
+            ForceFields::ForceField *field,
+            boost::shared_array<boost::uint8_t> neighborMatrix,
+            double nonBondedThresh = 100.0,
+            bool ignoreInterfragInteractions = true, int ffOpts);
 }
 }
 }

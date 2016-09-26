@@ -17,6 +17,13 @@
 #include <GraphMol/Trajectory/Snapshot.h>
 
 namespace ForceFields {
+
+enum ForceFieldOptions {
+    USE_RDK_FF = 0,
+    USE_OPENMM_FF = (1 << 0),
+    USE_OPENMM_FF_SILENTLY = (1 << 1)
+};
+
 class ForceFieldContrib;
 typedef std::vector<int> INT_VECT;
 typedef boost::shared_ptr<const ForceFieldContrib> ContribPtr;
@@ -75,7 +82,7 @@ class ForceField {
   \return the current energy
 
     <b>Note:</b>
-      This function is less efficient than calcEnergy with postions passed in as
+      This function is less efficient than calcEnergy with positions passed in as
   double *
       the positions need to be converted to double * here
   */
@@ -228,5 +235,151 @@ class ForceField {
   //! initializes our internal distance matrix
   void initDistanceMatrix();
 };
+
+#ifdef RDK_BUILD_WITH_OPENMM
+//-------------------------------------------------------
+//! A class to store OpenMM forcefields and handle
+//! potential energy calculations, minimization
+//! and molecular dynamics
+/*!
+   An OpenMM force field is used like this
+   (schematically):
+
+   \verbatim
+     OpenMMForceField ff;
+
+     // add contributions:
+     for contrib in contribs:
+       ff.contribs().push_back(contrib);
+
+     // set up the points:
+     for positionPtr in positions:
+       ff.positions().push_back(point);
+
+     // initialize:
+     ff.initialize()
+
+     // and minimize:
+     needsMore = ff.minimize();
+
+   \endverbatim
+
+   <b>Notes:</b>
+     - The ForceField owns its contributions, which are stored using smart
+       pointers.
+     - Distance calculations are currently lazy; the full distance matrix is
+       never generated.  In systems where the distance matrix is not sparse,
+       this is almost certainly inefficient.
+
+*/
+class OpenMMForceField {
+  public:
+    //! construct with a dimension
+    OpenMMForceField(unsigned int dimension = 3)
+        : d_ff.d_dimension(dimension), d_ff.df_init(false),
+          d_ff.d_numPoints(0), d_ff.dp_distMat(0){};
+
+    ~OpenMMForceField();
+
+    //! copy ctor, copies contribs.
+    OpenMMForceField(const OpenMMForceField &other);
+
+    //! does initialization
+    void initialize();
+
+    //! calculates and returns the energy (in kcal/mol) based on existing
+    //! positions in the forcefield
+    /*!
+
+    \return the current energy
+
+      <b>Note:</b>
+        This function is less efficient than calcEnergy with positions passed in as
+    double *
+        the positions need to be converted to double * here
+    */
+    double calcEnergy(std::vector<double> *pos = NULL) const;
+
+    // these next two aren't const because they may update our
+    // distance matrix
+
+    //! calculates and returns the energy of the position passed in
+    /*!
+      \param pos an array of doubles.  Should be \c 3*this->numPoints() long.
+
+      \return the current energy
+
+      <b>Side effects:</b>
+        - Calling this resets the current distance matrix
+        - The individual contributions may further update the distance matrix
+    */
+    double calcEnergy(double *pos);
+
+    //! calculates the gradient of the energy at the current position
+    /*!
+
+      \param forces an array of doubles.  Should be \c 3*this->numPoints() long.
+
+      <b>Note:</b>
+        This function is less efficient than calcGrad with positions passed in
+        the positions need to be converted to double * here
+     */
+    void calcGrad(double *forces) const;
+
+    //! calculates the gradient of the energy at the provided position
+    /*!
+
+      \param pos      an array of doubles.  Should be \c 3*this->numPoints() long.
+      \param forces   an array of doubles.  Should be \c 3*this->numPoints() long.
+
+      <b>Side effects:</b>
+        - The individual contributions may modify the distance matrix
+     */
+    void calcGrad(double *pos, double *forces);
+
+    //! minimizes the energy of the system by following gradients
+    /*!
+      \param maxIts    the maximum number of iterations to try
+      \param forceTol  the convergence criterion for forces
+      \param energyTol the convergence criterion for energies
+
+      \return an integer value indicating whether or not the convergence
+              criteria were achieved:
+        - 0: indicates success
+        - 1: the minimization did not converge in \c maxIts iterations.
+    */
+    int minimize(unsigned int snapshotFreq, RDKit::SnapshotVect *snapshotVect,
+                 unsigned int maxIts = 200, double forceTol = 1e-4,
+                 double energyTol = 1e-6);
+
+    //! minimizes the energy of the system by following gradients
+    /*!
+      \param maxIts            the maximum number of iterations to try
+      \param forceTol          the convergence criterion for forces
+      \param energyTol         the convergence criterion for energies
+      \param snapshotFreq      a snapshot of the minimization trajectory
+                               will be stored after as many steps as indicated
+                               through this parameter; defaults to 0 (no
+                               trajectory stored)
+      \param snapshotVect      a pointer to a std::vector<Snapshot> where
+                               coordinates and energies will be stored
+
+      \return an integer value indicating whether or not the convergence
+              criteria were achieved:
+        - 0: indicates success
+        - 1: the minimization did not converge in \c maxIts iterations.
+    */
+    int minimize(unsigned int maxIts = 200, double forceTol = 1e-4,
+                 double energyTol = 1e-6);
+
+  private:
+    boost::shared_ptr<const ForceField> d_ff;
+    OpenMM::System *openmmSystem;
+    OpenMM::Integrator *openmmIntegrator;
+    OpenMM::Context *openmmContext;
+};
+#else
+typedef void OpenMMForceField;
+#endif
 }
 #endif
