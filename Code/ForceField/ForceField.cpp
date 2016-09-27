@@ -69,44 +69,53 @@ class calcGradient {
 }
 
 namespace ForceFields {
+/*
+void OpenMMForceField::addBondStretchContrib(
+                       unsigned int idx1, unsigned int idx2,
+                       const MMFFBond *mmffBondParams) {
+}
+
+void OpenMMForceField::addAngleBendContrib(
+                       unsigned int idx1, unsigned int idx2,
+                       unsigned int idx3, const MMFFAngle *mmffAngleParams,
+                       const MMFFProp *mmffPropParamsCentralAtom) {
+}
+
+void OpenMMForceField::addStretchBendContrib(
+                       unsigned int idx1, unsigned int idx2,
+                       unsigned int idx3, const MMFFStbn *mmffStbnParams,
+                       const MMFFAngle *mmffAngleParams,
+                       const MMFFBond *mmffBondParams1,
+                       const MMFFBond *mmffBondParams2) {
+}
+
+void OpenMMForceField::addTorsionAngleContrib(
+                       unsigned int idx1, unsigned int idx2,
+                       unsigned int idx3, unsigned int idx4,
+                       const MMFFTor *mmffTorParams) {
+}
+
+void OpenMMForceField::addOopBendContrib(
+                       unsigned int idx1, unsigned int idx2, unsigned int idx3,
+                       unsigned int idx4, const MMFFOop *mmffOopParams) {
+}
+
+void OpenMMForceField::addVdWContrib(
+                       unsigned int idx1, unsigned int idx2,
+                       const MMFFVdWRijstarEps *mmffVdWConstants) {
+}
+
+void OpenMMForceField::addEleContrib(
+                       unsigned int idx1, unsigned int idx2,
+                       double chargeTerm, boost::uint8_t dielModel, bool is1_4) {
+}
+*/
 bool useOpenMMSilently() {
   bool res = false;
 #if (defined RDK_ALLOW_USE_OPENMM_SILENTLY) && (defined RDK_BUILD_WITH_OPENMM)
   const char *rdkUseOpenMMSilently = getenv("USE_OPENMM_SILENTLY");
   res = (rdkUseOpenMMSilently && (tolower(rdkUseOpenMMSilently[0]) != 'n'));
 #endif
-  return res;
-}
-
-OpenMMForceField *getOpenMMForceField(void *field, int ffOpts) {
-  OpenMMForceField *res = NULL;
-#ifdef RDK_BUILD_WITH_OPENMM
-#ifdef RDK_ALLOW_USE_OPENMM_SILENTLY
-  ForceField *ff = static_cast<ForceField *>(field);
-  if ((ffOpts & USE_OPENMM_SILENTLY)
-    && (ff->contribs().size() >= 2) && !ff->contribs()[0].get())
-    res = reinterpret_cast<OpenMMForceField *>(ff->contribs()[1].get());
-#endif
-  if ((ffOpts & USE_OPENMM) && !(ffOpts & USE_OPENMM_SILENTLY))
-    res = static_cast<OpenMMForceField *>(field);
-#endif
-  
-  return res;
-}
-  
-ForceField *rdkForceField = getRdkForceField(void *field, int ffOpts) {
-  ForceField *res = static_cast<ForceField *>(field);
-#ifdef RDK_BUILD_WITH_OPENMM
-  OpenMMForceField *ommForceField = static_cast<OpenMMForceField *>(field);
-  bool isFieldOpenMM = (ffOpts & USE_OPENMM);
-#ifdef RDK_ALLOW_USE_OPENMM_SILENTLY
-  if (isFieldOpenMM)
-    isFieldOpenMM = !(ffOpts & USE_OPENMM_SILENT);
-#endif
-  if (isFieldOpenMM)
-    res = ommForceField->rdkForceField().get();
-#endif
-  
   return res;
 }
 

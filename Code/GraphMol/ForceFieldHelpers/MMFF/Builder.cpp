@@ -18,7 +18,6 @@
 #include <GraphMol/RDKitBase.h>
 #include <GraphMol/SmilesParse/SmilesParse.h>
 #include <GraphMol/Substruct/SubstructMatch.h>
-#include <ForceField/ForceField.h>
 #include <ForceField/MMFF/Params.h>
 #include <ForceField/MMFF/Contribs.h>
 #include "AtomTyper.h"
@@ -34,7 +33,7 @@ namespace Tools {
 //
 //
 // ------------------------------------------------------------------------
-void checkFFPreconditions(void *field,
+void checkFFPreconditions(ForceFields::ForceField *field,
                           MMFFMolProperties *mmffMolProperties, int ffOpts) {
 #ifndef RDK_BUILD_WITH_OPENMM
   PRECONDITION(!(ffOpts & ForceFields::USE_OPENMM),
@@ -46,6 +45,14 @@ void checkFFPreconditions(void *field,
                "missing atom types - invalid force-field");
 }
 
+OpenMMForceField *getOpenMMForceField(ForceFields::ForceField *field, int ffOpts) {
+  OpenMMForceField *ommForceField = NULL;
+  if (ffOpts & (ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY))
+    ommForceField = static_cast<OpenMMForceField *>(field);
+  
+  return ommForceField;
+}
+
 void addBonds(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
               ForceFields::ForceField *field) {
   int ffOpts = (ForceFields::useOpenMMSilently()
@@ -54,12 +61,11 @@ void addBonds(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 }
 
 void addBonds(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
-              void *field, int ffOpts) {
-  checkFFPreconditions();
+              ForceFields::ForceField *field, int ffOpts) {
+  checkFFPreconditions(field, mmffMolProperties, ffOpts);
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  ForceField *rdkForceField = getRdkForceField(field, ffOpts);
   bool calcRdkEnergy = (!ommForceField
                 || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   double totalBondStretchEnergy = 0.0;
@@ -74,7 +80,7 @@ void addBonds(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  "-------------------------------------------------------------"
                  "------------------------" << std::endl;
     }
-    //rdkForceField->initialize();
+    //field->initialize();
   }
   for (ROMol::ConstBondIterator bi = mol.beginBonds(); bi != mol.endBonds();
        ++bi) {
@@ -91,13 +97,13 @@ void addBonds(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 #endif
       if (calcRdkEnergy) {
         BondStretchContrib *contrib = new BondStretchContrib(field, idx1, idx2, &mmffBondParams);
-        rdkForceField->contribs().push_back(ForceFields::ContribPtr(contrib));
+        field->contribs().push_back(ForceFields::ContribPtr(contrib));
         if (mmffMolProperties->getMMFFVerbosity()) {
           unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(idx1);
           unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(idx2);
           const Atom *iAtom = (*bi)->getBeginAtom();
           const Atom *jAtom = (*bi)->getEndAtom();
-          const double dist = rdkForceField->distance(idx1, idx2);
+          const double dist = field->distance(idx1, idx2);
           const double bondStretchEnergy = MMFF::Utils::calcBondStretchEnergy(
               mmffBondParams.r0, mmffBondParams.kb, dist);
           if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
@@ -265,12 +271,11 @@ void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 }
 
 void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
-               void *field, int ffOpts) {
-  checkFFPreconditions();
+               ForceFields::ForceField *field, int ffOpts) {
+  checkFFPreconditions(field, mmffMolProperties, ffOpts);
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  ForceField *rdkForceField = getRdkForceField(field, ffOpts);
   bool calcRdkEnergy = (!ommForceField
                  || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   unsigned int idx[3];
@@ -294,8 +299,8 @@ void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  "-------------------------------------------------------------"
                  "-----------------------------------------" << std::endl;
     }
-    //rdkForceField->initialize();
-    points = rdkForceField->positions();
+    //field->initialize();
+    points = field->positions();
   }
   for (idx[1] = 0; idx[1] < nAtoms; ++idx[1]) {
     const Atom *jAtom = mol.getAtomWithIdx(idx[1]);
@@ -329,7 +334,7 @@ void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
             AngleBendContrib *contrib = new AngleBendContrib(
                 field, idx[0], idx[1], idx[2],
                 &mmffAngleParams, mmffPropParamsCentralAtom);
-            rdkForceField->contribs().push_back(ForceFields::ContribPtr(contrib));
+            field->contribs().push_back(ForceFields::ContribPtr(contrib));
             if (mmffMolProperties->getMMFFVerbosity()) {
               unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(idx[0]);
               unsigned int kAtomType = mmffMolProperties->getMMFFAtomType(idx[2]);
@@ -343,8 +348,8 @@ void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                                        (*(points[idx[2]]))[1],
                                        (*(points[idx[2]]))[2]);
               const double cosTheta =
-                  MMFF::Utils::calcCosTheta(p1, p2, p3, rdkForceField->distance(idx[0], idx[1]),
-                                            rdkForceField->distance(idx[1], idx[2]));
+                  MMFF::Utils::calcCosTheta(p1, p2, p3, field->distance(idx[0], idx[1]),
+                                            field->distance(idx[1], idx[2]));
               const double theta = RAD2DEG * acos(cosTheta);
               const double angleBendEnergy = MMFF::Utils::calcAngleBendEnergy(
                   mmffAngleParams.theta0, mmffAngleParams.ka,
@@ -394,12 +399,11 @@ void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 }
 
 void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
-                    void *field, int ffOpts) {
-  checkFFPreconditions();
+                    ForceFields::ForceField *field, int ffOpts) {
+  checkFFPreconditions(field, mmffMolProperties, ffOpts);
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  ForceField *rdkForceField = getRdkForceField(field, ffOpts);
   bool calcRdkEnergy = (!ommForceField
                       || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   unsigned int idx[3];
@@ -425,8 +429,8 @@ void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  "-----------------------------------------------------"
               << std::endl;
     }
-    //rdkForceField->initialize();
-    points = rdkForceField->positions();
+    //field->initialize();
+    points = field->positions();
   }
   for (idx[1] = 0; idx[1] < nAtoms; ++idx[1]) {
     const Atom *jAtom = mol.getAtomWithIdx(idx[1]);
@@ -468,13 +472,13 @@ void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
             StretchBendContrib *contrib = new StretchBendContrib(
                 field, idx[0], idx[1], idx[2], &mmffStbnParams, &mmffAngleParams,
                 &mmffBondParams[0], &mmffBondParams[1]);
-            rdkForceField->contribs().push_back(ForceFields::ContribPtr(contrib));
+            field->contribs().push_back(ForceFields::ContribPtr(contrib));
             if (mmffMolProperties->getMMFFVerbosity()) {
               unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(idx[0]);
               unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(idx[1]);
               unsigned int kAtomType = mmffMolProperties->getMMFFAtomType(idx[2]);
-              const double dist1 = rdkForceField->distance(idx[0], idx[1]);
-              const double dist2 = rdkForceField->distance(idx[1], idx[2]);
+              const double dist1 = field->distance(idx[0], idx[1]);
+              const double dist2 = field->distance(idx[1], idx[2]);
               const RDGeom::Point3D p1((*(points[idx[0]]))[0],
                                        (*(points[idx[0]]))[1],
                                        (*(points[idx[0]]))[2]);
@@ -555,12 +559,11 @@ void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 }
 
 void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
-            void *field, int ffOpts) {
-  checkFFPreconditions();
+            ForceFields::ForceField *field, int ffOpts) {
+  checkFFPreconditions(field, mmffMolProperties, ffOpts);
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  ForceField *rdkForceField = getRdkForceField(field, ffOpts);
   bool calcRdkEnergy = (!ommForceField
               || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   unsigned int idx[4];
@@ -583,8 +586,8 @@ void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  "-------------------------------------------------------------"
                  "-----------------------------" << std::endl;
     }
-    //rdkForceField->initialize();
-    points = rdkForceField->positions();
+    //field->initialize();
+    points = field->positions();
   }
   for (idx[1] = 0; idx[1] < mol.getNumAtoms(); ++idx[1]) {
     atom[1] = mol.getAtomWithIdx(idx[1]);
@@ -637,7 +640,7 @@ void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
       if (calcRdkEnergy) {
         OopBendContrib *contrib = new OopBendContrib(
             field, idx[n[0]], idx[n[1]], idx[n[2]], idx[n[3]], &mmffOopParams);
-        rdkForceField->contribs().push_back(ForceFields::ContribPtr(contrib));
+        field->contribs().push_back(ForceFields::ContribPtr(contrib));
         if (mmffMolProperties->getMMFFVerbosity()) {
           const RDGeom::Point3D p1((*(points[idx[n[0]]]))[0],
                                    (*(points[idx[n[0]]]))[1],
@@ -693,17 +696,16 @@ void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  std::string torsionBondSmarts) {
   int ffOpts = (ForceFields::useOpenMMSilently()
                 ? ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY : 0);
-  addTorsions(mol, mmffMolProperties, field, torsionBondSmarts, ffOpts);
+  addTorsions(mol, mmffMolProperties, field, ffOpts, torsionBondSmarts);
 }
 
 void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
-                 void *field, std::string torsionBondSmarts,
-                 int ffOpts) {
-  checkFFPreconditions();
+                 ForceFields::ForceField *field, int ffOpts,
+                 std::string torsionBondSmarts) {
+  checkFFPreconditions(field, mmffMolProperties, ffOpts);
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  ForceField *rdkForceField = getRdkForceField(field, ffOpts);
   bool calcRdkEnergy = (!ommForceField
                    || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   ROMol::ADJ_ITER nbr1Idx;
@@ -724,8 +726,8 @@ void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  "-----------------------------------------------------"
               << std::endl;
     }
-    //rdkForceField->initialize();
-    points = rdkForceField->positions();
+    //field->initialize();
+    points = field->positions();
   }
   std::vector<MatchVectType> matchVect;
   ROMol *query = SmartsToMol(torsionBondSmarts);
@@ -773,7 +775,7 @@ void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                   if (calcRdkEnergy) {
                     TorsionAngleContrib *contrib = new TorsionAngleContrib(
                         field, idx1, idx2, idx3, idx4, &mmffTorParams);
-                    rdkForceField->contribs().push_back(ForceFields::ContribPtr(contrib));
+                    field->contribs().push_back(ForceFields::ContribPtr(contrib));
                     if (mmffMolProperties->getMMFFVerbosity()) {
                       const Atom *iAtom = mol.getAtomWithIdx(idx1);
                       const Atom *lAtom = mol.getAtomWithIdx(idx4);
@@ -849,24 +851,24 @@ void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 //
 //
 // ------------------------------------------------------------------------
-void addVdW(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
+void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
             ForceFields::ForceField *field,
             boost::shared_array<boost::uint8_t> neighborMatrix,
             double nonBondedThresh, bool ignoreInterfragInteractions) {
   int ffOpts = (ForceFields::useOpenMMSilently()
                 ? ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY : 0);
-  addVdW(mol, mmffMolProperties, field, neighborMatrix,
-         nonBondedThresh, ignoreInterfragInteractions, ffOpts);
+  addVdW(mol, confId, mmffMolProperties, field, ffOpts, neighborMatrix,
+         nonBondedThresh, ignoreInterfragInteractions);
 }
 
 void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
-            void *field, boost::shared_array<boost::uint8_t> neighborMatrix,
-            double nonBondedThresh, bool ignoreInterfragInteractions, int ffOpts) {
-  checkFFPreconditions();
+            ForceFields::ForceField *field, int ffOpts,
+            boost::shared_array<boost::uint8_t> neighborMatrix,
+            double nonBondedThresh, bool ignoreInterfragInteractions) {
+  checkFFPreconditions(field, mmffMolProperties, ffOpts);
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  ForceField *rdkForceField = getRdkForceField(field, ffOpts);
   bool calcRdkEnergy = (!ommForceField
               || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   INT_VECT fragMapping;
@@ -907,7 +909,7 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
           }
           if (calcRdkEnergy) {
             VdWContrib *contrib = new VdWContrib(field, i, j, &mmffVdWParams);
-            rdkForceField->contribs().push_back(ForceFields::ContribPtr(contrib));
+            field->contribs().push_back(ForceFields::ContribPtr(contrib));
             if (mmffMolProperties->getMMFFVerbosity()) {
               const Atom *iAtom = mol.getAtomWithIdx(i);
               const Atom *jAtom = mol.getAtomWithIdx(j);
@@ -947,24 +949,24 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
 //
 //
 // ------------------------------------------------------------------------
-void addEle(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
+void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
             ForceFields::ForceField *field,
             boost::shared_array<boost::uint8_t> neighborMatrix,
             double nonBondedThresh, bool ignoreInterfragInteractions) {
   int ffOpts = (ForceFields::useOpenMMSilently()
                 ? ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY : 0);
-  addEle(mol, mmffMolProperties, field, neighborMatrix,
-         nonBondedThresh, ignoreInterfragInteractions, ffOpts);
+  addEle(mol, confId, mmffMolProperties, field, ffOpts, neighborMatrix,
+         nonBondedThresh, ignoreInterfragInteractions);
 }
 
 void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
-            void *field, boost::shared_array<boost::uint8_t> neighborMatrix,
-            double nonBondedThresh, bool ignoreInterfragInteractions, int ffOpts) {
-  checkFFPreconditions();
+            ForceFields::ForceField *field, int ffOpts,
+            boost::shared_array<boost::uint8_t> neighborMatrix,
+            double nonBondedThresh, bool ignoreInterfragInteractions) {
+  checkFFPreconditions(field, mmffMolProperties, ffOpts);
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  ForceField *rdkForceField = getRdkForceField(field, ffOpts);
   bool calcRdkEnergy = (!ommForceField
               || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   INT_VECT fragMapping;
@@ -1010,7 +1012,7 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
         if (calcRdkEnergy) {
           EleContrib *contrib = new EleContrib(
               field, i, j, chargeTerm, dielModel, is1_4);
-          rdkForceField->contribs().push_back(ForceFields::ContribPtr(contrib));
+          field->contribs().push_back(ForceFields::ContribPtr(contrib));
           if (mmffMolProperties->getMMFFVerbosity()) {
             const unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(i);
             const unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(j);
@@ -1051,11 +1053,8 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
 //
 //
 // ------------------------------------------------------------------------
-ForceFields::ForceField *constructForceField(ROMol &mol, double nonBondedThresh,
-    int confId, bool ignoreInterfragInteractions) {
-
-ForceFields::ForceField *constructForceField(ROMol &mol, double nonBondedThresh,
-    int confId, bool ignoreInterfragInteractions, int ffOpts) {
+ForceFields::ForceField *constructForceField(ROMol &mol,
+    double nonBondedThresh, int confId, bool ignoreInterfragInteractions) {
   MMFFMolProperties mmffMolProperties(mol);
   ForceFields::ForceField *res =
       constructForceField(mol, &mmffMolProperties, nonBondedThresh, confId,
@@ -1074,88 +1073,77 @@ ForceFields::ForceField *constructForceField(
     int confId, bool ignoreInterfragInteractions) {
   int ffOpts = (ForceFields::useOpenMMSilently()
                 ? ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY : 0);
+
   return static_cast<ForceFields::ForceField *>(constructForceField(
     mol, mmffMolProperties, nonBondedThresh, confId,
     ignoreInterfragInteractions, ffOpts));
 }
 
-ForceFields::OpenMMForceField *constructForceFieldOpenMM(
-    ROMol &mol, MMFFMolProperties *mmffMolProperties, double nonBondedThresh,
-    int confId, bool ignoreInterfragInteractions) {
-  MMFFMolProperties mmffMolProperties(mol);
-  return static_cast<ForceFields::OpenMMForceField *>(
-    constructForceFieldOpenMM(mol, &mmffMolProperties, nonBondedThresh,
-    confId, ignoreInterfragInteractions));
-}
-
-ForceFields::OpenMMForceField *constructForceFieldOpenMM(
-    ROMol &mol, MMFFMolProperties *mmffMolProperties, double nonBondedThresh,
-    int confId, bool ignoreInterfragInteractions) {
-  return static_cast<ForceFields::OpenMMForceField *>(
-    constructForceField(mol, mmffMolProperties, nonBondedThresh,
-    confId, ignoreInterfragInteractions, ForceFields::USE_OPENMM));
-}
-
-void *constructForceField(
+ForceFields::ForceField *constructForceField(
     ROMol &mol, MMFFMolProperties *mmffMolProperties, double nonBondedThresh,
     int confId, bool ignoreInterfragInteractions, int ffOpts) {
   PRECONDITION(mmffMolProperties, "bad MMFFMolProperties");
   PRECONDITION(mmffMolProperties->isValid(),
                "missing atom types - invalid force-field");
 
-  void *res = NULL;
-  ForceFields::ForceField *ff = new ForceFields::ForceField();
-  checkFFPreconditions(ff, mmffMolProperties, ffOpts);
+  OpenMMForceField *ff = new OpenMMForceField();
+  RDKit::MMFF::Tools::checkFFPreconditions(ff, mmffMolProperties, ffOpts);
   // add the atomic positions:
   Conformer &conf = mol.getConformer(confId);
   for (unsigned int i = 0; i < mol.getNumAtoms(); ++i) {
     ff->positions().push_back(&(conf.getAtomPos(i)));
   }
-#ifdef RDK_BUILD_WITH_OPENMM
-  if (ffOpts & USE_OPENMM) {
-    ForceFields::OpenMMForceField *ommForceField = new ForceFields::OpenMMForceField(ff);
-    if (ffOpts & USE_OPENMM_SILENTLY) {
-      ff->contribs().push_back(NULL);
-      ff->contribs().push_back(reinterpret_cast<const ForceFieldContrib *>(ommForceField));
-    }
-    else {
-      res = static_cast<void *>(ommField);
-    }
-  }
-#endif
-  if (!res) {
-    res = static_cast<void *>(ff);
-  }
+  ff->initialize();
   if (mmffMolProperties->getMMFFBondTerm()) {
-    Tools::addBonds(mol, mmffMolProperties, res, ffOpts);
+    Tools::addBonds(mol, mmffMolProperties, ff, ffOpts);
   }
   if (mmffMolProperties->getMMFFAngleTerm()) {
-    Tools::addAngles(mol, mmffMolProperties, res, ffOpts);
+    Tools::addAngles(mol, mmffMolProperties, ff, ffOpts);
   }
   if (mmffMolProperties->getMMFFStretchBendTerm()) {
-    Tools::addStretchBend(mol, mmffMolProperties, res, ffOpts);
+    Tools::addStretchBend(mol, mmffMolProperties, ff, ffOpts);
   }
   if (mmffMolProperties->getMMFFOopTerm()) {
-    Tools::addOop(mol, mmffMolProperties, res, ffOpts);
+    Tools::addOop(mol, mmffMolProperties, ff, ffOpts);
   }
   if (mmffMolProperties->getMMFFTorsionTerm()) {
-    Tools::addTorsions(mol, mmffMolProperties, res, ffOpts);
+    Tools::addTorsions(mol, mmffMolProperties, ff, ffOpts);
   }
   if (mmffMolProperties->getMMFFVdWTerm() ||
       mmffMolProperties->getMMFFEleTerm()) {
     boost::shared_array<boost::uint8_t> neighborMat =
         Tools::buildNeighborMatrix(mol);
     if (mmffMolProperties->getMMFFVdWTerm()) {
-      Tools::addVdW(mol, confId, mmffMolProperties, res, neighborMat,
-                    nonBondedThresh, ignoreInterfragInteractions, ffOpts);
+      Tools::addVdW(mol, confId, mmffMolProperties, ff, ffOpts, neighborMat,
+                    nonBondedThresh, ignoreInterfragInteractions);
     }
     if (mmffMolProperties->getMMFFEleTerm()) {
-      Tools::addEle(mol, confId, mmffMolProperties, res, neighborMat,
-                    nonBondedThresh, ignoreInterfragInteractions, ffOpts);
+      Tools::addEle(mol, confId, mmffMolProperties, ff, ffOpts, neighborMat,
+                    nonBondedThresh, ignoreInterfragInteractions);
     }
   }
 
-  return res;
+  return ff;
 }
+
+#ifdef RDK_BUILD_WITH_OPENMM
+ForceFields::OpenMMForceField *constructForceFieldOpenMM(
+    ROMol &mol, double nonBondedThresh,
+    int confId, bool ignoreInterfragInteractions) {
+  MMFFMolProperties mmffMolProperties(mol);
+
+  return constructForceFieldOpenMM(mol, &mmffMolProperties,
+    nonBondedThresh, confId, ignoreInterfragInteractions);
+}
+
+ForceFields::OpenMMForceField *constructForceFieldOpenMM(
+    ROMol &mol, MMFFMolProperties *mmffMolProperties, double nonBondedThresh,
+    int confId, bool ignoreInterfragInteractions) {
+
+  return constructForceField(mol, mmffMolProperties, nonBondedThresh,
+    confId, ignoreInterfragInteractions, ForceFields::USE_OPENMM));
+}
+#endif
+
 }
 }

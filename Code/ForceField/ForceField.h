@@ -19,9 +19,9 @@
 namespace ForceFields {
 
 enum ForceFieldOptions {
-    USE_RDK_FF = 0,
-    USE_OPENMM_FF = (1 << 0),
-    USE_OPENMM_FF_SILENTLY = (1 << 1)
+    USE_RDK = 0,
+    USE_OPENMM = (1 << 0),
+    USE_OPENMM_SILENTLY = (1 << 1)
 };
 
 class ForceFieldContrib;
@@ -272,13 +272,10 @@ class ForceField {
        this is almost certainly inefficient.
 
 */
-class OpenMMForceField {
+class OpenMMForceField : public ForceField {
   public:
     //! construct with a dimension
-    OpenMMForceField(unsigned int dimension = 3)
-        : d_ff.d_dimension(dimension), d_ff.df_init(false),
-          d_ff.d_numPoints(0), d_ff.dp_distMat(0){};
-
+    OpenMMForceField(unsigned int dimension = 3);
     ~OpenMMForceField();
 
     //! copy ctor, copies contribs.
@@ -372,14 +369,14 @@ class OpenMMForceField {
     int minimize(unsigned int maxIts = 200, double forceTol = 1e-4,
                  double energyTol = 1e-6);
 
-  private:
-    boost::shared_ptr<const ForceField> d_ff;
+  protected:
     OpenMM::System *openmmSystem;
     OpenMM::Integrator *openmmIntegrator;
     OpenMM::Context *openmmContext;
 };
 #else
-typedef void OpenMMForceField;
+typedef ForceField OpenMMForceField;
 #endif
+bool useOpenMMSilently();
 }
 #endif
