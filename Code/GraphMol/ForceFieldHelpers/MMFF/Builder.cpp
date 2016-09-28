@@ -46,18 +46,17 @@ void checkFFPreconditions(ForceFields::ForceField *field,
 }
 
 OpenMMForceField *getOpenMMForceField(ForceFields::ForceField *field, int ffOpts) {
-  OpenMMForceField *ommForceField = NULL;
-  if (ffOpts & (ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY))
-    ommForceField = static_cast<OpenMMForceField *>(field);
-  
-  return ommForceField;
+#ifdef RDK_BUILD_WITH_OPENMM
+  return ((ffOpts & ForceFields::USE_OPENMM)
+    ? static_cast<OpenMMForceField *>(field) : NULL);
+#else
+  return NULL;
+#endif
 }
 
 void addBonds(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
               ForceFields::ForceField *field) {
-  int ffOpts = (ForceFields::useOpenMMSilently()
-                ? ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY : 0);
-  addBonds(mol, mmffMolProperties, field, ffOpts);
+  addBonds(mol, mmffMolProperties, field, 0);
 }
 
 void addBonds(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
@@ -66,10 +65,8 @@ void addBonds(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  bool calcRdkEnergy = (!ommForceField
-                || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   double totalBondStretchEnergy = 0.0;
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << "\n"
                  "B O N D   S T R E T C H I N G\n\n"
@@ -90,40 +87,40 @@ void addBonds(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
     MMFFBond mmffBondParams;
     if (mmffMolProperties->getMMFFBondStretchParams(mol, idx1, idx2, bondType,
                                                     mmffBondParams)) {
+      if (!ommForceField) {
+        BondStretchContrib *contrib = new BondStretchContrib(field, idx1, idx2, &mmffBondParams);
+        field->contribs().push_back(ForceFields::ContribPtr(contrib));
+      }
 #ifdef RDK_BUILD_WITH_OPENMM
-      if (ommForceField) {
+      else {
         ommForceField->addBondStretchContrib(idx1, idx2, &mmffBondParams);
       }
 #endif
-      if (calcRdkEnergy) {
-        BondStretchContrib *contrib = new BondStretchContrib(field, idx1, idx2, &mmffBondParams);
-        field->contribs().push_back(ForceFields::ContribPtr(contrib));
-        if (mmffMolProperties->getMMFFVerbosity()) {
-          unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(idx1);
-          unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(idx2);
-          const Atom *iAtom = (*bi)->getBeginAtom();
-          const Atom *jAtom = (*bi)->getEndAtom();
-          const double dist = field->distance(idx1, idx2);
-          const double bondStretchEnergy = MMFF::Utils::calcBondStretchEnergy(
-              mmffBondParams.r0, mmffBondParams.kb, dist);
-          if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
-            oStream << std::left << std::setw(2) << iAtom->getSymbol() << " #"
-                    << std::setw(5) << idx1 + 1 << std::setw(2)
-                    << jAtom->getSymbol() << " #" << std::setw(5) << idx2 + 1
-                    << std::right << std::setw(5) << iAtomType << std::setw(5)
-                    << jAtomType << std::setw(6) << bondType << "  " << std::fixed
-                    << std::setprecision(3) << std::setw(9) << dist
-                    << std::setw(9) << mmffBondParams.r0 << std::setw(9)
-                    << dist - mmffBondParams.r0 << std::setw(10)
-                    << bondStretchEnergy << std::setw(10) << mmffBondParams.kb
-                    << std::endl;
-          }
-          totalBondStretchEnergy += bondStretchEnergy;
+      if (mmffMolProperties->getMMFFVerbosity()) {
+        unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(idx1);
+        unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(idx2);
+        const Atom *iAtom = (*bi)->getBeginAtom();
+        const Atom *jAtom = (*bi)->getEndAtom();
+        const double dist = field->distance(idx1, idx2);
+        const double bondStretchEnergy = MMFF::Utils::calcBondStretchEnergy(
+            mmffBondParams.r0, mmffBondParams.kb, dist);
+        if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
+          oStream << std::left << std::setw(2) << iAtom->getSymbol() << " #"
+                  << std::setw(5) << idx1 + 1 << std::setw(2)
+                  << jAtom->getSymbol() << " #" << std::setw(5) << idx2 + 1
+                  << std::right << std::setw(5) << iAtomType << std::setw(5)
+                  << jAtomType << std::setw(6) << bondType << "  " << std::fixed
+                  << std::setprecision(3) << std::setw(9) << dist
+                  << std::setw(9) << mmffBondParams.r0 << std::setw(9)
+                  << dist - mmffBondParams.r0 << std::setw(10)
+                  << bondStretchEnergy << std::setw(10) << mmffBondParams.kb
+                  << std::endl;
         }
+        totalBondStretchEnergy += bondStretchEnergy;
       }
     }
   }
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << std::endl;
     }
@@ -265,9 +262,7 @@ boost::shared_array<boost::uint8_t> buildNeighborMatrix(const ROMol &mol) {
 // ------------------------------------------------------------------------
 void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
               ForceFields::ForceField *field) {
-  int ffOpts = (ForceFields::useOpenMMSilently()
-                ? ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY : 0);
-  addAngles(mol, mmffMolProperties, field, ffOpts);
+  addAngles(mol, mmffMolProperties, field, 0);
 }
 
 void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
@@ -276,8 +271,6 @@ void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  bool calcRdkEnergy = (!ommForceField
-                 || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   unsigned int idx[3];
   MMFFPropCollection *mmffProp = MMFFPropCollection::getMMFFProp();
   ROMol::ADJ_ITER nbr1Idx;
@@ -288,7 +281,7 @@ void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
   unsigned int nAtoms = mol.getNumAtoms();
   double totalAngleBendEnergy = 0.0;
   RDGeom::PointPtrVect points;
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << "\n"
                  "A N G L E   B E N D I N G\n\n"
@@ -324,59 +317,59 @@ void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
         MMFFAngle mmffAngleParams;
         if (mmffMolProperties->getMMFFAngleBendParams(
                 mol, idx[0], idx[1], idx[2], angleType, mmffAngleParams)) {
-#ifdef RDK_BUILD_WITH_OPENMM
-          if (ommForceField) {
-            ommForceField->addAngleBendContrib(idx[0], idx[1], idx[2],
-                                          &mmffAngleParams, mmffPropParamsCentralAtom);
-          }
-#endif
-          if (calcRdkEnergy) {
+          if (!ommForceField) {
             AngleBendContrib *contrib = new AngleBendContrib(
                 field, idx[0], idx[1], idx[2],
                 &mmffAngleParams, mmffPropParamsCentralAtom);
             field->contribs().push_back(ForceFields::ContribPtr(contrib));
-            if (mmffMolProperties->getMMFFVerbosity()) {
-              unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(idx[0]);
-              unsigned int kAtomType = mmffMolProperties->getMMFFAtomType(idx[2]);
-              const RDGeom::Point3D p1((*(points[idx[0]]))[0],
-                                       (*(points[idx[0]]))[1],
-                                       (*(points[idx[0]]))[2]);
-              const RDGeom::Point3D p2((*(points[idx[1]]))[0],
-                                       (*(points[idx[1]]))[1],
-                                       (*(points[idx[1]]))[2]);
-              const RDGeom::Point3D p3((*(points[idx[2]]))[0],
-                                       (*(points[idx[2]]))[1],
-                                       (*(points[idx[2]]))[2]);
-              const double cosTheta =
-                  MMFF::Utils::calcCosTheta(p1, p2, p3, field->distance(idx[0], idx[1]),
-                                            field->distance(idx[1], idx[2]));
-              const double theta = RAD2DEG * acos(cosTheta);
-              const double angleBendEnergy = MMFF::Utils::calcAngleBendEnergy(
-                  mmffAngleParams.theta0, mmffAngleParams.ka,
-                  mmffPropParamsCentralAtom->linh, cosTheta);
-              if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
-                oStream << std::left << std::setw(2) << iAtom->getSymbol() << " #"
-                        << std::setw(5) << idx[0] + 1 << std::setw(2)
-                        << jAtom->getSymbol() << " #" << std::setw(5)
-                        << idx[1] + 1 << std::setw(2) << kAtom->getSymbol()
-                        << " #" << std::setw(5) << idx[2] + 1 << std::right
-                        << std::setw(5) << iAtomType << std::setw(5) << jAtomType
-                        << std::setw(5) << kAtomType << std::setw(6) << angleType
-                        << "  " << std::fixed << std::setprecision(3)
-                        << std::setw(10) << theta << std::setw(10)
-                        << mmffAngleParams.theta0 << std::setw(10)
-                        << theta - mmffAngleParams.theta0 << std::setw(10)
-                        << angleBendEnergy << std::setw(10) << mmffAngleParams.ka
-                        << std::endl;
-              }
-              totalAngleBendEnergy += angleBendEnergy;
+          }
+#ifdef RDK_BUILD_WITH_OPENMM
+          else {
+            ommForceField->addAngleBendContrib(idx[0], idx[1], idx[2],
+                &mmffAngleParams, mmffPropParamsCentralAtom);
+          }
+#endif
+          if (mmffMolProperties->getMMFFVerbosity()) {
+            unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(idx[0]);
+            unsigned int kAtomType = mmffMolProperties->getMMFFAtomType(idx[2]);
+            const RDGeom::Point3D p1((*(points[idx[0]]))[0],
+                                     (*(points[idx[0]]))[1],
+                                     (*(points[idx[0]]))[2]);
+            const RDGeom::Point3D p2((*(points[idx[1]]))[0],
+                                     (*(points[idx[1]]))[1],
+                                     (*(points[idx[1]]))[2]);
+            const RDGeom::Point3D p3((*(points[idx[2]]))[0],
+                                     (*(points[idx[2]]))[1],
+                                     (*(points[idx[2]]))[2]);
+            const double cosTheta =
+                MMFF::Utils::calcCosTheta(p1, p2, p3, field->distance(idx[0], idx[1]),
+                                          field->distance(idx[1], idx[2]));
+            const double theta = RAD2DEG * acos(cosTheta);
+            const double angleBendEnergy = MMFF::Utils::calcAngleBendEnergy(
+                mmffAngleParams.theta0, mmffAngleParams.ka,
+                mmffPropParamsCentralAtom->linh, cosTheta);
+            if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
+              oStream << std::left << std::setw(2) << iAtom->getSymbol() << " #"
+                      << std::setw(5) << idx[0] + 1 << std::setw(2)
+                      << jAtom->getSymbol() << " #" << std::setw(5)
+                      << idx[1] + 1 << std::setw(2) << kAtom->getSymbol()
+                      << " #" << std::setw(5) << idx[2] + 1 << std::right
+                      << std::setw(5) << iAtomType << std::setw(5) << jAtomType
+                      << std::setw(5) << kAtomType << std::setw(6) << angleType
+                      << "  " << std::fixed << std::setprecision(3)
+                      << std::setw(10) << theta << std::setw(10)
+                      << mmffAngleParams.theta0 << std::setw(10)
+                      << theta - mmffAngleParams.theta0 << std::setw(10)
+                      << angleBendEnergy << std::setw(10) << mmffAngleParams.ka
+                      << std::endl;
             }
+            totalAngleBendEnergy += angleBendEnergy;
           }
         }
       }
     }
   }
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << std::endl;
     }
@@ -393,9 +386,7 @@ void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 // ------------------------------------------------------------------------
 void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                     ForceFields::ForceField *field) {
-  int ffOpts = (ForceFields::useOpenMMSilently()
-                ? ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY : 0);
-  addStretchBend(mol, mmffMolProperties, field, ffOpts);
+  addStretchBend(mol, mmffMolProperties, field, 0);
 }
 
 void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
@@ -404,8 +395,6 @@ void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  bool calcRdkEnergy = (!ommForceField
-                      || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   unsigned int idx[3];
   MMFFPropCollection *mmffProp = MMFFPropCollection::getMMFFProp();
   std::pair<bool, const MMFFStbn *> mmffStbnParams;
@@ -417,7 +406,7 @@ void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
   unsigned int nAtoms = mol.getNumAtoms();
   double totalStretchBendEnergy = 0.0;
   RDGeom::PointPtrVect points;
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << "\n"
                  "S T R E T C H   B E N D I N G\n\n"
@@ -463,79 +452,79 @@ void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
         if (mmffMolProperties->getMMFFStretchBendParams(
                 mol, idx[0], idx[1], idx[2], stretchBendType, mmffStbnParams,
                 mmffBondParams, mmffAngleParams)) {
+          if (!ommForceField) {
+            StretchBendContrib *contrib = new StretchBendContrib(
+                field, idx[0], idx[1], idx[2], &mmffStbnParams, &mmffAngleParams,
+                &mmffBondParams[0], &mmffBondParams[1]);
+            field->contribs().push_back(ForceFields::ContribPtr(contrib));
+          }
 #ifdef RDK_BUILD_WITH_OPENMM
-          if (ommForceField) {
+          else {
             ommForceField->addStretchBendContrib(
                 idx[0], idx[1], idx[2], &mmffStbnParams, &mmffAngleParams,
                 &mmffBondParams[0], &mmffBondParams[1]);
           }
 #endif
-          if (calcRdkEnergy) {
-            StretchBendContrib *contrib = new StretchBendContrib(
-                field, idx[0], idx[1], idx[2], &mmffStbnParams, &mmffAngleParams,
-                &mmffBondParams[0], &mmffBondParams[1]);
-            field->contribs().push_back(ForceFields::ContribPtr(contrib));
-            if (mmffMolProperties->getMMFFVerbosity()) {
-              unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(idx[0]);
-              unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(idx[1]);
-              unsigned int kAtomType = mmffMolProperties->getMMFFAtomType(idx[2]);
-              const double dist1 = field->distance(idx[0], idx[1]);
-              const double dist2 = field->distance(idx[1], idx[2]);
-              const RDGeom::Point3D p1((*(points[idx[0]]))[0],
-                                       (*(points[idx[0]]))[1],
-                                       (*(points[idx[0]]))[2]);
-              const RDGeom::Point3D p2((*(points[idx[1]]))[0],
-                                       (*(points[idx[1]]))[1],
-                                       (*(points[idx[1]]))[2]);
-              const RDGeom::Point3D p3((*(points[idx[2]]))[0],
-                                       (*(points[idx[2]]))[1],
-                                       (*(points[idx[2]]))[2]);
-              const double cosTheta =
-                  MMFF::Utils::calcCosTheta(p1, p2, p3, dist1, dist2);
-              const double theta = RAD2DEG * acos(cosTheta);
-              const std::pair<double, double> forceConstants =
-                  MMFF::Utils::calcStbnForceConstants(&mmffStbnParams);
-              const std::pair<double, double> stretchBendEnergies =
-                  MMFF::Utils::calcStretchBendEnergy(
-                      dist1 - mmffBondParams[0].r0, dist2 - mmffBondParams[1].r0,
-                      theta - mmffAngleParams.theta0, forceConstants);
-              if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
-                if (!isDoubleZero(forceConstants.first)) {
-                  oStream << std::left << std::setw(2) << iAtom->getSymbol()
-                          << " #" << std::setw(5) << idx[0] + 1 << std::setw(2)
-                          << jAtom->getSymbol() << " #" << std::setw(5)
-                          << idx[1] + 1 << std::setw(2) << kAtom->getSymbol()
-                          << " #" << std::setw(5) << idx[2] + 1 << std::right
-                          << std::setw(5) << iAtomType << std::setw(5)
-                          << jAtomType << std::setw(5) << kAtomType
-                          << std::setw(6) << stretchBendType << "  " << std::fixed
-                          << std::setprecision(3) << std::setw(10) << theta
-                          << std::setw(10) << theta - mmffAngleParams.theta0
-                          << std::setw(10) << dist1 - mmffBondParams[0].r0
-                          << std::setw(10) << dist2 - mmffBondParams[1].r0
-                          << std::setw(10) << stretchBendEnergies.first
-                          << std::setw(10) << mmffStbnParams.kbaIJK << std::endl;
-                }
-                if (!isDoubleZero(forceConstants.second)) {
-                  oStream << std::left << std::setw(2) << kAtom->getSymbol()
-                          << " #" << std::setw(5) << idx[2] + 1 << std::setw(2)
-                          << jAtom->getSymbol() << " #" << std::setw(5)
-                          << idx[1] + 1 << std::setw(2) << iAtom->getSymbol()
-                          << " #" << std::setw(5) << idx[0] + 1 << std::right
-                          << std::setw(5) << kAtomType << std::setw(5)
-                          << jAtomType << std::setw(5) << iAtomType
-                          << std::setw(6) << stretchBendType << "  " << std::fixed
-                          << std::setprecision(3) << std::setw(10) << theta
-                          << std::setw(10) << theta - mmffAngleParams.theta0
-                          << std::setw(10) << dist1 - mmffBondParams[0].r0
-                          << std::setw(10) << dist2 - mmffBondParams[1].r0
-                          << std::setw(10) << stretchBendEnergies.second
-                          << std::setw(10) << mmffStbnParams.kbaKJI << std::endl;
-                }
+          if (mmffMolProperties->getMMFFVerbosity()) {
+            unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(idx[0]);
+            unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(idx[1]);
+            unsigned int kAtomType = mmffMolProperties->getMMFFAtomType(idx[2]);
+            const double dist1 = field->distance(idx[0], idx[1]);
+            const double dist2 = field->distance(idx[1], idx[2]);
+            const RDGeom::Point3D p1((*(points[idx[0]]))[0],
+                                     (*(points[idx[0]]))[1],
+                                     (*(points[idx[0]]))[2]);
+            const RDGeom::Point3D p2((*(points[idx[1]]))[0],
+                                     (*(points[idx[1]]))[1],
+                                     (*(points[idx[1]]))[2]);
+            const RDGeom::Point3D p3((*(points[idx[2]]))[0],
+                                     (*(points[idx[2]]))[1],
+                                     (*(points[idx[2]]))[2]);
+            const double cosTheta =
+                MMFF::Utils::calcCosTheta(p1, p2, p3, dist1, dist2);
+            const double theta = RAD2DEG * acos(cosTheta);
+            const std::pair<double, double> forceConstants =
+                MMFF::Utils::calcStbnForceConstants(&mmffStbnParams);
+            const std::pair<double, double> stretchBendEnergies =
+                MMFF::Utils::calcStretchBendEnergy(
+                    dist1 - mmffBondParams[0].r0, dist2 - mmffBondParams[1].r0,
+                    theta - mmffAngleParams.theta0, forceConstants);
+            if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
+              if (!isDoubleZero(forceConstants.first)) {
+                oStream << std::left << std::setw(2) << iAtom->getSymbol()
+                        << " #" << std::setw(5) << idx[0] + 1 << std::setw(2)
+                        << jAtom->getSymbol() << " #" << std::setw(5)
+                        << idx[1] + 1 << std::setw(2) << kAtom->getSymbol()
+                        << " #" << std::setw(5) << idx[2] + 1 << std::right
+                        << std::setw(5) << iAtomType << std::setw(5)
+                        << jAtomType << std::setw(5) << kAtomType
+                        << std::setw(6) << stretchBendType << "  " << std::fixed
+                        << std::setprecision(3) << std::setw(10) << theta
+                        << std::setw(10) << theta - mmffAngleParams.theta0
+                        << std::setw(10) << dist1 - mmffBondParams[0].r0
+                        << std::setw(10) << dist2 - mmffBondParams[1].r0
+                        << std::setw(10) << stretchBendEnergies.first
+                        << std::setw(10) << mmffStbnParams.kbaIJK << std::endl;
               }
-              totalStretchBendEnergy +=
-                  (stretchBendEnergies.first + stretchBendEnergies.second);
+              if (!isDoubleZero(forceConstants.second)) {
+                oStream << std::left << std::setw(2) << kAtom->getSymbol()
+                        << " #" << std::setw(5) << idx[2] + 1 << std::setw(2)
+                        << jAtom->getSymbol() << " #" << std::setw(5)
+                        << idx[1] + 1 << std::setw(2) << iAtom->getSymbol()
+                        << " #" << std::setw(5) << idx[0] + 1 << std::right
+                        << std::setw(5) << kAtomType << std::setw(5)
+                        << jAtomType << std::setw(5) << iAtomType
+                        << std::setw(6) << stretchBendType << "  " << std::fixed
+                        << std::setprecision(3) << std::setw(10) << theta
+                        << std::setw(10) << theta - mmffAngleParams.theta0
+                        << std::setw(10) << dist1 - mmffBondParams[0].r0
+                        << std::setw(10) << dist2 - mmffBondParams[1].r0
+                        << std::setw(10) << stretchBendEnergies.second
+                        << std::setw(10) << mmffStbnParams.kbaKJI << std::endl;
+              }
             }
+            totalStretchBendEnergy +=
+                (stretchBendEnergies.first + stretchBendEnergies.second);
           }
         }
         ++j;
@@ -543,7 +532,7 @@ void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
       ++i;
     }
   }
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << std::endl;
     }
@@ -555,9 +544,7 @@ void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 
 void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
             ForceFields::ForceField *field) {
-  int ffOpts = (ForceFields::useOpenMMSilently()
-                ? ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY : 0);
-  addOop(mol, mmffMolProperties, field, ffOpts);
+  addOop(mol, mmffMolProperties, field, 0);
 }
 
 void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
@@ -566,8 +553,6 @@ void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  bool calcRdkEnergy = (!ommForceField
-              || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   unsigned int idx[4];
   unsigned int atomType[4];
   unsigned int n[4];
@@ -577,7 +562,7 @@ void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 
   double totalOopBendEnergy = 0.0;
   RDGeom::PointPtrVect points;
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << "\n"
                  "O U T - O F - P L A N E   B E N D I N G\n\n"
@@ -635,52 +620,52 @@ void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
           n[3] = 0;
           break;
       }
+      if (!ommForceField) {
+        OopBendContrib *contrib = new OopBendContrib(
+            field, idx[n[0]], idx[n[1]], idx[n[2]], idx[n[3]], &mmffOopParams);
+        field->contribs().push_back(ForceFields::ContribPtr(contrib));
+      }
 #ifdef RDK_BUILD_WITH_OPENMM
-      if (ommForceField) {
+      else {
         ommForceField->addOopBendContrib(
             idx[n[0]], idx[n[1]], idx[n[2]], idx[n[3]], &mmffOopParams);
       }
 #endif
-      if (calcRdkEnergy) {
-        OopBendContrib *contrib = new OopBendContrib(
-            field, idx[n[0]], idx[n[1]], idx[n[2]], idx[n[3]], &mmffOopParams);
-        field->contribs().push_back(ForceFields::ContribPtr(contrib));
-        if (mmffMolProperties->getMMFFVerbosity()) {
-          const RDGeom::Point3D p1((*(points[idx[n[0]]]))[0],
-                                   (*(points[idx[n[0]]]))[1],
-                                   (*(points[idx[n[0]]]))[2]);
-          const RDGeom::Point3D p2((*(points[idx[n[1]]]))[0],
-                                   (*(points[idx[n[1]]]))[1],
-                                   (*(points[idx[n[1]]]))[2]);
-          const RDGeom::Point3D p3((*(points[idx[n[2]]]))[0],
-                                   (*(points[idx[n[2]]]))[1],
-                                   (*(points[idx[n[2]]]))[2]);
-          const RDGeom::Point3D p4((*(points[idx[n[3]]]))[0],
-                                   (*(points[idx[n[3]]]))[1],
-                                   (*(points[idx[n[3]]]))[2]);
-          const double chi = MMFF::Utils::calcOopChi(p1, p2, p3, p4);
-          const double oopBendEnergy =
-              MMFF::Utils::calcOopBendEnergy(chi, mmffOopParams.koop);
-          if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
-            oStream << std::left << std::setw(2) << atom[0]->getSymbol() << " #"
-                    << std::setw(5) << idx[n[0]] + 1 << std::setw(2)
-                    << atom[1]->getSymbol() << " #" << std::setw(5)
-                    << idx[n[1]] + 1 << std::setw(2) << atom[2]->getSymbol()
-                    << " #" << std::setw(5) << idx[n[2]] + 1 << std::setw(2)
-                    << atom[3]->getSymbol() << " #" << std::setw(5)
-                    << idx[n[3]] + 1 << std::right << std::setw(5)
-                    << atomType[n[0]] << std::setw(5) << atomType[n[1]]
-                    << std::setw(5) << atomType[n[2]] << std::setw(5)
-                    << atomType[n[3]] << std::fixed << std::setprecision(3)
-                    << std::setw(10) << chi << std::setw(10) << oopBendEnergy
-                    << std::setw(10) << mmffOopParams.koop << std::endl;
-          }
-          totalOopBendEnergy += oopBendEnergy;
+      if (mmffMolProperties->getMMFFVerbosity()) {
+        const RDGeom::Point3D p1((*(points[idx[n[0]]]))[0],
+                                 (*(points[idx[n[0]]]))[1],
+                                 (*(points[idx[n[0]]]))[2]);
+        const RDGeom::Point3D p2((*(points[idx[n[1]]]))[0],
+                                 (*(points[idx[n[1]]]))[1],
+                                 (*(points[idx[n[1]]]))[2]);
+        const RDGeom::Point3D p3((*(points[idx[n[2]]]))[0],
+                                 (*(points[idx[n[2]]]))[1],
+                                 (*(points[idx[n[2]]]))[2]);
+        const RDGeom::Point3D p4((*(points[idx[n[3]]]))[0],
+                                 (*(points[idx[n[3]]]))[1],
+                                 (*(points[idx[n[3]]]))[2]);
+        const double chi = MMFF::Utils::calcOopChi(p1, p2, p3, p4);
+        const double oopBendEnergy =
+            MMFF::Utils::calcOopBendEnergy(chi, mmffOopParams.koop);
+        if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
+          oStream << std::left << std::setw(2) << atom[0]->getSymbol() << " #"
+                  << std::setw(5) << idx[n[0]] + 1 << std::setw(2)
+                  << atom[1]->getSymbol() << " #" << std::setw(5)
+                  << idx[n[1]] + 1 << std::setw(2) << atom[2]->getSymbol()
+                  << " #" << std::setw(5) << idx[n[2]] + 1 << std::setw(2)
+                  << atom[3]->getSymbol() << " #" << std::setw(5)
+                  << idx[n[3]] + 1 << std::right << std::setw(5)
+                  << atomType[n[0]] << std::setw(5) << atomType[n[1]]
+                  << std::setw(5) << atomType[n[2]] << std::setw(5)
+                  << atomType[n[3]] << std::fixed << std::setprecision(3)
+                  << std::setw(10) << chi << std::setw(10) << oopBendEnergy
+                  << std::setw(10) << mmffOopParams.koop << std::endl;
         }
+        totalOopBendEnergy += oopBendEnergy;
       }
     }
   }
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << std::endl;
     }
@@ -698,9 +683,7 @@ void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  ForceFields::ForceField *field,
                  std::string torsionBondSmarts) {
-  int ffOpts = (ForceFields::useOpenMMSilently()
-                ? ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY : 0);
-  addTorsions(mol, mmffMolProperties, field, ffOpts, torsionBondSmarts);
+  addTorsions(mol, mmffMolProperties, field, 0, torsionBondSmarts);
 }
 
 void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
@@ -710,15 +693,13 @@ void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  bool calcRdkEnergy = (!ommForceField
-                   || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   ROMol::ADJ_ITER nbr1Idx;
   ROMol::ADJ_ITER end1Nbrs;
   ROMol::ADJ_ITER nbr2Idx;
   ROMol::ADJ_ITER end2Nbrs;
   double totalTorsionEnergy = 0.0;
   RDGeom::PointPtrVect points;
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << "\n"
                  "T O R S I O N A L\n\n"
@@ -772,65 +753,65 @@ void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                 MMFFTor mmffTorParams;
                 if (mmffMolProperties->getMMFFTorsionParams(
                         mol, idx1, idx2, idx3, idx4, torType, mmffTorParams)) {
+                  if (!ommForceField) {
+                    TorsionAngleContrib *contrib = new TorsionAngleContrib(
+                        field, idx1, idx2, idx3, idx4, &mmffTorParams);
+                    field->contribs().push_back(ForceFields::ContribPtr(contrib));
+                  }
 #ifdef RDK_BUILD_WITH_OPENMM
-                  if (ommForceField) {
+                  else {
                     ommForceField->addTorsionAngleContrib(
                         idx1, idx2, idx3, idx4, &mmffTorParams);
                   }
 #endif
-                  if (calcRdkEnergy) {
-                    TorsionAngleContrib *contrib = new TorsionAngleContrib(
-                        field, idx1, idx2, idx3, idx4, &mmffTorParams);
-                    field->contribs().push_back(ForceFields::ContribPtr(contrib));
-                    if (mmffMolProperties->getMMFFVerbosity()) {
-                      const Atom *iAtom = mol.getAtomWithIdx(idx1);
-                      const Atom *lAtom = mol.getAtomWithIdx(idx4);
-                      unsigned int iAtomType =
-                          mmffMolProperties->getMMFFAtomType(idx1);
-                      unsigned int jAtomType =
-                          mmffMolProperties->getMMFFAtomType(idx2);
-                      unsigned int kAtomType =
-                          mmffMolProperties->getMMFFAtomType(idx3);
-                      unsigned int lAtomType =
-                          mmffMolProperties->getMMFFAtomType(idx4);
-                      const RDGeom::Point3D p1((*(points[idx1]))[0],
-                                               (*(points[idx1]))[1],
-                                               (*(points[idx1]))[2]);
-                      const RDGeom::Point3D p2((*(points[idx2]))[0],
-                                               (*(points[idx2]))[1],
-                                               (*(points[idx2]))[2]);
-                      const RDGeom::Point3D p3((*(points[idx3]))[0],
-                                               (*(points[idx3]))[1],
-                                               (*(points[idx3]))[2]);
-                      const RDGeom::Point3D p4((*(points[idx4]))[0],
-                                               (*(points[idx4]))[1],
-                                               (*(points[idx4]))[2]);
-                      const double cosPhi =
-                          MMFF::Utils::calcTorsionCosPhi(p1, p2, p3, p4);
-                      const double torsionEnergy = MMFF::Utils::calcTorsionEnergy(
-                          mmffTorParams.V1, mmffTorParams.V2, mmffTorParams.V3,
-                          cosPhi);
-                      if (mmffMolProperties->getMMFFVerbosity() ==
-                          MMFF_VERBOSITY_HIGH) {
-                        oStream
-                            << std::left << std::setw(2) << iAtom->getSymbol()
-                            << " #" << std::setw(5) << idx1 + 1 << std::setw(2)
-                            << jAtom->getSymbol() << " #" << std::setw(5)
-                            << idx2 + 1 << std::setw(2) << kAtom->getSymbol()
-                            << " #" << std::setw(5) << idx3 + 1 << std::setw(2)
-                            << lAtom->getSymbol() << " #" << std::setw(5)
-                            << idx4 + 1 << std::right << std::setw(5) << iAtomType
-                            << std::setw(5) << jAtomType << std::setw(5)
-                            << kAtomType << std::setw(5) << lAtomType
-                            << std::setw(6) << torType << "  " << std::fixed
-                            << std::setprecision(3) << std::setw(10)
-                            << RAD2DEG * acos(cosPhi) << std::setw(10)
-                            << torsionEnergy << std::setw(10) << mmffTorParams.V1
-                            << std::setw(10) << mmffTorParams.V2 << std::setw(10)
-                            << mmffTorParams.V3 << std::endl;
-                      }
-                      totalTorsionEnergy += torsionEnergy;
+                  if (mmffMolProperties->getMMFFVerbosity()) {
+                    const Atom *iAtom = mol.getAtomWithIdx(idx1);
+                    const Atom *lAtom = mol.getAtomWithIdx(idx4);
+                    unsigned int iAtomType =
+                        mmffMolProperties->getMMFFAtomType(idx1);
+                    unsigned int jAtomType =
+                        mmffMolProperties->getMMFFAtomType(idx2);
+                    unsigned int kAtomType =
+                        mmffMolProperties->getMMFFAtomType(idx3);
+                    unsigned int lAtomType =
+                        mmffMolProperties->getMMFFAtomType(idx4);
+                    const RDGeom::Point3D p1((*(points[idx1]))[0],
+                                             (*(points[idx1]))[1],
+                                             (*(points[idx1]))[2]);
+                    const RDGeom::Point3D p2((*(points[idx2]))[0],
+                                             (*(points[idx2]))[1],
+                                             (*(points[idx2]))[2]);
+                    const RDGeom::Point3D p3((*(points[idx3]))[0],
+                                             (*(points[idx3]))[1],
+                                             (*(points[idx3]))[2]);
+                    const RDGeom::Point3D p4((*(points[idx4]))[0],
+                                             (*(points[idx4]))[1],
+                                             (*(points[idx4]))[2]);
+                    const double cosPhi =
+                        MMFF::Utils::calcTorsionCosPhi(p1, p2, p3, p4);
+                    const double torsionEnergy = MMFF::Utils::calcTorsionEnergy(
+                        mmffTorParams.V1, mmffTorParams.V2, mmffTorParams.V3,
+                        cosPhi);
+                    if (mmffMolProperties->getMMFFVerbosity() ==
+                        MMFF_VERBOSITY_HIGH) {
+                      oStream
+                          << std::left << std::setw(2) << iAtom->getSymbol()
+                          << " #" << std::setw(5) << idx1 + 1 << std::setw(2)
+                          << jAtom->getSymbol() << " #" << std::setw(5)
+                          << idx2 + 1 << std::setw(2) << kAtom->getSymbol()
+                          << " #" << std::setw(5) << idx3 + 1 << std::setw(2)
+                          << lAtom->getSymbol() << " #" << std::setw(5)
+                          << idx4 + 1 << std::right << std::setw(5) << iAtomType
+                          << std::setw(5) << jAtomType << std::setw(5)
+                          << kAtomType << std::setw(5) << lAtomType
+                          << std::setw(6) << torType << "  " << std::fixed
+                          << std::setprecision(3) << std::setw(10)
+                          << RAD2DEG * acos(cosPhi) << std::setw(10)
+                          << torsionEnergy << std::setw(10) << mmffTorParams.V1
+                          << std::setw(10) << mmffTorParams.V2 << std::setw(10)
+                          << mmffTorParams.V3 << std::endl;
                     }
+                    totalTorsionEnergy += torsionEnergy;
                   }
                 }
               }
@@ -842,7 +823,7 @@ void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
       }
     }
   }
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << std::endl;
     }
@@ -861,9 +842,7 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
             ForceFields::ForceField *field,
             boost::shared_array<boost::uint8_t> neighborMatrix,
             double nonBondedThresh, bool ignoreInterfragInteractions) {
-  int ffOpts = (ForceFields::useOpenMMSilently()
-                ? ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY : 0);
-  addVdW(mol, confId, mmffMolProperties, field, ffOpts, neighborMatrix,
+  addVdW(mol, confId, mmffMolProperties, field, 0, neighborMatrix,
          nonBondedThresh, ignoreInterfragInteractions);
 }
 
@@ -875,8 +854,6 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  bool calcRdkEnergy = (!ommForceField
-              || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   INT_VECT fragMapping;
   if (ignoreInterfragInteractions) {
     std::vector<ROMOL_SPTR> molFrags =
@@ -885,7 +862,7 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
 
   unsigned int nAtoms = mol.getNumAtoms();
   double totalVdWEnergy = 0.0;
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << "\n"
                  "V A N   D E R   W A A L S\n\n"
@@ -910,39 +887,39 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
         }
         MMFFVdWRijstarEps mmffVdWParams;
         if (mmffMolProperties->getMMFFVdWParams(i, j, mmffVdWParams)) {
+          if (!ommForceField) {
+            VdWContrib *contrib = new VdWContrib(field, i, j, &mmffVdWParams);
+            field->contribs().push_back(ForceFields::ContribPtr(contrib));
+          }
 #ifdef RDK_BUILD_WITH_OPENMM
-          if (ommForceField) {
+          else {
             ommForceField->addVdWContrib(i, j, &mmffVdWParams);
           }
 #endif
-          if (calcRdkEnergy) {
-            VdWContrib *contrib = new VdWContrib(field, i, j, &mmffVdWParams);
-            field->contribs().push_back(ForceFields::ContribPtr(contrib));
-            if (mmffMolProperties->getMMFFVerbosity()) {
-              const Atom *iAtom = mol.getAtomWithIdx(i);
-              const Atom *jAtom = mol.getAtomWithIdx(j);
-              const double vdWEnergy = MMFF::Utils::calcVdWEnergy(
-                  dist, mmffVdWParams.R_ij_star, mmffVdWParams.epsilon);
-              if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
-                unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(i);
-                unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(j);
-                oStream << std::left << std::setw(2) << iAtom->getSymbol() << " #"
-                        << std::setw(5) << i + 1 << std::setw(2)
-                        << jAtom->getSymbol() << " #" << std::setw(5) << j + 1
-                        << std::right << std::setw(5) << iAtomType << std::setw(5)
-                        << jAtomType << "  " << std::fixed << std::setprecision(3)
-                        << std::setw(9) << dist << std::setw(10) << vdWEnergy
-                        << std::setw(9) << mmffVdWParams.R_ij_star << std::setw(9)
-                        << mmffVdWParams.epsilon << std::endl;
-              }
-              totalVdWEnergy += vdWEnergy;
+          if (mmffMolProperties->getMMFFVerbosity()) {
+            const Atom *iAtom = mol.getAtomWithIdx(i);
+            const Atom *jAtom = mol.getAtomWithIdx(j);
+            const double vdWEnergy = MMFF::Utils::calcVdWEnergy(
+                dist, mmffVdWParams.R_ij_star, mmffVdWParams.epsilon);
+            if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
+              unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(i);
+              unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(j);
+              oStream << std::left << std::setw(2) << iAtom->getSymbol() << " #"
+                      << std::setw(5) << i + 1 << std::setw(2)
+                      << jAtom->getSymbol() << " #" << std::setw(5) << j + 1
+                      << std::right << std::setw(5) << iAtomType << std::setw(5)
+                      << jAtomType << "  " << std::fixed << std::setprecision(3)
+                      << std::setw(9) << dist << std::setw(10) << vdWEnergy
+                      << std::setw(9) << mmffVdWParams.R_ij_star << std::setw(9)
+                      << mmffVdWParams.epsilon << std::endl;
             }
+            totalVdWEnergy += vdWEnergy;
           }
         }
       }
     }
   }
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << std::endl;
     }
@@ -961,9 +938,7 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
             ForceFields::ForceField *field,
             boost::shared_array<boost::uint8_t> neighborMatrix,
             double nonBondedThresh, bool ignoreInterfragInteractions) {
-  int ffOpts = (ForceFields::useOpenMMSilently()
-                ? ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY : 0);
-  addEle(mol, confId, mmffMolProperties, field, ffOpts, neighborMatrix,
+  addEle(mol, confId, mmffMolProperties, field, 0, neighborMatrix,
          nonBondedThresh, ignoreInterfragInteractions);
 }
 
@@ -975,8 +950,6 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *ommForceField = getOpenMMForceField(field, ffOpts);
-  bool calcRdkEnergy = (!ommForceField
-              || (ffOpts & ForceFields::USE_OPENMM_SILENTLY));
   INT_VECT fragMapping;
   if (ignoreInterfragInteractions) {
     std::vector<ROMOL_SPTR> molFrags =
@@ -984,7 +957,7 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
   }
   unsigned int nAtoms = mol.getNumAtoms();
   double totalEleEnergy = 0.0;
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << "\n"
                  "E L E C T R O S T A T I C\n\n"
@@ -1014,39 +987,39 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
                             dielConst;
         bool is1_4 = (getTwoBitCell(
                       neighborMatrix, i * nAtoms + j) == RELATION_1_4);
-#ifdef RDK_BUILD_WITH_OPENMM
-        if (ommForceField) {
-          ommForceField->addEleContrib(i, j, chargeTerm, dielModel, is1_4);
-        }
-#endif
-        if (calcRdkEnergy) {
+        if (!ommForceField) {
           EleContrib *contrib = new EleContrib(
               field, i, j, chargeTerm, dielModel, is1_4);
           field->contribs().push_back(ForceFields::ContribPtr(contrib));
-          if (mmffMolProperties->getMMFFVerbosity()) {
-            const unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(i);
-            const unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(j);
-            const Atom *iAtom = mol.getAtomWithIdx(i);
-            const Atom *jAtom = mol.getAtomWithIdx(j);
-            const double eleEnergy = MMFF::Utils::calcEleEnergy(
-                i, j, dist, chargeTerm, dielModel,
-                getTwoBitCell(neighborMatrix, i * nAtoms + j) == RELATION_1_4);
-            if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
-              oStream << std::left << std::setw(2) << iAtom->getSymbol() << " #"
-                      << std::setw(5) << i + 1 << std::setw(2)
-                      << jAtom->getSymbol() << " #" << std::setw(5) << j + 1
-                      << std::right << std::setw(5) << iAtomType << std::setw(5)
-                      << jAtomType << "  " << std::fixed << std::setprecision(3)
-                      << std::setw(9) << dist << std::setw(10) << eleEnergy
-                      << std::endl;
-            }
-            totalEleEnergy += eleEnergy;
+        }
+#ifdef RDK_BUILD_WITH_OPENMM
+        else {
+          ommForceField->addEleContrib(i, j, chargeTerm, dielModel, is1_4);
+        }
+#endif
+        if (mmffMolProperties->getMMFFVerbosity()) {
+          const unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(i);
+          const unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(j);
+          const Atom *iAtom = mol.getAtomWithIdx(i);
+          const Atom *jAtom = mol.getAtomWithIdx(j);
+          const double eleEnergy = MMFF::Utils::calcEleEnergy(
+              i, j, dist, chargeTerm, dielModel,
+              getTwoBitCell(neighborMatrix, i * nAtoms + j) == RELATION_1_4);
+          if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
+            oStream << std::left << std::setw(2) << iAtom->getSymbol() << " #"
+                    << std::setw(5) << i + 1 << std::setw(2)
+                    << jAtom->getSymbol() << " #" << std::setw(5) << j + 1
+                    << std::right << std::setw(5) << iAtomType << std::setw(5)
+                    << jAtomType << "  " << std::fixed << std::setprecision(3)
+                    << std::setw(9) << dist << std::setw(10) << eleEnergy
+                    << std::endl;
           }
+          totalEleEnergy += eleEnergy;
         }
       }
     }
   }
-  if (calcRdkEnergy && mmffMolProperties->getMMFFVerbosity()) {
+  if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
       oStream << std::endl;
     }
