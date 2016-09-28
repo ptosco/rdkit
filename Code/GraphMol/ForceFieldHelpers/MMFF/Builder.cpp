@@ -463,11 +463,13 @@ void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
         if (mmffMolProperties->getMMFFStretchBendParams(
                 mol, idx[0], idx[1], idx[2], stretchBendType, mmffStbnParams,
                 mmffBondParams, mmffAngleParams)) {
+#ifdef RDK_BUILD_WITH_OPENMM
           if (ommForceField) {
             ommForceField->addStretchBendContrib(
                 idx[0], idx[1], idx[2], &mmffStbnParams, &mmffAngleParams,
                 &mmffBondParams[0], &mmffBondParams[1]);
           }
+#endif
           if (calcRdkEnergy) {
             StretchBendContrib *contrib = new StretchBendContrib(
                 field, idx[0], idx[1], idx[2], &mmffStbnParams, &mmffAngleParams,
@@ -633,10 +635,12 @@ void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
           n[3] = 0;
           break;
       }
+#ifdef RDK_BUILD_WITH_OPENMM
       if (ommForceField) {
         ommForceField->addOopBendContrib(
             idx[n[0]], idx[n[1]], idx[n[2]], idx[n[3]], &mmffOopParams);
       }
+#endif
       if (calcRdkEnergy) {
         OopBendContrib *contrib = new OopBendContrib(
             field, idx[n[0]], idx[n[1]], idx[n[2]], idx[n[3]], &mmffOopParams);
@@ -768,10 +772,12 @@ void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                 MMFFTor mmffTorParams;
                 if (mmffMolProperties->getMMFFTorsionParams(
                         mol, idx1, idx2, idx3, idx4, torType, mmffTorParams)) {
+#ifdef RDK_BUILD_WITH_OPENMM
                   if (ommForceField) {
                     ommForceField->addTorsionAngleContrib(
                         idx1, idx2, idx3, idx4, &mmffTorParams);
                   }
+#endif
                   if (calcRdkEnergy) {
                     TorsionAngleContrib *contrib = new TorsionAngleContrib(
                         field, idx1, idx2, idx3, idx4, &mmffTorParams);
@@ -904,9 +910,11 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
         }
         MMFFVdWRijstarEps mmffVdWParams;
         if (mmffMolProperties->getMMFFVdWParams(i, j, mmffVdWParams)) {
+#ifdef RDK_BUILD_WITH_OPENMM
           if (ommForceField) {
             ommForceField->addVdWContrib(i, j, &mmffVdWParams);
           }
+#endif
           if (calcRdkEnergy) {
             VdWContrib *contrib = new VdWContrib(field, i, j, &mmffVdWParams);
             field->contribs().push_back(ForceFields::ContribPtr(contrib));
@@ -1006,9 +1014,11 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
                             dielConst;
         bool is1_4 = (getTwoBitCell(
                       neighborMatrix, i * nAtoms + j) == RELATION_1_4);
+#ifdef RDK_BUILD_WITH_OPENMM
         if (ommForceField) {
           ommForceField->addEleContrib(i, j, chargeTerm, dielModel, is1_4);
         }
+#endif
         if (calcRdkEnergy) {
           EleContrib *contrib = new EleContrib(
               field, i, j, chargeTerm, dielModel, is1_4);
@@ -1053,10 +1063,10 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
 //
 //
 // ------------------------------------------------------------------------
-ForceFields::ForceField *constructForceField(ROMol &mol,
-    double nonBondedThresh, int confId, bool ignoreInterfragInteractions) {
+OpenMMForceField *constructForceField(ROMol &mol,
+  double nonBondedThresh, int confId, bool ignoreInterfragInteractions) {
   MMFFMolProperties mmffMolProperties(mol);
-  ForceFields::ForceField *res =
+  OpenMMForceField *res =
       constructForceField(mol, &mmffMolProperties, nonBondedThresh, confId,
                           ignoreInterfragInteractions);
 
@@ -1068,20 +1078,19 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
 //
 //
 // ------------------------------------------------------------------------
-ForceFields::ForceField *constructForceField(
-    ROMol &mol, MMFFMolProperties *mmffMolProperties, double nonBondedThresh,
-    int confId, bool ignoreInterfragInteractions) {
+OpenMMForceField *constructForceField(ROMol &mol,
+  MMFFMolProperties *mmffMolProperties, double nonBondedThresh,
+  int confId, bool ignoreInterfragInteractions) {
   int ffOpts = (ForceFields::useOpenMMSilently()
                 ? ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY : 0);
 
-  return static_cast<ForceFields::ForceField *>(constructForceField(
-    mol, mmffMolProperties, nonBondedThresh, confId,
-    ignoreInterfragInteractions, ffOpts));
+  return constructForceField(mol, mmffMolProperties, ffOpts,
+    nonBondedThresh, confId, ignoreInterfragInteractions);
 }
 
-ForceFields::ForceField *constructForceField(
-    ROMol &mol, MMFFMolProperties *mmffMolProperties, double nonBondedThresh,
-    int confId, bool ignoreInterfragInteractions, int ffOpts) {
+OpenMMForceField *constructForceField(ROMol &mol,
+  MMFFMolProperties *mmffMolProperties, int ffOpts,
+  double nonBondedThresh, int confId, bool ignoreInterfragInteractions) {
   PRECONDITION(mmffMolProperties, "bad MMFFMolProperties");
   PRECONDITION(mmffMolProperties->isValid(),
                "missing atom types - invalid force-field");
@@ -1127,21 +1136,55 @@ ForceFields::ForceField *constructForceField(
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-ForceFields::OpenMMForceField *constructForceFieldOpenMM(
-    ROMol &mol, double nonBondedThresh,
-    int confId, bool ignoreInterfragInteractions) {
+void OpenMMForceField::addBondStretchContrib(unsigned int idx1,
+  unsigned int idx2, const MMFFBond *mmffBondParams) {
+}
+
+void OpenMMForceField::addAngleBendContrib(unsigned int idx1,
+  unsigned int idx2, unsigned int idx3, const MMFFAngle *mmffAngleParams,
+  const MMFFProp *mmffPropParamsCentralAtom) {
+}
+
+void OpenMMForceField::addStretchBendContrib(unsigned int idx1,
+  unsigned int idx2, unsigned int idx3, const MMFFStbn *mmffStbnParams,
+  const MMFFAngle *mmffAngleParams, const MMFFBond *mmffBondParams1,
+  const MMFFBond *mmffBondParams2) {
+}
+
+void OpenMMForceField::addTorsionAngleContrib(unsigned int idx1,
+  unsigned int idx2, unsigned int idx3, unsigned int idx4,
+  const MMFFTor *mmffTorParams) {
+}
+
+void OpenMMForceField::addOopBendContrib(unsigned int idx1,
+  unsigned int idx2, unsigned int idx3,
+  unsigned int idx4, const MMFFOop *mmffOopParams) {
+}
+
+void OpenMMForceField::addVdWContrib(unsigned int idx1,
+  unsigned int idx2, const MMFFVdWRijstarEps *mmffVdWConstants) {
+}
+
+void OpenMMForceField::addEleContrib(unsigned int idx1,
+  unsigned int idx2, double chargeTerm, boost::uint8_t dielModel,
+  bool is1_4) {
+}
+
+OpenMMForceField *constructForceFieldOpenMM(
+  ROMol &mol, double nonBondedThresh,
+  int confId, bool ignoreInterfragInteractions) {
   MMFFMolProperties mmffMolProperties(mol);
 
-  return constructForceFieldOpenMM(mol, &mmffMolProperties,
+  return constructForceField(mol, &mmffMolProperties, ForceFields::USE_OPENMM,
     nonBondedThresh, confId, ignoreInterfragInteractions);
 }
 
-ForceFields::OpenMMForceField *constructForceFieldOpenMM(
-    ROMol &mol, MMFFMolProperties *mmffMolProperties, double nonBondedThresh,
-    int confId, bool ignoreInterfragInteractions) {
+OpenMMForceField *constructForceFieldOpenMM(
+  ROMol &mol, MMFFMolProperties *mmffMolProperties, double nonBondedThresh,
+  int confId, bool ignoreInterfragInteractions) {
 
-  return constructForceField(mol, mmffMolProperties, nonBondedThresh,
-    confId, ignoreInterfragInteractions, ForceFields::USE_OPENMM));
+  return constructForceField(mol, mmffMolProperties, ForceFields::USE_OPENMM,
+    nonBondedThresh, confId, ignoreInterfragInteractions);
 }
 #endif
 

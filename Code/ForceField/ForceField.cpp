@@ -69,51 +69,10 @@ class calcGradient {
 }
 
 namespace ForceFields {
-/*
-void OpenMMForceField::addBondStretchContrib(
-                       unsigned int idx1, unsigned int idx2,
-                       const MMFFBond *mmffBondParams) {
-}
-
-void OpenMMForceField::addAngleBendContrib(
-                       unsigned int idx1, unsigned int idx2,
-                       unsigned int idx3, const MMFFAngle *mmffAngleParams,
-                       const MMFFProp *mmffPropParamsCentralAtom) {
-}
-
-void OpenMMForceField::addStretchBendContrib(
-                       unsigned int idx1, unsigned int idx2,
-                       unsigned int idx3, const MMFFStbn *mmffStbnParams,
-                       const MMFFAngle *mmffAngleParams,
-                       const MMFFBond *mmffBondParams1,
-                       const MMFFBond *mmffBondParams2) {
-}
-
-void OpenMMForceField::addTorsionAngleContrib(
-                       unsigned int idx1, unsigned int idx2,
-                       unsigned int idx3, unsigned int idx4,
-                       const MMFFTor *mmffTorParams) {
-}
-
-void OpenMMForceField::addOopBendContrib(
-                       unsigned int idx1, unsigned int idx2, unsigned int idx3,
-                       unsigned int idx4, const MMFFOop *mmffOopParams) {
-}
-
-void OpenMMForceField::addVdWContrib(
-                       unsigned int idx1, unsigned int idx2,
-                       const MMFFVdWRijstarEps *mmffVdWConstants) {
-}
-
-void OpenMMForceField::addEleContrib(
-                       unsigned int idx1, unsigned int idx2,
-                       double chargeTerm, boost::uint8_t dielModel, bool is1_4) {
-}
-*/
 bool useOpenMMSilently() {
   bool res = false;
 #if (defined RDK_ALLOW_USE_OPENMM_SILENTLY) && (defined RDK_BUILD_WITH_OPENMM)
-  const char *rdkUseOpenMMSilently = getenv("USE_OPENMM_SILENTLY");
+  const char *rdkUseOpenMMSilently = getenv("RDK_USE_OPENMM_SILENTLY");
   res = (rdkUseOpenMMSilently && (tolower(rdkUseOpenMMSilently[0]) != 'n'));
 #endif
   return res;
@@ -384,4 +343,55 @@ void ForceField::initDistanceMatrix() {
     dp_distMat[i] = -1.0;
   }
 }
+
+#ifdef RDK_BUILD_WITH_OPENMM
+OpenMMForceField::OpenMMForceField(unsigned int dimension) :
+  ForceField::ForceField(dimension),
+  d_openmmSystem(NULL),
+  d_openmmIntegrator(NULL),
+  d_openmmContext(NULL) {
+}
+
+OpenMMForceField::~OpenMMForceField() {
+}
+
+OpenMMForceField::OpenMMForceField(const OpenMMForceField &other) :
+  ForceField::ForceField(other) {
+}
+
+void OpenMMForceField::initialize() {
+  ForceField::initialize();
+}
+
+double OpenMMForceField::calcEnergy(std::vector<double> *pos) const {
+  std::cerr << "OpenMMForceField::calcEnergy(std::vector<double> *pos) const" << std::endl;
+  return ForceField::calcEnergy(pos);
+}
+
+double OpenMMForceField::calcEnergy(double *pos) {
+  std::cerr << "OpenMMForceField::calcEnergy(double *pos)" << std::endl;
+  return ForceField::calcEnergy(pos);
+}
+
+void OpenMMForceField::calcGrad(double *forces) const {
+  ForceField::calcGrad(forces);
+}
+
+void OpenMMForceField::calcGrad(double *pos, double *forces) {
+  ForceField::calcGrad(pos, forces);
+}
+
+int OpenMMForceField::minimize(unsigned int snapshotFreq,
+  RDKit::SnapshotVect *snapshotVect,
+  unsigned int maxIts, double forceTol, double energyTol) {
+  return ForceField::minimize(snapshotFreq, snapshotVect, maxIts,
+    forceTol, energyTol);
+}
+
+int OpenMMForceField::minimize(unsigned int maxIts,
+  double forceTol, double energyTol) {
+  return ForceField::minimize(maxIts, forceTol, energyTol);
+}
+#endif
+
 }

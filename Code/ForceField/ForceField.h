@@ -16,6 +16,12 @@
 #include <Geometry/point.h>
 #include <GraphMol/Trajectory/Snapshot.h>
 
+namespace OpenMM {
+class System;
+class Integrator;
+class Context;
+}
+
 namespace ForceFields {
 
 enum ForceFieldOptions {
@@ -370,9 +376,9 @@ class OpenMMForceField : public ForceField {
                  double energyTol = 1e-6);
 
   protected:
-    OpenMM::System *openmmSystem;
-    OpenMM::Integrator *openmmIntegrator;
-    OpenMM::Context *openmmContext;
+    OpenMM::System *d_openmmSystem;
+    OpenMM::Integrator *d_openmmIntegrator;
+    OpenMM::Context *d_openmmContext;
 };
 #else
 typedef ForceField OpenMMForceField;
