@@ -1036,14 +1036,12 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
 //
 //
 // ------------------------------------------------------------------------
-OpenMMForceField *constructForceField(ROMol &mol,
+ForceFields::ForceField *constructForceField(ROMol &mol,
   double nonBondedThresh, int confId, bool ignoreInterfragInteractions) {
   MMFFMolProperties mmffMolProperties(mol);
-  OpenMMForceField *res =
-      constructForceField(mol, &mmffMolProperties, nonBondedThresh, confId,
-                          ignoreInterfragInteractions);
-
-  return res;
+  
+  return constructForceField(mol, &mmffMolProperties, 0,
+      nonBondedThresh, confId, ignoreInterfragInteractions);
 }
 
 // ------------------------------------------------------------------------
@@ -1051,24 +1049,27 @@ OpenMMForceField *constructForceField(ROMol &mol,
 //
 //
 // ------------------------------------------------------------------------
-OpenMMForceField *constructForceField(ROMol &mol,
+ForceFields::ForceField *constructForceField(ROMol &mol,
   MMFFMolProperties *mmffMolProperties, double nonBondedThresh,
   int confId, bool ignoreInterfragInteractions) {
-  int ffOpts = (ForceFields::useOpenMMSilently()
-                ? ForceFields::USE_OPENMM | ForceFields::USE_OPENMM_SILENTLY : 0);
 
-  return constructForceField(mol, mmffMolProperties, ffOpts,
-    nonBondedThresh, confId, ignoreInterfragInteractions);
+  return constructForceField(mol, mmffMolProperties, 0,
+      nonBondedThresh, confId, ignoreInterfragInteractions);
 }
 
-OpenMMForceField *constructForceField(ROMol &mol,
+ForceFields::ForceField *constructForceField(ROMol &mol,
   MMFFMolProperties *mmffMolProperties, int ffOpts,
   double nonBondedThresh, int confId, bool ignoreInterfragInteractions) {
   PRECONDITION(mmffMolProperties, "bad MMFFMolProperties");
   PRECONDITION(mmffMolProperties->isValid(),
                "missing atom types - invalid force-field");
 
-  OpenMMForceField *ff = new OpenMMForceField();
+#ifndef RDK_BUILD_WITH_OPENMM
+  ForceFields::ForceField *ff = ((ffOpts & ForceFields::USE_OPENMM)
+      ? new OpenMMForceField() : new ForceFields::ForceField();
+#else
+  ForceFields::ForceField *ff = new ForceFields::ForceField();
+#endif
   RDKit::MMFF::Tools::checkFFPreconditions(ff, mmffMolProperties, ffOpts);
   // add the atomic positions:
   Conformer &conf = mol.getConformer(confId);
@@ -1143,21 +1144,25 @@ void OpenMMForceField::addEleContrib(unsigned int idx1,
   bool is1_4) {
 }
 
-OpenMMForceField *constructForceFieldOpenMM(
+OpenMMForceField *constructOpenMMForceField(
   ROMol &mol, double nonBondedThresh,
   int confId, bool ignoreInterfragInteractions) {
   MMFFMolProperties mmffMolProperties(mol);
 
-  return constructForceField(mol, &mmffMolProperties, ForceFields::USE_OPENMM,
-    nonBondedThresh, confId, ignoreInterfragInteractions);
+  return constructOpenMMForceField(mol, &mmffMolProperties,
+    nonBondedThresh, confId, ignoreInterfragInteractions));
 }
 
-OpenMMForceField *constructForceFieldOpenMM(
+OpenMMForceField *constructOpenMMForceField(
   ROMol &mol, MMFFMolProperties *mmffMolProperties, double nonBondedThresh,
   int confId, bool ignoreInterfragInteractions) {
 
-  return constructForceField(mol, mmffMolProperties, ForceFields::USE_OPENMM,
-    nonBondedThresh, confId, ignoreInterfragInteractions);
+  OpenMMForceField *field = static_cast<OpenMMForceField *>(
+    constructForceField(mol, mmffMolProperties, ForceFields::USE_OPENMM,
+    nonBondedThresh, confId, ignoreInterfragInteractions));
+  
+  
+  return field;
 }
 #endif
 

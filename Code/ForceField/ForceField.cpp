@@ -69,14 +69,6 @@ class calcGradient {
 }
 
 namespace ForceFields {
-bool useOpenMMSilently() {
-  bool res = false;
-#if (defined RDK_ALLOW_USE_OPENMM_SILENTLY) && (defined RDK_BUILD_WITH_OPENMM)
-  const char *rdkUseOpenMMSilently = getenv("RDK_USE_OPENMM_SILENTLY");
-  res = (rdkUseOpenMMSilently && (tolower(rdkUseOpenMMSilently[0]) != 'n'));
-#endif
-  return res;
-}
 
 ForceField::~ForceField() {
   d_numPoints = 0;
@@ -364,12 +356,10 @@ void OpenMMForceField::initialize() {
 }
 
 double OpenMMForceField::calcEnergy(std::vector<double> *pos) const {
-  std::cerr << "OpenMMForceField::calcEnergy(std::vector<double> *pos) const" << std::endl;
   return ForceField::calcEnergy(pos);
 }
 
 double OpenMMForceField::calcEnergy(double *pos) {
-  std::cerr << "OpenMMForceField::calcEnergy(double *pos)" << std::endl;
   return ForceField::calcEnergy(pos);
 }
 

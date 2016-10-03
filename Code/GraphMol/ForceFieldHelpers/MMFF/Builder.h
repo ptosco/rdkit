@@ -84,7 +84,7 @@ class MMFFMolProperties;
 
   \return the new force field. The client is responsible for free'ing this.
 */
-OpenMMForceField *constructForceField(
+ForceFields::ForceField *constructForceField(
     ROMol &mol, double nonBondedThresh = 100.0, int confId = -1,
     bool ignoreInterfragInteractions = true);
 
@@ -107,22 +107,22 @@ OpenMMForceField *constructForceField(
 
   \return the new force field. The client is responsible for free'ing this.
 */
-OpenMMForceField *constructForceField(
+ForceFields::ForceField *constructForceField(
   ROMol &mol, MMFFMolProperties *mmffMolProperties,
   double nonBondedThresh = 100.0, int confId = -1,
   bool ignoreInterfragInteractions = true);
 
-OpenMMForceField *constructForceField(
+ForceFields::ForceField *constructForceField(
   ROMol &mol, MMFFMolProperties *mmffMolProperties,
   int ffOpts, double nonBondedThresh = 100.0, int confId = -1,
   bool ignoreInterfragInteractions = true);
 
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMMForceField *constructForceFieldOpenMM(ROMol &mol,
+OpenMMForceField *constructOpenMMForceField(ROMol &mol,
   double nonBondedThresh = 100.0,
   int confId = -1, bool ignoreInterfragInteractions = true);
 
-OpenMMForceField *constructForceFieldOpenMM(ROMol &mol,
+OpenMMForceField *constructOpenMMForceField(ROMol &mol,
   MMFFMolProperties *mmffMolProperties, double nonBondedThresh = 100.0,
   int confId = -1, bool ignoreInterfragInteractions = true);
 #endif

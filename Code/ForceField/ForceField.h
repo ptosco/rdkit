@@ -26,8 +26,7 @@ namespace ForceFields {
 
 enum ForceFieldOptions {
     USE_RDK = 0,
-    USE_OPENMM = (1 << 0),
-    USE_OPENMM_SILENTLY = (1 << 1)
+    USE_OPENMM = (1 << 0)
 };
 
 class ForceFieldContrib;
@@ -383,6 +382,5 @@ class OpenMMForceField : public ForceField {
 #else
 typedef ForceField OpenMMForceField;
 #endif
-bool useOpenMMSilently();
 }
 #endif

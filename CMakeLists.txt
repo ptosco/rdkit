@@ -105,6 +105,12 @@ if(MINGW)
 endif(MINGW)
 
 if(RDK_BUILD_WITH_OPENMM)
+  find_package(OpenMM REQUIRED)
+  if (OPENMM_FOUND)
+    message(STATUS "Found OpenMM")
+  else()
+    message(FATAL_ERROR "Could not locate OpenMM")
+  endif()
   ADD_DEFINITIONS("-DRDK_BUILD_WITH_OPENMM")
 endif(RDK_BUILD_WITH_OPENMM)
 
