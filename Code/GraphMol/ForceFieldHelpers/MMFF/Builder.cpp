@@ -1066,7 +1066,7 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
 
 #ifndef RDK_BUILD_WITH_OPENMM
   ForceFields::ForceField *ff = ((ffOpts & ForceFields::USE_OPENMM)
-      ? new OpenMMForceField() : new ForceFields::ForceField();
+      ? new OpenMMForceField() : new ForceFields::ForceField());
 #else
   ForceFields::ForceField *ff = new ForceFields::ForceField();
 #endif
@@ -1150,7 +1150,7 @@ OpenMMForceField *constructOpenMMForceField(
   MMFFMolProperties mmffMolProperties(mol);
 
   return constructOpenMMForceField(mol, &mmffMolProperties,
-    nonBondedThresh, confId, ignoreInterfragInteractions));
+    nonBondedThresh, confId, ignoreInterfragInteractions);
 }
 
 OpenMMForceField *constructOpenMMForceField(
