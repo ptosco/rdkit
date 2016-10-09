@@ -1,3 +1,7 @@
+if(RDK_BUILD_WITH_OPENMM)
+include_directories(${OPENMM_INCLUDE_DIR})
+endif(RDK_BUILD_WITH_OPENMM)
+
 # moved back library build directives here
 rdkit_library(ForceFieldHelpers UFF/AtomTyper.cpp UFF/Builder.cpp
               MMFF/AtomTyper.cpp MMFF/Builder.cpp CrystalFF/TorsionAngleM6.cpp

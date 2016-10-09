@@ -19,6 +19,19 @@
 #include <boost/cstdint.hpp>
 #include <ForceField/ForceField.h>
 
+
+#ifdef RDK_BUILD_WITH_OPENMM
+namespace OpenMM {
+class CustomBondForce;
+class CustomAngleForce;
+class AmoebaStretchBendForce;
+class CustomTorsionForce;
+class AmoebaOutOfPlaneBendForce;
+class AmoebaVdwForce;
+class CustomNonbondedForce;
+}
+#endif
+
 namespace ForceFields {
 namespace MMFF {
 class MMFFBond;
@@ -38,9 +51,7 @@ namespace MMFF {
 #ifdef RDK_BUILD_WITH_OPENMM
 class OpenMMForceField : public ForceFields::OpenMMForceField {
   public:
-    OpenMMForceField() :
-      ForceFields::OpenMMForceField() {
-    };
+    OpenMMForceField(int dimension = 3);
     void addBondStretchContrib(unsigned int idx1, unsigned int idx2,
       const ForceFields::MMFF::MMFFBond *mmffBondParams);
     void addAngleBendContrib(unsigned int idx1, unsigned int idx2,
@@ -60,6 +71,14 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
       const ForceFields::MMFF::MMFFVdWRijstarEps *mmffVdWConstants);
     void addEleContrib(unsigned int idx1, unsigned int idx2,
       double chargeTerm, boost::uint8_t dielModel, bool is1_4);
+  protected:
+    OpenMM::CustomBondForce *d_bondStretchForce;
+    OpenMM::CustomAngleForce *d_angleBendForce;
+    OpenMM::AmoebaStretchBendForce *d_stretchBendForce;
+    OpenMM::CustomTorsionForce *d_torsionAngleForce;
+    OpenMM::AmoebaOutOfPlaneBendForce *d_oopBendForce;
+    OpenMM::AmoebaVdwForce *d_vdWForce;
+    OpenMM::CustomNonbondedForce *d_eleForce;
 };
 #endif
 

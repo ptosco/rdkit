@@ -17,10 +17,20 @@
 #include <ForceField/ForceField.h>
 #include <RDGeneral/Invariant.h>
 #include <RDGeneral/utils.h>
+#ifdef RDK_BUILD_WITH_OPENMM
+#include <OpenMM.h>
+#endif
 
 namespace ForceFields {
 namespace MMFF {
 namespace Utils {
+
+static const double cb = -0.006981317;
+static const double c2 = 0.5 * MDYNE_A_TO_KCAL_MOL * DEG2RAD * DEG2RAD;
+
+inline bool isLinear(const MMFFProp *mmffPropParamsCentralAtom) {
+  return (mmffPropParamsCentralAtom->linh ? true : false);
+}
 
 double calcAngleRestValue(const MMFFAngle *mmffAngleParams) {
   PRECONDITION(mmffAngleParams, "angle parameters not found");
@@ -47,14 +57,12 @@ double calcAngleForceConstant(const MMFFAngle *mmffAngleParams) {
 double calcAngleBendEnergy(const double theta0, const double ka, bool isLinear,
                            const double cosTheta) {
   double angle = RAD2DEG * acos(cosTheta) - theta0;
-  double const cb = -0.006981317;
-  double const c2 = MDYNE_A_TO_KCAL_MOL * DEG2RAD * DEG2RAD;
   double res = 0.0;
 
   if (isLinear) {
     res = MDYNE_A_TO_KCAL_MOL * ka * (1.0 + cosTheta);
   } else {
-    res = 0.5 * c2 * ka * angle * angle * (1.0 + cb * angle);
+    res = c2 * ka * angle * angle * (1.0 + cb * angle);
   }
 
   return res;
@@ -83,6 +91,27 @@ void calcAngleBendGrad(RDGeom::Point3D *r, double *dist, double **g,
   g[2][1] += dE_dTheta * dCos_dS[4] / (-sinTheta);
   g[2][2] += dE_dTheta * dCos_dS[5] / (-sinTheta);
 }
+
+#ifdef RDK_BUILD_WITH_OPENMM
+static const double c1OMM = MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
+static const double c2OMM = 0.5 * MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
+static const double cbOMM = cb * OpenMM::DegreesPerRadian;
+
+OpenMM::CustomAngleForce *getOpenMMAngleBendForce(const MMFFProp *mmffPropParamsCentralAtom) {
+  std::stringstream af;
+  // v, v0 are in radians
+  if (Utils::isLinear(mmffPropParamsCentralAtom)) {
+    af << c1OMM << "*ka*(1.0+cos(v))";
+  } else {
+    af << c2OMM << "*ka*(v-v0)^2*(1.0+" << cbOMM << "*(v-v0))";
+  }
+  OpenMM::CustomAngleForce *res = new OpenMM::CustomAngleForce(af.str());
+  res->addPerAngleParameter("ka");
+  res->addPerAngleParameter("v0");
+  
+  return res;
+}
+#endif
 }  // end of namespace Utils
 
 AngleBendContrib::AngleBendContrib(ForceField *owner, unsigned int idx1,
@@ -100,7 +129,7 @@ AngleBendContrib::AngleBendContrib(ForceField *owner, unsigned int idx1,
   d_at1Idx = idx1;
   d_at2Idx = idx2;
   d_at3Idx = idx3;
-  d_isLinear = (mmffPropParamsCentralAtom->linh ? true : false);
+  d_isLinear = Utils::isLinear(mmffPropParamsCentralAtom);
 
   d_theta0 = mmffAngleParams->theta0;
   d_ka = mmffAngleParams->ka;

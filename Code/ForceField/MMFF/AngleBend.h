@@ -15,6 +15,12 @@
 #include <ForceField/ForceField.h>
 #include <ForceField/Contrib.h>
 
+#ifdef RDK_BUILD_WITH_OPENMM
+namespace OpenMM {
+class CustomAngleForce;
+}
+#endif
+
 namespace ForceFields {
 namespace MMFF {
 class MMFFBond;
@@ -51,6 +57,8 @@ class AngleBendContrib : public ForceFieldContrib {
   double d_ka, d_theta0;
 };
 namespace Utils {
+//! returns true if the angle is linear
+inline bool isLinear(const MMFFProp *mmffPropParamsCentralAtom);
 //! returns the MMFF rest value for an angle
 double calcAngleRestValue(const MMFFAngle *mmffAngleParams);
 //! returns the MMFF force constant for an angle
@@ -63,6 +71,9 @@ double calcAngleBendEnergy(const double theta0, const double ka, bool isLinear,
                            const double cosTheta);
 void calcAngleBendGrad(RDGeom::Point3D *r, double *dist, double **g,
                        double &dE_dTheta, double &cosTheta, double &sinTheta);
+#ifdef RDK_BUILD_WITH_OPENMM
+OpenMM::CustomAngleForce *getOpenMMAngleBendForce(const MMFFProp *mmffPropParamsCentralAtom);
+#endif
 }
 }
 }

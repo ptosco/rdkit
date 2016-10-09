@@ -18,10 +18,16 @@
 #include <ForceField/ForceField.h>
 #include <RDGeneral/Invariant.h>
 #include <RDGeneral/utils.h>
+#ifdef RDK_BUILD_WITH_OPENMM
+#include <OpenMM.h>
+#include <OpenMMAmoeba.h>
+#endif
 
 namespace ForceFields {
 namespace MMFF {
 namespace Utils {
+
+static const double c1 = MDYNE_A_TO_KCAL_MOL * DEG2RAD;
 
 std::pair<double, double> calcStbnForceConstants(
     const MMFFStbn *mmffStbnParams) {
@@ -33,11 +39,17 @@ std::pair<double, double> calcStbnForceConstants(
 std::pair<double, double> calcStretchBendEnergy(
     const double deltaDist1, const double deltaDist2, const double deltaTheta,
     const std::pair<double, double> forceConstants) {
-  double factor = MDYNE_A_TO_KCAL_MOL * DEG2RAD * deltaTheta;
+  double factor = c1 * deltaTheta;
 
   return std::make_pair(factor * forceConstants.first * deltaDist1,
                         factor * forceConstants.second * deltaDist2);
 }
+
+#ifdef RDK_BUILD_WITH_OPENMM
+OpenMM::AmoebaStretchBendForce *getOpenMMStretchBendForce() {
+  return new OpenMM::AmoebaStretchBendForce();
+}
+#endif
 }  // end of namespace Utils
 
 StretchBendContrib::StretchBendContrib(

@@ -1,5 +1,11 @@
+if(RDK_BUILD_WITH_OPENMM)
+include_directories(${OPENMM_INCLUDE_DIR})
+set(OPENMMHELPERS_CPP OpenMMHelpers.cpp)
+set(OPENMMHELPERS_H OpenMMHelpers.h)
+endif(RDK_BUILD_WITH_OPENMM)
+
 rdkit_library(ForceField
-              ForceField.cpp 
+              ForceField.cpp ${OPENMMHELPERS_CPP}
               UFF/AngleBend.cpp UFF/BondStretch.cpp UFF/Nonbonded.cpp
               UFF/Inversion.cpp UFF/TorsionAngle.cpp
               UFF/DistanceConstraint.cpp UFF/AngleConstraint.cpp
@@ -12,7 +18,7 @@ rdkit_library(ForceField
               MMFF/Params.cpp
               LINK_LIBRARIES Optimizer)
 
-rdkit_headers(Contrib.h
+rdkit_headers(Contrib.h ${OPENMMHELPERS_H}
               ForceField.h DEST ForceField)
 
 rdkit_headers(UFF/AngleBend.h
@@ -43,3 +49,7 @@ rdkit_headers(MMFF/AngleBend.h
 add_subdirectory(UFF)
 add_subdirectory(MMFF)
 add_subdirectory(Wrap)
+
+if(RDK_BUILD_WITH_OPENMM)
+target_link_libraries(ForceField ${OPENMM_LIBRARIES})
+endif(RDK_BUILD_WITH_OPENMM)

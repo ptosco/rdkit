@@ -22,6 +22,11 @@
 #include <ForceField/MMFF/Contribs.h>
 #include "AtomTyper.h"
 #include "Builder.h"
+#ifdef RDK_BUILD_WITH_OPENMM
+#include <OpenMM.h>
+#include <OpenMMAmoeba.h>
+#include <openmm/Units.h>
+#endif
 
 namespace RDKit {
 namespace MMFF {
@@ -1066,7 +1071,7 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
 
 #ifndef RDK_BUILD_WITH_OPENMM
   ForceFields::ForceField *ff = ((ffOpts & ForceFields::USE_OPENMM)
-      ? new OpenMMForceField() : new ForceFields::ForceField());
+    ? new OpenMMForceField() : new ForceFields::ForceField());
 #else
   ForceFields::ForceField *ff = new ForceFields::ForceField();
 #endif
@@ -1110,19 +1115,58 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
+OpenMMForceField::OpenMMForceField(int dimension) :
+  ForceFields::OpenMMForceField(dimension),
+  d_bondStretchForce(NULL),
+  d_angleBendForce(NULL),
+  d_stretchBendForce(NULL),
+  d_torsionAngleForce(NULL),
+  d_oopBendForce(NULL),
+  d_vdWForce(NULL),
+  d_eleForce(NULL) {
+}
+
 void OpenMMForceField::addBondStretchContrib(unsigned int idx1,
   unsigned int idx2, const MMFFBond *mmffBondParams) {
+  if (!d_bondStretchForce) {
+    d_bondStretchForce = MMFF::Utils::getOpenMMBondStretchForce();
+    d_openmmSystem->addForce(d_bondStretchForce);
+  }
+  std::vector<double> params;
+  params.push_back(mmffBondParams->kb);
+  params.push_back(mmffBondParams->r0 * OpenMM::NmPerAngstrom);
+  d_bondStretchForce->addBond(idx1, idx2, params);
 }
 
 void OpenMMForceField::addAngleBendContrib(unsigned int idx1,
   unsigned int idx2, unsigned int idx3, const MMFFAngle *mmffAngleParams,
   const MMFFProp *mmffPropParamsCentralAtom) {
+  if (!d_angleBendForce) {
+    d_angleBendForce = MMFF::Utils::getOpenMMAngleBendForce(mmffPropParamsCentralAtom);
+    d_openmmSystem->addForce(d_angleBendForce);
+  }
+  std::vector<double> params;
+  params.push_back(mmffAngleParams->ka);
+  params.push_back(mmffAngleParams->theta0 * OpenMM::RadiansPerDegree);
+  d_angleBendForce->addAngle(idx1, idx2, idx3, params);
 }
 
 void OpenMMForceField::addStretchBendContrib(unsigned int idx1,
   unsigned int idx2, unsigned int idx3, const MMFFStbn *mmffStbnParams,
   const MMFFAngle *mmffAngleParams, const MMFFBond *mmffBondParams1,
   const MMFFBond *mmffBondParams2) {
+  static const double c1OMM = MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal; 
+  if (!d_stretchBendForce) {
+    d_stretchBendForce = MMFF::Utils::getOpenMMStretchBendForce();
+    d_openmmSystem->addForce(d_stretchBendForce);
+  }
+  std::pair<double, double> forceConstants =
+    MMFF::Utils::calcStbnForceConstants(mmffStbnParams);
+  d_stretchBendForce->addStretchBend(idx1, idx2, idx3,
+    mmffBondParams1->r0 * OpenMM::NmPerAngstrom,
+    mmffBondParams2->r0 * OpenMM::NmPerAngstrom,
+    mmffAngleParams->theta0 * OpenMM::RadiansPerDegree,
+    c1OMM * forceConstants.first, c1OMM * forceConstants.second);
 }
 
 void OpenMMForceField::addTorsionAngleContrib(unsigned int idx1,
@@ -1157,12 +1201,9 @@ OpenMMForceField *constructOpenMMForceField(
   ROMol &mol, MMFFMolProperties *mmffMolProperties, double nonBondedThresh,
   int confId, bool ignoreInterfragInteractions) {
 
-  OpenMMForceField *field = static_cast<OpenMMForceField *>(
+  return static_cast<OpenMMForceField *>(
     constructForceField(mol, mmffMolProperties, ForceFields::USE_OPENMM,
     nonBondedThresh, confId, ignoreInterfragInteractions));
-  
-  
-  return field;
 }
 #endif
 

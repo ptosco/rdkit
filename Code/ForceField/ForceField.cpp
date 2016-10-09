@@ -14,6 +14,10 @@
 #include <RDGeneral/Invariant.h>
 #include <Numerics/Optimizer/BFGSOpt.h>
 
+#ifdef RDK_BUILD_WITH_OPENMM
+#include <OpenMM.h>
+#endif
+
 namespace ForceFieldsHelper {
 class calcEnergy {
  public:
@@ -339,12 +343,15 @@ void ForceField::initDistanceMatrix() {
 #ifdef RDK_BUILD_WITH_OPENMM
 OpenMMForceField::OpenMMForceField(unsigned int dimension) :
   ForceField::ForceField(dimension),
-  d_openmmSystem(NULL),
+  d_openmmSystem(new OpenMM::System()),
   d_openmmIntegrator(NULL),
   d_openmmContext(NULL) {
 }
 
 OpenMMForceField::~OpenMMForceField() {
+  delete d_openmmSystem;
+  delete d_openmmIntegrator;
+  delete d_openmmContext;
 }
 
 OpenMMForceField::OpenMMForceField(const OpenMMForceField &other) :

@@ -1,3 +1,6 @@
+if(RDK_BUILD_WITH_OPENMM)
+include_directories(${OPENMM_INCLUDE_DIR})
+endif(RDK_BUILD_WITH_OPENMM)
 if(RDK_TEST_MMFF_COMPLIANCE)
   if((NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test_data/MMFF94_reference.log)
     OR (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test_data/MMFF94s_reference.log))

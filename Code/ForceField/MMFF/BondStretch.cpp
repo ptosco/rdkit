@@ -13,14 +13,23 @@
 
 #include "BondStretch.h"
 #include "Params.h"
+#include <sstream>
 #include <cmath>
 #include <ForceField/ForceField.h>
 #include <RDGeneral/Invariant.h>
 #include <RDGeneral/utils.h>
+#ifdef RDK_BUILD_WITH_OPENMM
+#include <OpenMM.h>
+#include <openmm/Units.h>
+#endif
 
 namespace ForceFields {
 namespace MMFF {
 namespace Utils {
+
+static const double c1 = 0.5 * MDYNE_A_TO_KCAL_MOL;
+static const double cs = -2.0;
+static const double c3 = 7.0 / 12.0 * cs * cs;
 
 double calcBondRestLength(const MMFFBond *mmffBondParams) {
   PRECONDITION(mmffBondParams, "bond parameters not found");
@@ -38,13 +47,28 @@ double calcBondStretchEnergy(const double r0, const double kb,
                              const double distance) {
   double distTerm = distance - r0;
   double distTerm2 = distTerm * distTerm;
-  double const c1 = MDYNE_A_TO_KCAL_MOL;
-  double const cs = -2.0;
-  double const c3 = 7.0 / 12.0;
 
-  return (0.5 * c1 * kb * distTerm2 *
-          (1.0 + cs * distTerm + c3 * cs * cs * distTerm2));
+  return (c1 * kb * distTerm2 *
+         (1.0 + cs * distTerm + c3 * distTerm2));
 }
+
+#ifdef RDK_BUILD_WITH_OPENMM
+static const double c1OMM = c1 * OpenMM::KJPerKcal
+  * OpenMM::AngstromsPerNm * OpenMM::AngstromsPerNm;
+static const double csOMM = cs * OpenMM::AngstromsPerNm;
+static const double c3OMM = c3 * OpenMM::AngstromsPerNm * OpenMM::AngstromsPerNm;
+
+OpenMM::CustomBondForce *getOpenMMBondStretchForce() {
+  std::stringstream bf;
+  bf << c1OMM << "*kb*(r-r0)^2*(1.0+"
+     << csOMM << "*(r-r0)+" << c3OMM << "*(r-r0)^2)";
+  OpenMM::CustomBondForce *res = new OpenMM::CustomBondForce(bf.str());
+  res->addPerBondParameter("kb");
+  res->addPerBondParameter("r0");
+  
+  return res;
+}
+#endif
 }  // end of namespace Utils
 
 BondStretchContrib::BondStretchContrib(ForceField *owner,

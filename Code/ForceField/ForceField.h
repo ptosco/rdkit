@@ -285,6 +285,10 @@ class OpenMMForceField : public ForceField {
 
     //! copy ctor, copies contribs.
     OpenMMForceField(const OpenMMForceField &other);
+  
+    const OpenMM::System *system() {
+      return d_openmmSystem;
+    }
 
     //! does initialization
     void initialize();

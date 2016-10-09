@@ -13,6 +13,12 @@
 #define __RD_MMFFBONDSTRETCH_H__
 #include <ForceField/Contrib.h>
 
+#ifdef RDK_BUILD_WITH_OPENMM
+namespace OpenMM {
+class CustomBondForce;
+}
+#endif
+
 namespace ForceFields {
 namespace MMFF {
 class MMFFBond;
@@ -57,6 +63,9 @@ double calcBondForceConstant(const MMFFBond *mmffBondParams);
 //! calculates and returns the bond stretching MMFF energy
 double calcBondStretchEnergy(const double r0, const double kb,
                              const double distance);
+#ifdef RDK_BUILD_WITH_OPENMM
+OpenMM::CustomBondForce *getOpenMMBondStretchForce();
+#endif
 }
 }
 }
