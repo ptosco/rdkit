@@ -1172,6 +1172,15 @@ void OpenMMForceField::addStretchBendContrib(unsigned int idx1,
 void OpenMMForceField::addTorsionAngleContrib(unsigned int idx1,
   unsigned int idx2, unsigned int idx3, unsigned int idx4,
   const MMFFTor *mmffTorParams) {
+  if (!d_torsionAngleForce) {
+    d_torsionAngleForce = MMFF::Utils::getOpenMMTorsionAngleForce();
+    d_openmmSystem->addForce(d_torsionAngleForce);
+  }
+  std::vector<double> params;
+  params.push_back(mmffTorParams->V1 * OpenMM::RadiansPerDegree);
+  params.push_back(mmffTorParams->V2 * OpenMM::RadiansPerDegree);
+  params.push_back(mmffTorParams->V3 * OpenMM::RadiansPerDegree);
+  d_torsionAngleForce->addTorsion(idx1, idx2, idx3, idx4, params);
 }
 
 void OpenMMForceField::addOopBendContrib(unsigned int idx1,

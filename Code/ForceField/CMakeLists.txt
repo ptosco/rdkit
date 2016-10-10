@@ -1,7 +1,7 @@
 if(RDK_BUILD_WITH_OPENMM)
 include_directories(${OPENMM_INCLUDE_DIR})
-set(OPENMMHELPERS_CPP OpenMMHelpers.cpp)
-set(OPENMMHELPERS_H OpenMMHelpers.h)
+#set(OPENMMHELPERS_CPP OpenMMHelpers.cpp)
+#set(OPENMMHELPERS_H OpenMMHelpers.h)
 endif(RDK_BUILD_WITH_OPENMM)
 
 rdkit_library(ForceField

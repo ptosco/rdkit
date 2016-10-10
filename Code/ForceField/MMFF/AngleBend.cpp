@@ -99,11 +99,11 @@ static const double cbOMM = cb * OpenMM::DegreesPerRadian;
 
 OpenMM::CustomAngleForce *getOpenMMAngleBendForce(const MMFFProp *mmffPropParamsCentralAtom) {
   std::stringstream af;
-  // v, v0 are in radians
+  // theta, v0 are in radians
   if (Utils::isLinear(mmffPropParamsCentralAtom)) {
-    af << c1OMM << "*ka*(1.0+cos(v))";
+    af << c1OMM << "*ka*(1.0+cos(theta))";
   } else {
-    af << c2OMM << "*ka*(v-v0)^2*(1.0+" << cbOMM << "*(v-v0))";
+    af << c2OMM << "*ka*(theta-v0)^2*(1.0+" << cbOMM << "*(theta-v0))";
   }
   OpenMM::CustomAngleForce *res = new OpenMM::CustomAngleForce(af.str());
   res->addPerAngleParameter("ka");

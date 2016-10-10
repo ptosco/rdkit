@@ -15,6 +15,9 @@
 #include <cmath>
 #include <ForceField/ForceField.h>
 #include <RDGeneral/Invariant.h>
+#ifdef RDK_BUILD_WITH_OPENMM
+#include <OpenMM.h>
+#endif
 
 namespace ForceFields {
 namespace MMFF {
@@ -89,7 +92,23 @@ void calcTorsionGrad(RDGeom::Point3D *r, RDGeom::Point3D *t, double *d,
   g[3][1] += sinTerm * (dCos_dT[5] * r[2].x - dCos_dT[3] * r[2].z);
   g[3][2] += sinTerm * (dCos_dT[3] * r[2].y - dCos_dT[4] * r[2].x);
 }
+
+#ifdef RDK_BUILD_WITH_OPENMM
+static const double c1OMM = 0.5 * OpenMM::KJPerKcal;
+
+OpenMM::CustomTorsionForce *getOpenMMTorsionAngleForce() {
+  std::stringstream tf;
+  // V1, V2, V3, theta are in radians
+  tf << c1OMM << "*(V1*(1.0+cos(theta))+V2*(1.0-cos(2.0*theta))+V3*(1.0+cos(3.0*theta)))";
+  OpenMM::CustomTorsionForce *res = new OpenMM::CustomTorsionForce(tf.str());
+  res->addPerTorsionParameter("V1");
+  res->addPerTorsionParameter("V2");
+  res->addPerTorsionParameter("V3");
+  
+  return res;
 }
+#endif
+}  // end of namespace Utils
 
 TorsionAngleContrib::TorsionAngleContrib(ForceField *owner, unsigned int idx1,
                                          unsigned int idx2, unsigned int idx3,
