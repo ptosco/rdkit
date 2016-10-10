@@ -15,6 +15,10 @@
 #include <cmath>
 #include <ForceField/ForceField.h>
 #include <RDGeneral/Invariant.h>
+#ifdef RDK_BUILD_WITH_OPENMM
+#include <OpenMM.h>
+#include <OpenMMAmoeba.h>
+#endif
 
 namespace ForceFields {
 namespace MMFF {
@@ -44,9 +48,15 @@ double calcOopBendForceConstant(const MMFFOop *mmffOopParams) {
 }
 
 double calcOopBendEnergy(const double chi, const double koop) {
-  double const c2 = MDYNE_A_TO_KCAL_MOL * DEG2RAD * DEG2RAD;
-  return (0.5 * c2 * koop * chi * chi);
+  static const double c2 = 0.5 * MDYNE_A_TO_KCAL_MOL * DEG2RAD * DEG2RAD;
+  return (c2 * koop * chi * chi);
 }
+
+#ifdef RDK_BUILD_WITH_OPENMM
+OpenMM::AmoebaOutOfPlaneBendForce *getOpenMMOopBendForce() {
+  return new OpenMM::AmoebaOutOfPlaneBendForce();
+}
+#endif
 }  // end of namespace Utils
 
 OopBendContrib::OopBendContrib(ForceField *owner, unsigned int idx1,

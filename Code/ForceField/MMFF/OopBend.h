@@ -15,6 +15,12 @@
 #include <ForceField/Contrib.h>
 #include <Geometry/point.h>
 
+#ifdef RDK_BUILD_WITH_OPENMM
+namespace OpenMM {
+class AmoebaOutOfPlaneBendForce;
+}
+#endif
+
 namespace ForceFields {
 namespace MMFF {
 class MMFFOop;
@@ -54,6 +60,9 @@ double calcOopChi(const RDGeom::Point3D &iPoint, const RDGeom::Point3D &jPoint,
 double calcOopBendForceConstant(const MMFFOop *mmffOopParams);
 //! calculates and returns the out-of-plane MMFF energy
 double calcOopBendEnergy(const double chi, const double koop);
+#ifdef RDK_BUILD_WITH_OPENMM
+OpenMM::AmoebaOutOfPlaneBendForce *getOpenMMOopBendForce();
+#endif
 }
 }
 }

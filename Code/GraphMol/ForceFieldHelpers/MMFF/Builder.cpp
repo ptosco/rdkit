@@ -1186,6 +1186,17 @@ void OpenMMForceField::addTorsionAngleContrib(unsigned int idx1,
 void OpenMMForceField::addOopBendContrib(unsigned int idx1,
   unsigned int idx2, unsigned int idx3,
   unsigned int idx4, const MMFFOop *mmffOopParams) {
+  static const double c2OMM = 0.5 * MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
+  if (!d_oopBendForce) {
+    d_oopBendForce = MMFF::Utils::getOpenMMOopBendForce();
+    d_oopBendForce->setAmoebaGlobalOutOfPlaneBendCubic(0.0);
+    d_oopBendForce->setAmoebaGlobalOutOfPlaneBendQuartic(0.0);
+    d_oopBendForce->setAmoebaGlobalOutOfPlaneBendPentic(0.0);
+    d_oopBendForce->setAmoebaGlobalOutOfPlaneBendSextic(0.0);
+    d_openmmSystem->addForce(d_oopBendForce);
+  }
+  d_oopBendForce->addOutOfPlaneBend(idx1, idx2, idx3, idx4,
+    mmffOopParams->koop);
 }
 
 void OpenMMForceField::addVdWContrib(unsigned int idx1,

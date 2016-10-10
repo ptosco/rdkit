@@ -27,8 +27,6 @@ namespace ForceFields {
 namespace MMFF {
 namespace Utils {
 
-static const double c1 = MDYNE_A_TO_KCAL_MOL * DEG2RAD;
-
 std::pair<double, double> calcStbnForceConstants(
     const MMFFStbn *mmffStbnParams) {
   PRECONDITION(mmffStbnParams, "stretch-bend parameters not found");
@@ -37,8 +35,9 @@ std::pair<double, double> calcStbnForceConstants(
 }
 
 std::pair<double, double> calcStretchBendEnergy(
-    const double deltaDist1, const double deltaDist2, const double deltaTheta,
-    const std::pair<double, double> forceConstants) {
+  const double deltaDist1, const double deltaDist2, const double deltaTheta,
+  const std::pair<double, double> forceConstants) {
+  static const double c1 = MDYNE_A_TO_KCAL_MOL * DEG2RAD;
   double factor = c1 * deltaTheta;
 
   return std::make_pair(factor * forceConstants.first * deltaDist1,
