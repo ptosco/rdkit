@@ -15,6 +15,12 @@
 #include <GraphMol/RDKitBase.h>
 #include <GraphMol/ForceFieldHelpers/MMFF/AtomTyper.h>
 
+#ifdef RDK_BUILD_WITH_OPENMM
+namespace OpenMM {
+class AmoebaVdwForce;
+}
+#endif
+
 namespace ForceFields {
 namespace MMFF {
 class MMFFVdWCollection;
@@ -92,6 +98,9 @@ double calcVdWEnergy(const double dist, const double R_star_ij,
 //! calculates and returns the electrostatic MMFF energy
 double calcEleEnergy(unsigned int idx1, unsigned int idx2, double dist,
                      double chargeTerm, boost::uint8_t dielModel, bool is1_4);
+#ifdef RDK_BUILD_WITH_OPENMM
+OpenMM::AmoebaVdwForce *getOpenMMVdWForce();
+#endif
 }
 }
 }

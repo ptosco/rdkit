@@ -90,6 +90,12 @@ double calcEleEnergy(unsigned int idx1, unsigned int idx2, double dist,
   }
   return (diel * chargeTerm / corr_dist * (is1_4 ? sc1_4 : 1.0));
 }
+
+#ifdef RDK_BUILD_WITH_OPENMM
+OpenMM::AmoebaVdwForce *getOpenMMVdWForce() {
+  return new OpenMM::AmoebaVdwForce();
+}
+#endif
 }  // end of namespace utils
 
 VdWContrib::VdWContrib(ForceField *owner, unsigned int idx1, unsigned int idx2,
