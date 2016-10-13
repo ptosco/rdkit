@@ -17,6 +17,10 @@
 #include <RDGeneral/Invariant.h>
 #include <RDGeneral/utils.h>
 #include <GraphMol/ForceFieldHelpers/MMFF/AtomTyper.h>
+#ifdef RDK_BUILD_WITH_OPENMM
+#include <OpenMM.h>
+#include <OpenMMAmoeba.h>
+#endif
 
 namespace ForceFields {
 namespace MMFF {

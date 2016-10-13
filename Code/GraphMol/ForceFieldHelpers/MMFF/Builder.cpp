@@ -1203,14 +1203,8 @@ void OpenMMForceField::addVdWContrib(unsigned int idx1,
   unsigned int idx2, const MMFFVdWRijstarEps *mmffVdWConstants) {
   if (!d_vdWForce) {
     d_vdWForce = MMFF::Utils::getOpenMMVdWForce();
-    d_vdWForce->setAmoebaGlobalOutOfPlaneBendCubic(0.0);
-    d_vdWForce->setAmoebaGlobalOutOfPlaneBendQuartic(0.0);
-    d_vdWForce->setAmoebaGlobalOutOfPlaneBendPentic(0.0);
-    d_vdWForce->setAmoebaGlobalOutOfPlaneBendSextic(0.0);
     d_openmmSystem->addForce(d_vdWForce);
   }
-  d_vdWForce->addOutOfPlaneBend(idx1, idx2, idx3, idx4,
-    mmffOopParams->koop);
 }
 
 void OpenMMForceField::addEleContrib(unsigned int idx1,
