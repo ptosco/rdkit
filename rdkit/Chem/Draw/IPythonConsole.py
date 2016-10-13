@@ -192,12 +192,11 @@ _MolsToGridImageSaved = None
 def ShowMols(mols, **kwargs):
   global _MolsToGridImageSaved
   if 'useSVG' not in kwargs:
-    # use SVG by default
-    kwargs['useSVG'] = True
+    kwargs['useSVG'] = ipython_useSVG
   if _MolsToGridImageSaved is not None:
     fn = _MolsToGridImageSaved
   else:
-    fm = Draw.MolsToGridImage
+    fn = Draw.MolsToGridImage
   res = fn(mols, **kwargs)
   if kwargs['useSVG']:
     return SVG(res)
