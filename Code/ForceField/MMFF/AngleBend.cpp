@@ -93,11 +93,10 @@ void calcAngleBendGrad(RDGeom::Point3D *r, double *dist, double **g,
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-static const double c1OMM = MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
-static const double c2OMM = 0.5 * MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
-static const double cbOMM = cb * OpenMM::DegreesPerRadian;
-
 OpenMM::CustomAngleForce *getOpenMMAngleBendForce(const MMFFProp *mmffPropParamsCentralAtom) {
+  static const double c1OMM = MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
+  static const double c2OMM = 0.5 * MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
+  static const double cbOMM = cb * OpenMM::DegreesPerRadian;
   std::stringstream af;
   // theta, v0 are in radians
   if (Utils::isLinear(mmffPropParamsCentralAtom)) {

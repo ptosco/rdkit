@@ -880,32 +880,40 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
     }
   }
   const Conformer &conf = mol.getConformer(confId);
+#ifdef RDK_BUILD_WITH_OPENMM
+  MMFFVdWCollection *mmffVdW = MMFFVdWCollection::getMMFFVdW();
+#endif
   for (unsigned int i = 0; i < nAtoms; ++i) {
+#ifdef RDK_BUILD_WITH_OPENMM
+    std::vector<int> excl;
+#endif
     for (unsigned int j = i + 1; j < nAtoms; ++j) {
       if (ignoreInterfragInteractions && (fragMapping[i] != fragMapping[j])) {
-        continue;
+        if (!ommForceField) {
+          continue;
+        }
+#ifdef RDK_BUILD_WITH_OPENMM
+        else {
+          excl.push_back(j);
+        }
+#endif
       }
       if (getTwoBitCell(neighborMatrix, i * nAtoms + j) >= RELATION_1_4) {
         double dist = (conf.getAtomPos(i) - conf.getAtomPos(j)).length();
         if (dist > nonBondedThresh) {
           continue;
         }
-        MMFFVdWRijstarEps mmffVdWParams;
-        if (mmffMolProperties->getMMFFVdWParams(i, j, mmffVdWParams)) {
+        MMFFVdWRijstarEps mmffVdWConstants;
+        if (mmffMolProperties->getMMFFVdWParams(i, j, mmffVdWConstants)) {
           if (!ommForceField) {
-            VdWContrib *contrib = new VdWContrib(field, i, j, &mmffVdWParams);
+            VdWContrib *contrib = new VdWContrib(field, i, j, &mmffVdWConstants);
             field->contribs().push_back(ForceFields::ContribPtr(contrib));
           }
-#ifdef RDK_BUILD_WITH_OPENMM
-          else {
-            ommForceField->addVdWContrib(i, j, &mmffVdWParams);
-          }
-#endif
           if (mmffMolProperties->getMMFFVerbosity()) {
             const Atom *iAtom = mol.getAtomWithIdx(i);
             const Atom *jAtom = mol.getAtomWithIdx(j);
             const double vdWEnergy = MMFF::Utils::calcVdWEnergy(
-                dist, mmffVdWParams.R_ij_star, mmffVdWParams.epsilon);
+                dist, mmffVdWConstants.R_ij_star, mmffVdWConstants.epsilon);
             if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
               unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(i);
               unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(j);
@@ -915,14 +923,27 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
                       << std::right << std::setw(5) << iAtomType << std::setw(5)
                       << jAtomType << "  " << std::fixed << std::setprecision(3)
                       << std::setw(9) << dist << std::setw(10) << vdWEnergy
-                      << std::setw(9) << mmffVdWParams.R_ij_star << std::setw(9)
-                      << mmffVdWParams.epsilon << std::endl;
+                      << std::setw(9) << mmffVdWConstants.R_ij_star << std::setw(9)
+                      << mmffVdWConstants.epsilon << std::endl;
             }
             totalVdWEnergy += vdWEnergy;
           }
         }
       }
+#ifdef RDK_BUILD_WITH_OPENMM
+      else {
+        excl.push_back(j);
+      }
+#endif
     }
+#ifdef RDK_BUILD_WITH_OPENMM
+    if (ommForceField) {
+      const unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(i);
+      const MMFFVdW *mmffVdWParams = (*mmffVdW)(iAtomType);
+      if (mmffVdWParams)
+        ommForceField->addVdWContrib(i, mmffVdWParams, excl);
+    }
+#endif
   }
   if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
@@ -1199,12 +1220,19 @@ void OpenMMForceField::addOopBendContrib(unsigned int idx1,
     mmffOopParams->koop);
 }
 
-void OpenMMForceField::addVdWContrib(unsigned int idx1,
-  unsigned int idx2, const MMFFVdWRijstarEps *mmffVdWConstants) {
+void OpenMMForceField::addVdWContrib(unsigned int idx,
+  const MMFFVdW *mmffVdWParams, std::vector<int> &exclusions) {
   if (!d_vdWForce) {
     d_vdWForce = MMFF::Utils::getOpenMMVdWForce();
+    d_vdWForce->setSigmaCombiningRule("MMFF");
+    d_vdWForce->setEpsilonCombiningRule("MMFF");
     d_openmmSystem->addForce(d_vdWForce);
   }
+  d_vdWForce->addParticle(idx, ((mmffVdWParams->DA == 'D')
+    ? -mmffVdWParams->R_star : mmffVdWParams->R_star) * OpenMM::NmPerAngstrom,
+    mmffVdWParams->alpha_i / mmffVdWParams->N_i,
+    mmffVdWParams->G_i * mmffVdWParams->alpha_i);
+  d_vdWForce->setParticleExclusions(idx, exclusions);
 }
 
 void OpenMMForceField::addEleContrib(unsigned int idx1,

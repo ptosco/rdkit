@@ -67,8 +67,8 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
       const ForceFields::MMFF::MMFFTor *mmffTorParams);
     void addOopBendContrib(unsigned int idx1, unsigned int idx2, unsigned int idx3,
       unsigned int idx4, const ForceFields::MMFF::MMFFOop *mmffOopParams);
-    void addVdWContrib(unsigned int idx1, unsigned int idx2,
-      const ForceFields::MMFF::MMFFVdWRijstarEps *mmffVdWConstants);
+    void addVdWContrib(unsigned int idx,
+      const ForceFields::MMFF::MMFFVdW *mmffVdWParams, std::vector<int> &exclusions);
     void addEleContrib(unsigned int idx1, unsigned int idx2,
       double chargeTerm, boost::uint8_t dielModel, bool is1_4);
   protected:
