@@ -889,14 +889,12 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
 #endif
     for (unsigned int j = i + 1; j < nAtoms; ++j) {
       if (ignoreInterfragInteractions && (fragMapping[i] != fragMapping[j])) {
-        if (!ommForceField) {
-          continue;
-        }
 #ifdef RDK_BUILD_WITH_OPENMM
-        else {
+        if (ommForceField) {
           excl.push_back(j);
         }
 #endif
+        continue;
       }
       if (getTwoBitCell(neighborMatrix, i * nAtoms + j) >= RELATION_1_4) {
         double dist = (conf.getAtomPos(i) - conf.getAtomPos(j)).length();
@@ -997,10 +995,21 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
   double dielConst = mmffMolProperties->getMMFFDielectricConstant();
   boost::uint8_t dielModel = mmffMolProperties->getMMFFDielectricModel();
   for (unsigned int i = 0; i < nAtoms; ++i) {
+#ifdef RDK_BUILD_WITH_OPENMM
+    std::vector<int> excl;
+    std::vector<int> excl1_4;
+#endif
     for (unsigned int j = i + 1; j < nAtoms; ++j) {
       if (ignoreInterfragInteractions && (fragMapping[i] != fragMapping[j])) {
+#ifdef RDK_BUILD_WITH_OPENMM
+        if (ommForceField) {
+          excl.push_back(j);
+          excl1_4.push_back(j);
+        }
+#endif
         continue;
       }
+      bool is1_4 = false;
       if ((getTwoBitCell(neighborMatrix, i * nAtoms + j) >= RELATION_1_4) &&
           (!isDoubleZero(mmffMolProperties->getMMFFPartialCharge(i))) &&
           (!isDoubleZero(mmffMolProperties->getMMFFPartialCharge(j)))) {
@@ -1011,8 +1020,7 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
         double chargeTerm = mmffMolProperties->getMMFFPartialCharge(i) *
                             mmffMolProperties->getMMFFPartialCharge(j) /
                             dielConst;
-        bool is1_4 = (getTwoBitCell(
-                      neighborMatrix, i * nAtoms + j) == RELATION_1_4);
+        is1_4 = (getTwoBitCell(neighborMatrix, i * nAtoms + j) == RELATION_1_4);
         if (!ommForceField) {
           EleContrib *contrib = new EleContrib(
               field, i, j, chargeTerm, dielModel, is1_4);
@@ -1020,7 +1028,10 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
         }
 #ifdef RDK_BUILD_WITH_OPENMM
         else {
-          ommForceField->addEleContrib(i, j, chargeTerm, dielModel, is1_4);
+          if (is1_4)
+            excl.push_back(j);
+          else
+            excl1_4.push_back(j);
         }
 #endif
         if (mmffMolProperties->getMMFFVerbosity()) {
@@ -1043,7 +1054,19 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
           totalEleEnergy += eleEnergy;
         }
       }
+#ifdef RDK_BUILD_WITH_OPENMM
+      else {
+        excl.push_back(j);
+        excl1_4.push_back(j);
+      }
+#endif
     }
+#ifdef RDK_BUILD_WITH_OPENMM
+    if (ommForceField) {
+      ommForceField->addEleContrib(i, mmffMolProperties->getMMFFPartialCharge(i),
+        dielModel, dielConst, excl, excl1_4);
+    }
+#endif
   }
   if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
@@ -1235,9 +1258,22 @@ void OpenMMForceField::addVdWContrib(unsigned int idx,
   d_vdWForce->setParticleExclusions(idx, exclusions);
 }
 
-void OpenMMForceField::addEleContrib(unsigned int idx1,
-  unsigned int idx2, double chargeTerm, boost::uint8_t dielModel,
-  bool is1_4) {
+void OpenMMForceField::addEleContrib(unsigned int idx,
+  double charge, boost::uint8_t dielModel, double dielConst,
+  std::vector<int> &excl, std::vector<int> &excl1_4) {
+  for (unsigned int is1_4 = 0; is1_4 <= 1; ++is1_4) {
+    OpenMM::CustomNonbondedForce* &eleForce = (is1_4 ? d_eleForce1_4 : d_eleForce);
+    std::vector<int> &exclusions = (is1_4 ? excl1_4 : excl);
+    if (!eleForce) {
+      eleForce = MMFF::Utils::getOpenMMEleForce(dielModel, dielConst, is1_4);
+      d_openmmSystem->addForce(eleForce);
+    }
+    std::vector<double> params;
+    params.push_back(charge);
+    eleForce->addParticle(params);
+    for (unsigned int i = 0; i < exclusions.size(); ++i)
+      eleForce->addExclusion(i, exclusions[i]);
+  }
 }
 
 OpenMMForceField *constructOpenMMForceField(

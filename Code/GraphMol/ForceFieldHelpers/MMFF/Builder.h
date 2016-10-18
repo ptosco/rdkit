@@ -69,8 +69,8 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
       unsigned int idx4, const ForceFields::MMFF::MMFFOop *mmffOopParams);
     void addVdWContrib(unsigned int idx,
       const ForceFields::MMFF::MMFFVdW *mmffVdWParams, std::vector<int> &exclusions);
-    void addEleContrib(unsigned int idx1, unsigned int idx2,
-      double chargeTerm, boost::uint8_t dielModel, bool is1_4);
+    void addEleContrib(unsigned int idx, double charge, boost::uint8_t dielModel,
+      double dielConst, std::vector<int> &excl, std::vector<int> &excl1_4);
   protected:
     OpenMM::CustomBondForce *d_bondStretchForce;
     OpenMM::CustomAngleForce *d_angleBendForce;
@@ -79,6 +79,7 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
     OpenMM::AmoebaOutOfPlaneBendForce *d_oopBendForce;
     OpenMM::AmoebaVdwForce *d_vdWForce;
     OpenMM::CustomNonbondedForce *d_eleForce;
+    OpenMM::CustomNonbondedForce *d_eleForce1_4;
 };
 #endif
 

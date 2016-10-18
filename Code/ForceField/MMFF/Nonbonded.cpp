@@ -86,9 +86,10 @@ double calcEleEnergy(unsigned int idx1, unsigned int idx2, double dist,
                      double chargeTerm, boost::uint8_t dielModel, bool is1_4) {
   RDUNUSED_PARAM(idx1);
   RDUNUSED_PARAM(idx2);
-  double corr_dist = dist + 0.05;
-  double const diel = 332.0716;
-  double const sc1_4 = 0.75;
+  static const double diel = 332.0716;
+  static const double sc1_4 = 0.75;
+  static const double delta = 0.05;
+  double corr_dist = dist + delta;
   if (dielModel == RDKit::MMFF::DISTANCE) {
     corr_dist *= corr_dist;
   }
@@ -98,6 +99,23 @@ double calcEleEnergy(unsigned int idx1, unsigned int idx2, double dist,
 #ifdef RDK_BUILD_WITH_OPENMM
 OpenMM::AmoebaVdwForce *getOpenMMVdWForce() {
   return new OpenMM::AmoebaVdwForce();
+}
+
+OpenMM::CustomNonbondedForce *getOpenMMEleForce(boost::uint8_t dielModel, double dielConst, bool is1_4) {
+  static const double sc1_4 = 0.75;
+  static const double cOMM = 332.0716 * OpenMM::KJPerKcal * (is1_4 ? sc1_4 : 1.0);
+  static const double delta = 0.05;
+  std::stringstream ef;
+  ef << "c*q1*q2/(D*(ntoa*r+delta)^n)";
+  OpenMM::CustomNonbondedForce *res = new OpenMM::CustomNonbondedForce(ef.str());
+  res->addGlobalParameter("c", cOMM);
+  res->addGlobalParameter("D", dielConst);
+  res->addGlobalParameter("n", ((dielModel == RDKit::MMFF::DISTANCE) ? 2.0 : 1.0));
+  res->addGlobalParameter("ntoa", OpenMM::AngstromsPerNm);
+  res->addGlobalParameter("delta", delta);
+  res->addPerParticleParameter("q");
+  
+  return res;
 }
 #endif
 }  // end of namespace utils
