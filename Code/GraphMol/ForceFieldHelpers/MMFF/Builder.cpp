@@ -1108,23 +1108,47 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
 
 ForceFields::ForceField *constructForceField(ROMol &mol,
   MMFFMolProperties *mmffMolProperties, int ffOpts,
-  double nonBondedThresh, int confId, bool ignoreInterfragInteractions) {
+  double nonBondedThresh, int confId, bool ignoreInterfragInteractions,
+  void *ffParam) {
   PRECONDITION(mmffMolProperties, "bad MMFFMolProperties");
   PRECONDITION(mmffMolProperties->isValid(),
                "missing atom types - invalid force-field");
 
-#ifndef RDK_BUILD_WITH_OPENMM
-  ForceFields::ForceField *ff = ((ffOpts & ForceFields::USE_OPENMM)
-    ? new OpenMMForceField() : new ForceFields::ForceField());
-#else
-  ForceFields::ForceField *ff = new ForceFields::ForceField();
+  ForceFields::ForceField *ff;
+  OpenMMForceField *ffOMM = NULL;
+#ifdef RDK_BUILD_WITH_OPENMM
+  const PeriodicTable *tbl = PeriodicTable::getTable();
+  if (ffOpts & ForceFields::USE_OPENMM) {
+    OpenMM::Integrator *integrator = static_cast<OpenMM::Integrator *>(ffParam);
+    ff = new OpenMMForceField(integrator);
+    OpenMMForceField *ffOMM = static_cast<OpenMMForceField *>(ff);
+  }
+  std::vector<OpenMM::Vec3> positionsOMM;
+  
 #endif
+  if (!ffOMM)
+    ff = new ForceFields::ForceField();
   RDKit::MMFF::Tools::checkFFPreconditions(ff, mmffMolProperties, ffOpts);
   // add the atomic positions:
   Conformer &conf = mol.getConformer(confId);
   for (unsigned int i = 0; i < mol.getNumAtoms(); ++i) {
-    ff->positions().push_back(&(conf.getAtomPos(i)));
+    RDGeom::Point3D *posPtr = &(conf.getAtomPos(i));
+    ff->positions().push_back(posPtr);
+#ifdef RDK_BUILD_WITH_OPENMM
+    if (ffOMM) {
+      positionsOMM.push_back(OpenMM::Vec3(
+        posPtr->x * OpenMM::NmPerAngstrom,
+        posPtr->y * OpenMM::NmPerAngstrom,
+        posPtr->z * OpenMM::NmPerAngstrom));
+      ffOMM->system()->addParticle(tbl->getAtomicWeight(
+        mol.getAtomWithIdx(i)->getAtomicNum()));
+    }
+#endif
   }
+#ifdef RDK_BUILD_WITH_OPENMM
+  if (ffOMM)
+    ffOMM->context()->setPositions(positionsOMM);
+#endif
   ff->initialize();
   if (mmffMolProperties->getMMFFBondTerm()) {
     Tools::addBonds(mol, mmffMolProperties, ff, ffOpts);
@@ -1159,8 +1183,8 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMMForceField::OpenMMForceField(int dimension) :
-  ForceFields::OpenMMForceField(dimension),
+OpenMMForceField::OpenMMForceField(OpenMM::Integrator *integrator) :
+  ForceFields::OpenMMForceField(integrator),
   d_bondStretchForce(NULL),
   d_angleBendForce(NULL),
   d_stretchBendForce(NULL),

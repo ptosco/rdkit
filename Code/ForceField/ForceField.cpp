@@ -341,11 +341,13 @@ void ForceField::initDistanceMatrix() {
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMMForceField::OpenMMForceField(unsigned int dimension) :
-  ForceField::ForceField(dimension),
-  d_openmmSystem(new OpenMM::System()),
-  d_openmmIntegrator(NULL),
-  d_openmmContext(NULL) {
+OpenMMForceField::OpenMMForceField(OpenMM::Integrator *integrator) :
+  ForceField::ForceField(3),
+  d_openmmSystem(new OpenMM::System()) {
+  static const double defaultStepSize = 2.0;
+  d_openmmIntegrator = (integrator ? integrator
+    : new OpenMM::VerletIntegrator(defaultStepSize * OpenMM::PsPerFs));
+  d_openmmContext = new OpenMM::Context(*d_openmmSystem, *d_openmmIntegrator);
 }
 
 OpenMMForceField::~OpenMMForceField() {
@@ -362,20 +364,53 @@ void OpenMMForceField::initialize() {
   ForceField::initialize();
 }
 
-double OpenMMForceField::calcEnergy(std::vector<double> *pos) const {
-  return ForceField::calcEnergy(pos);
+void OpenMMForceField::replacePositions(double *pos) {
+  OpenMM::State state(d_openmmContext->getState(OpenMM::State::Positions));
+  d_storedPos.clear();
+  d_storedPos = state.getPositions();
+  std::vector<OpenMM::Vec3> newPos(d_storedPos.size());
+  unsigned int n = 0;
+  for (unsigned int i = 0; i < newPos.size(); ++i) {
+    newPos[i][0] = pos[n++];
+    newPos[i][1] = pos[n++];
+    newPos[i][2] = pos[n++];
+  }
+  d_openmmContext->setPositions(newPos);
+}
+
+void OpenMMForceField::restorePositions() {
+  d_openmmContext->setPositions(d_storedPos);
+}
+
+double OpenMMForceField::calcEnergy(std::vector<double> *contribs) const {
+  return (contribs ? ForceField::calcEnergy(contribs)
+    : d_openmmContext->getState(OpenMM::State::Energy).getPotentialEnergy());
 }
 
 double OpenMMForceField::calcEnergy(double *pos) {
-  return ForceField::calcEnergy(pos);
+  replacePositions(pos);
+  double res = d_openmmContext->getState(
+    OpenMM::State::Energy).getPotentialEnergy();
+  restorePositions();
+
+  return res;
 }
 
 void OpenMMForceField::calcGrad(double *forces) const {
-  ForceField::calcGrad(forces);
+  const std::vector<OpenMM::Vec3> &forceVec = d_openmmContext->getState(
+    OpenMM::State::Forces).getForces();
+  unsigned int n = 0;
+  for (unsigned int i = 0; i < forceVec.size(); ++i) {
+    forces[n++] = forceVec[i][0];
+    forces[n++] = forceVec[i][1];
+    forces[n++] = forceVec[i][2];
+  }
 }
 
 void OpenMMForceField::calcGrad(double *pos, double *forces) {
-  ForceField::calcGrad(pos, forces);
+  replacePositions(pos);
+  calcGrad(forces);
+  restorePositions();
 }
 
 int OpenMMForceField::minimize(unsigned int snapshotFreq,
@@ -387,7 +422,9 @@ int OpenMMForceField::minimize(unsigned int snapshotFreq,
 
 int OpenMMForceField::minimize(unsigned int maxIts,
   double forceTol, double energyTol) {
-  return ForceField::minimize(maxIts, forceTol, energyTol);
+  RDUNUSED_PARAM(energyTol);
+  
+  return OpenMM::LocalEnergyMinimizer::minimize(*d_openmmContext, forceTol, maxIts);
 }
 #endif
 

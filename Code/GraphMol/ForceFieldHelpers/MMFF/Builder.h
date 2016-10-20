@@ -51,7 +51,7 @@ namespace MMFF {
 #ifdef RDK_BUILD_WITH_OPENMM
 class OpenMMForceField : public ForceFields::OpenMMForceField {
   public:
-    OpenMMForceField(int dimension = 3);
+    OpenMMForceField(OpenMM::Integrator *integrator = NULL);
     void addBondStretchContrib(unsigned int idx1, unsigned int idx2,
       const ForceFields::MMFF::MMFFBond *mmffBondParams);
     void addAngleBendContrib(unsigned int idx1, unsigned int idx2,
@@ -135,7 +135,7 @@ ForceFields::ForceField *constructForceField(
 ForceFields::ForceField *constructForceField(
   ROMol &mol, MMFFMolProperties *mmffMolProperties,
   int ffOpts, double nonBondedThresh = 100.0, int confId = -1,
-  bool ignoreInterfragInteractions = true);
+  bool ignoreInterfragInteractions = true, void *ffParam = NULL);
 
 #ifdef RDK_BUILD_WITH_OPENMM
 OpenMMForceField *constructOpenMMForceField(ROMol &mol,

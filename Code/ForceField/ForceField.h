@@ -20,13 +20,14 @@ namespace OpenMM {
 class System;
 class Integrator;
 class Context;
+class Vec3;
 }
 
 namespace ForceFields {
 
 enum ForceFieldOptions {
-    USE_RDK = 0,
-    USE_OPENMM = (1 << 0)
+  USE_RDK = 0,
+  USE_OPENMM = (1 << 0)
 };
 
 class ForceFieldContrib;
@@ -280,14 +281,22 @@ class ForceField {
 class OpenMMForceField : public ForceField {
   public:
     //! construct with a dimension
-    OpenMMForceField(unsigned int dimension = 3);
+    OpenMMForceField(OpenMM::Integrator *integrator = NULL);
     ~OpenMMForceField();
 
     //! copy ctor, copies contribs.
     OpenMMForceField(const OpenMMForceField &other);
   
-    const OpenMM::System *system() {
+    OpenMM::System *system() const {
       return d_openmmSystem;
+    }
+
+    OpenMM::Context *context() const {
+      return d_openmmContext;
+    }
+
+    OpenMM::Integrator *integrator() const {
+      return d_openmmIntegrator;
     }
 
     //! does initialization
@@ -304,7 +313,7 @@ class OpenMMForceField : public ForceField {
     double *
         the positions need to be converted to double * here
     */
-    double calcEnergy(std::vector<double> *pos = NULL) const;
+    double calcEnergy(std::vector<double> *contribs = NULL) const;
 
     // these next two aren't const because they may update our
     // distance matrix
@@ -382,6 +391,10 @@ class OpenMMForceField : public ForceField {
     OpenMM::System *d_openmmSystem;
     OpenMM::Integrator *d_openmmIntegrator;
     OpenMM::Context *d_openmmContext;
+    std::vector<OpenMM::Vec3> d_storedPos;
+  private:
+    void replacePositions(double *pos);
+    void restorePositions();
 };
 #else
 typedef ForceField OpenMMForceField;
