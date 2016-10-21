@@ -1144,6 +1144,7 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
     }
 #endif
   }
+#if 0
   if (mmffMolProperties->getMMFFBondTerm()) {
     Tools::addBonds(mol, mmffMolProperties, ff, ffOpts);
   }
@@ -1159,7 +1160,7 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
   if (mmffMolProperties->getMMFFTorsionTerm()) {
     Tools::addTorsions(mol, mmffMolProperties, ff, ffOpts);
   }
-#if 0
+#endif
   if (mmffMolProperties->getMMFFVdWTerm() ||
       mmffMolProperties->getMMFFEleTerm()) {
     boost::shared_array<boost::uint8_t> neighborMat =
@@ -1168,12 +1169,13 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
       Tools::addVdW(mol, confId, mmffMolProperties, ff, ffOpts, neighborMat,
                     nonBondedThresh, ignoreInterfragInteractions);
     }
+#if 0
     if (mmffMolProperties->getMMFFEleTerm()) {
       Tools::addEle(mol, confId, mmffMolProperties, ff, ffOpts, neighborMat,
                     nonBondedThresh, ignoreInterfragInteractions);
     }
-  }
 #endif
+  }
   if (ffOMM)
     ffOMM->initialize();
   else
@@ -1196,7 +1198,8 @@ OpenMMForceField::OpenMMForceField(OpenMM::Integrator *integrator,
   d_torsionAngleForce(NULL),
   d_oopBendForce(NULL),
   d_vdWForce(NULL),
-  d_eleForce(NULL) {
+  d_eleForce(NULL),
+  d_eleForce1_4(NULL) {
   std::string _pluginsDir = (pluginsDir.size() ? pluginsDir
     : OpenMM::Platform::getDefaultPluginsDirectory());
   d_loadedPlugins = OpenMM::Platform::loadPluginsFromDirectory(_pluginsDir);
