@@ -30,6 +30,8 @@ class AmoebaOutOfPlaneBendForce;
 class AmoebaVdwForce;
 class CustomNonbondedForce;
 }
+#else
+typedef ForceFields::ForceField ForceFields::MMFF::OpenMMForceField;
 #endif
 
 namespace ForceFields {
@@ -51,7 +53,8 @@ namespace MMFF {
 #ifdef RDK_BUILD_WITH_OPENMM
 class OpenMMForceField : public ForceFields::OpenMMForceField {
   public:
-    OpenMMForceField(OpenMM::Integrator *integrator = NULL);
+    OpenMMForceField(OpenMM::Integrator *integrator = NULL,
+      const std::string &pluginsDir = std::string());
     void addBondStretchContrib(unsigned int idx1, unsigned int idx2,
       const ForceFields::MMFF::MMFFBond *mmffBondParams);
     void addAngleBendContrib(unsigned int idx1, unsigned int idx2,
@@ -71,6 +74,12 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
       const ForceFields::MMFF::MMFFVdW *mmffVdWParams, std::vector<int> &exclusions);
     void addEleContrib(unsigned int idx, double charge, boost::uint8_t dielModel,
       double dielConst, std::vector<int> &excl, std::vector<int> &excl1_4);
+    const std::vector<std::string>& loadedPlugins() {
+      return d_loadedPlugins;
+    }
+    const std::vector<std::string>& failedPlugins() {
+      return d_failedPlugins;
+    }
   protected:
     OpenMM::CustomBondForce *d_bondStretchForce;
     OpenMM::CustomAngleForce *d_angleBendForce;
@@ -80,6 +89,9 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
     OpenMM::AmoebaVdwForce *d_vdWForce;
     OpenMM::CustomNonbondedForce *d_eleForce;
     OpenMM::CustomNonbondedForce *d_eleForce1_4;
+  private:
+    std::vector<std::string> d_loadedPlugins;
+    std::vector<std::string> d_failedPlugins;
 };
 #endif
 

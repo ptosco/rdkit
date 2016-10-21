@@ -16,6 +16,8 @@
 
 #ifdef RDK_BUILD_WITH_OPENMM
 #include <OpenMM.h>
+#include <openmm/Units.h>
+#include <openmm/internal/lbfgs.h>
 #endif
 
 namespace ForceFieldsHelper {
@@ -173,6 +175,7 @@ double ForceField::distance(unsigned int i, unsigned int j, double *pos) const {
 }
 
 void ForceField::initialize() {
+  std::cerr << "ForceField::initialize()" << std::endl;
   // clean up if we have used this already:
   df_init = false;
   delete[] dp_distMat;
@@ -343,11 +346,11 @@ void ForceField::initDistanceMatrix() {
 #ifdef RDK_BUILD_WITH_OPENMM
 OpenMMForceField::OpenMMForceField(OpenMM::Integrator *integrator) :
   ForceField::ForceField(3),
-  d_openmmSystem(new OpenMM::System()) {
+  d_openmmSystem(new OpenMM::System()),
+  d_openmmContext(NULL) {
   static const double defaultStepSize = 2.0;
   d_openmmIntegrator = (integrator ? integrator
     : new OpenMM::VerletIntegrator(defaultStepSize * OpenMM::PsPerFs));
-  d_openmmContext = new OpenMM::Context(*d_openmmSystem, *d_openmmIntegrator);
 }
 
 OpenMMForceField::~OpenMMForceField() {
@@ -361,7 +364,21 @@ OpenMMForceField::OpenMMForceField(const OpenMMForceField &other) :
 }
 
 void OpenMMForceField::initialize() {
+  std::cerr << "OpenMMForceField::initialize()" << std::endl;
   ForceField::initialize();
+  if (!d_openmmContext) {
+    OpenMM::Platform& platform = OpenMM::Platform::getPlatformByName("Reference");
+    std::map<std::string, std::string> properties;
+    d_openmmContext = new OpenMM::Context(*d_openmmSystem,
+      *d_openmmIntegrator, platform, properties);
+  }
+  else
+    d_openmmContext->reinitialize();
+}
+
+OpenMM::Context *OpenMMForceField::context() const {
+  PRECONDITION(d_openmmContext, "OpenMM::Context has not been created yet");
+  return d_openmmContext;
 }
 
 void OpenMMForceField::replacePositions(double *pos) {
@@ -384,7 +401,8 @@ void OpenMMForceField::restorePositions() {
 
 double OpenMMForceField::calcEnergy(std::vector<double> *contribs) const {
   return (contribs ? ForceField::calcEnergy(contribs)
-    : d_openmmContext->getState(OpenMM::State::Energy).getPotentialEnergy());
+    : OpenMM::KcalPerKJ * d_openmmContext->getState(
+    OpenMM::State::Energy).getPotentialEnergy());
 }
 
 double OpenMMForceField::calcEnergy(double *pos) {
@@ -424,7 +442,8 @@ int OpenMMForceField::minimize(unsigned int maxIts,
   double forceTol, double energyTol) {
   RDUNUSED_PARAM(energyTol);
   
-  return OpenMM::LocalEnergyMinimizer::minimize(*d_openmmContext, forceTol, maxIts);
+  return ((OpenMM::LocalEnergyMinimizer::minimize(*d_openmmContext,
+    forceTol, maxIts) == LBFGSERR_MAXIMUMITERATION) ? 1 : 0);
 }
 #endif
 

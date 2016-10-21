@@ -291,9 +291,7 @@ class OpenMMForceField : public ForceField {
       return d_openmmSystem;
     }
 
-    OpenMM::Context *context() const {
-      return d_openmmContext;
-    }
+    OpenMM::Context *context() const;
 
     OpenMM::Integrator *integrator() const {
       return d_openmmIntegrator;
@@ -396,8 +394,6 @@ class OpenMMForceField : public ForceField {
     void replacePositions(double *pos);
     void restorePositions();
 };
-#else
-typedef ForceField OpenMMForceField;
 #endif
 }
 #endif

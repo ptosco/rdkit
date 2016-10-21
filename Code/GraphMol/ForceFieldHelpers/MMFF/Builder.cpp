@@ -1121,10 +1121,9 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
   if (ffOpts & ForceFields::USE_OPENMM) {
     OpenMM::Integrator *integrator = static_cast<OpenMM::Integrator *>(ffParam);
     ff = new OpenMMForceField(integrator);
-    OpenMMForceField *ffOMM = static_cast<OpenMMForceField *>(ff);
+    ffOMM = static_cast<OpenMMForceField *>(ff);
   }
   std::vector<OpenMM::Vec3> positionsOMM;
-  
 #endif
   if (!ffOMM)
     ff = new ForceFields::ForceField();
@@ -1145,11 +1144,6 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
     }
 #endif
   }
-#ifdef RDK_BUILD_WITH_OPENMM
-  if (ffOMM)
-    ffOMM->context()->setPositions(positionsOMM);
-#endif
-  ff->initialize();
   if (mmffMolProperties->getMMFFBondTerm()) {
     Tools::addBonds(mol, mmffMolProperties, ff, ffOpts);
   }
@@ -1165,6 +1159,7 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
   if (mmffMolProperties->getMMFFTorsionTerm()) {
     Tools::addTorsions(mol, mmffMolProperties, ff, ffOpts);
   }
+#if 0
   if (mmffMolProperties->getMMFFVdWTerm() ||
       mmffMolProperties->getMMFFEleTerm()) {
     boost::shared_array<boost::uint8_t> neighborMat =
@@ -1178,12 +1173,22 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
                     nonBondedThresh, ignoreInterfragInteractions);
     }
   }
+#endif
+  if (ffOMM)
+    ffOMM->initialize();
+  else
+    ff->initialize();
+#ifdef RDK_BUILD_WITH_OPENMM
+  if (ffOMM)
+    ffOMM->context()->setPositions(positionsOMM);
+#endif
 
   return ff;
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMMForceField::OpenMMForceField(OpenMM::Integrator *integrator) :
+OpenMMForceField::OpenMMForceField(OpenMM::Integrator *integrator,
+  const std::string &pluginsDir) :
   ForceFields::OpenMMForceField(integrator),
   d_bondStretchForce(NULL),
   d_angleBendForce(NULL),
@@ -1192,6 +1197,10 @@ OpenMMForceField::OpenMMForceField(OpenMM::Integrator *integrator) :
   d_oopBendForce(NULL),
   d_vdWForce(NULL),
   d_eleForce(NULL) {
+  std::string _pluginsDir = (pluginsDir.size() ? pluginsDir
+    : OpenMM::Platform::getDefaultPluginsDirectory());
+  d_loadedPlugins = OpenMM::Platform::loadPluginsFromDirectory(_pluginsDir);
+  d_failedPlugins = OpenMM::Platform::getPluginLoadFailures();
 }
 
 void OpenMMForceField::addBondStretchContrib(unsigned int idx1,
@@ -1223,7 +1232,8 @@ void OpenMMForceField::addStretchBendContrib(unsigned int idx1,
   unsigned int idx2, unsigned int idx3, const MMFFStbn *mmffStbnParams,
   const MMFFAngle *mmffAngleParams, const MMFFBond *mmffBondParams1,
   const MMFFBond *mmffBondParams2) {
-  static const double c1OMM = MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal; 
+  static const double c1OMM = MDYNE_A_TO_KCAL_MOL * OpenMM::RadiansPerDegree
+    * OpenMM::AngstromsPerNm * OpenMM::KJPerKcal; 
   if (!d_stretchBendForce) {
     d_stretchBendForce = MMFF::Utils::getOpenMMStretchBendForce();
     d_openmmSystem->addForce(d_stretchBendForce);
@@ -1245,16 +1255,18 @@ void OpenMMForceField::addTorsionAngleContrib(unsigned int idx1,
     d_openmmSystem->addForce(d_torsionAngleForce);
   }
   std::vector<double> params;
-  params.push_back(mmffTorParams->V1 * OpenMM::RadiansPerDegree);
-  params.push_back(mmffTorParams->V2 * OpenMM::RadiansPerDegree);
-  params.push_back(mmffTorParams->V3 * OpenMM::RadiansPerDegree);
+  params.push_back(mmffTorParams->V1);
+  params.push_back(mmffTorParams->V2);
+  params.push_back(mmffTorParams->V3);
   d_torsionAngleForce->addTorsion(idx1, idx2, idx3, idx4, params);
 }
 
 void OpenMMForceField::addOopBendContrib(unsigned int idx1,
   unsigned int idx2, unsigned int idx3,
   unsigned int idx4, const MMFFOop *mmffOopParams) {
-  static const double c2OMM = 0.5 * MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
+  static const double c2OMM = 0.5 * MDYNE_A_TO_KCAL_MOL
+    * OpenMM::RadiansPerDegree * OpenMM::RadiansPerDegree
+    * OpenMM::KJPerKcal;
   if (!d_oopBendForce) {
     d_oopBendForce = MMFF::Utils::getOpenMMOopBendForce();
     d_oopBendForce->setAmoebaGlobalOutOfPlaneBendCubic(0.0);
@@ -1263,8 +1275,8 @@ void OpenMMForceField::addOopBendContrib(unsigned int idx1,
     d_oopBendForce->setAmoebaGlobalOutOfPlaneBendSextic(0.0);
     d_openmmSystem->addForce(d_oopBendForce);
   }
-  d_oopBendForce->addOutOfPlaneBend(idx1, idx2, idx3, idx4,
-    mmffOopParams->koop);
+  d_oopBendForce->addOutOfPlaneBend(idx1, idx4, idx3, idx2,
+    c2OMM * mmffOopParams->koop);
 }
 
 void OpenMMForceField::addVdWContrib(unsigned int idx,
