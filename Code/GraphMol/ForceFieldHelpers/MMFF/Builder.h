@@ -73,7 +73,9 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
     void addVdWContrib(unsigned int idx,
       const ForceFields::MMFF::MMFFVdW *mmffVdWParams, std::vector<int> &exclusions);
     void addEleContrib(unsigned int idx, double charge, boost::uint8_t dielModel,
-      double dielConst, std::vector<int> &excl, std::vector<int> &excl1_4);
+      double dielConst, std::vector<int> &exclusions);
+    void addEleContrib1_4(unsigned int idx, double charge, boost::uint8_t dielModel,
+      double dielConst, std::set<int> &partners1_4);
     const std::vector<std::string>& loadedPlugins() {
       return d_loadedPlugins;
     }
