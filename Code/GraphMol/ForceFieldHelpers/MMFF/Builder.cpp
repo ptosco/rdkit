@@ -887,12 +887,13 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
 #ifdef RDK_BUILD_WITH_OPENMM
     std::vector<int> excl;
 #endif
-    for (unsigned int j = i + 1; j < nAtoms; ++j) {
+    for (unsigned int j = (ommForceField ? 0 : i + 1); j < nAtoms; ++j) {
+      if (ommForceField && (i == j))
+        continue;
       if (ignoreInterfragInteractions && (fragMapping[i] != fragMapping[j])) {
 #ifdef RDK_BUILD_WITH_OPENMM
-        if (ommForceField) {
+        if (ommForceField)
           excl.push_back(j);
-        }
 #endif
         continue;
       }
@@ -907,7 +908,7 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
             VdWContrib *contrib = new VdWContrib(field, i, j, &mmffVdWConstants);
             field->contribs().push_back(ForceFields::ContribPtr(contrib));
           }
-          if (mmffMolProperties->getMMFFVerbosity()) {
+          if (mmffMolProperties->getMMFFVerbosity() && (j > i)) {
             const Atom *iAtom = mol.getAtomWithIdx(i);
             const Atom *jAtom = mol.getAtomWithIdx(j);
             const double vdWEnergy = MMFF::Utils::calcVdWEnergy(
@@ -929,12 +930,16 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
         }
       }
 #ifdef RDK_BUILD_WITH_OPENMM
-      else {
+      else if (ommForceField)
         excl.push_back(j);
-      }
 #endif
     }
 #ifdef RDK_BUILD_WITH_OPENMM
+#if 0
+    std::cerr << "particle " << i << ", excl = ";
+    for (std::vector<int>::const_iterator it = excl.begin(); it != excl.end(); ++it)
+      std::cerr << *it << ((it == excl.end() - 1) ? "\n" : ", ");
+#endif
     if (ommForceField) {
       const unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(i);
       const MMFFVdW *mmffVdWParams = (*mmffVdW)(iAtomType);

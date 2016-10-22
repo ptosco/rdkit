@@ -71,7 +71,7 @@ void testMMFFBuilder2() {
 
   boost::shared_array<boost::uint8_t> nbrMat;
 
-  mol = SmilesToMol("CCCC");
+  mol = SmilesToMol("ClCNO");
   TEST_ASSERT(DGeomHelpers::EmbedMolecule(*mol) >= 0);
   MMFF::MMFFMolProperties *mmffMolProperties =
       new MMFF::MMFFMolProperties(*mol);
@@ -101,5 +101,6 @@ void testMMFFBuilder2() {
 //-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
 int main() {
   RDLog::InitLogs();
+  testMMFFBuilder1();
   testMMFFBuilder2();
 }

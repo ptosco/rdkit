@@ -30,26 +30,38 @@ double calcUnscaledVdWMinimum(MMFFVdWCollection *mmffVdW,
                               const MMFFVdW *mmffVdWParamsJAtom) {
   double gamma_ij = (mmffVdWParamsIAtom->R_star - mmffVdWParamsJAtom->R_star) /
                     (mmffVdWParamsIAtom->R_star + mmffVdWParamsJAtom->R_star);
-
-  return (0.5 * (mmffVdWParamsIAtom->R_star + mmffVdWParamsJAtom->R_star) *
-          (1.0 +
-           (((mmffVdWParamsIAtom->DA == 'D') || (mmffVdWParamsJAtom->DA == 'D'))
-                ? 0.0
-                : mmffVdW->B *
-                      (1.0 - exp(-(mmffVdW->Beta) * gamma_ij * gamma_ij)))));
+  bool haveDonor = ((mmffVdWParamsIAtom->DA == 'D') || (mmffVdWParamsJAtom->DA == 'D'));
+  double sigma = 0.5 * (mmffVdWParamsIAtom->R_star + mmffVdWParamsJAtom->R_star) *
+                (1.0 + (haveDonor ? 0.0 : mmffVdW->B *
+                (1.0 - exp(-(mmffVdW->Beta) * gamma_ij * gamma_ij))));
+#if 0
+  std::cerr << "ForceFields::MMFF::calcUnscaledVdWMinimum() "
+    << "haveDonor = " << haveDonor << ", sigmaI = " << mmffVdWParamsIAtom->R_star
+    << ", sigmaJ = " << mmffVdWParamsJAtom->R_star
+    << ", gammaIJ = " << gamma_ij << ", sigma = " << sigma << std::endl;
+#endif
+  return sigma;
 }
 
 double calcUnscaledVdWWellDepth(double R_star_ij,
                                 const MMFFVdW *mmffVdWParamsIAtom,
                                 const MMFFVdW *mmffVdWParamsJAtom) {
   double R_star_ij2 = R_star_ij * R_star_ij;
-  double const c4 = 181.16;
-
-  return (c4 * mmffVdWParamsIAtom->G_i * mmffVdWParamsJAtom->G_i *
+  static const double c4 = 181.16;
+  double epsilon = mmffVdWParamsIAtom->G_i * mmffVdWParamsJAtom->G_i *
           mmffVdWParamsIAtom->alpha_i * mmffVdWParamsJAtom->alpha_i /
           ((sqrt(mmffVdWParamsIAtom->alpha_i / mmffVdWParamsIAtom->N_i) +
             sqrt(mmffVdWParamsJAtom->alpha_i / mmffVdWParamsJAtom->N_i)) *
-           R_star_ij2 * R_star_ij2 * R_star_ij2));
+           R_star_ij2 * R_star_ij2 * R_star_ij2);
+#if 0
+  std::cerr << "ForceFields::MMFF::calcUnscaledVdWWellDepth() "
+    << "GI * alphaI = " << mmffVdWParamsIAtom->G_i * mmffVdWParamsIAtom->alpha_i
+    << ", GJ * alphaJ = " << mmffVdWParamsJAtom->G_i * mmffVdWParamsJAtom->alpha_i
+    << ", alphaI / NI = " << mmffVdWParamsIAtom->alpha_i / mmffVdWParamsIAtom->N_i
+    << ", alphaJ / NJ = " << mmffVdWParamsJAtom->alpha_i / mmffVdWParamsJAtom->N_i
+    << ", epsilon = " << epsilon << std::endl;
+#endif
+  return (c4 * epsilon);
 }
 
 double calcVdWEnergy(const double dist, const double R_star_ij,
@@ -67,6 +79,10 @@ double calcVdWEnergy(const double dist, const double R_star_ij,
   double R_star_ij7 = R_star_ij2 * R_star_ij2 * R_star_ij2 * R_star_ij;
   double bTerm = vdw2 * R_star_ij7 / (dist7 + vdw2m1 * R_star_ij7) - 2.0;
   double res = wellDepth * aTerm7 * bTerm;
+#if 0
+  std::cerr << "ForceFields::MMFF::calcVdWEnergy() "
+    << "dist2 = " << dist2 << ", res = " << res * 4.184 << std::endl;
+#endif
 
   return res;
 }

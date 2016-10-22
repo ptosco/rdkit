@@ -336,8 +336,7 @@ void ForceField::initDistanceMatrix() {
   PRECONDITION(d_numPoints, "no points");
   PRECONDITION(dp_distMat, "no distance matrix");
   PRECONDITION(static_cast<unsigned int>(d_numPoints * (d_numPoints + 1) / 2) <=
-                   d_matSize,
-               "matrix size mismatch");
+               d_matSize, "matrix size mismatch");
   for (unsigned int i = 0; i < d_numPoints * (d_numPoints + 1) / 2; i++) {
     dp_distMat[i] = -1.0;
   }
@@ -367,10 +366,14 @@ void OpenMMForceField::initialize() {
   std::cerr << "OpenMMForceField::initialize()" << std::endl;
   ForceField::initialize();
   if (!d_openmmContext) {
+    #if 0
     OpenMM::Platform& platform = OpenMM::Platform::getPlatformByName("Reference");
     std::map<std::string, std::string> properties;
     d_openmmContext = new OpenMM::Context(*d_openmmSystem,
       *d_openmmIntegrator, platform, properties);
+    #else
+    d_openmmContext = new OpenMM::Context(*d_openmmSystem, *d_openmmIntegrator);
+    #endif
   }
   else
     d_openmmContext->reinitialize();
