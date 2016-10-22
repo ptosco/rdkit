@@ -40,7 +40,9 @@ namespace Tools {
 // ------------------------------------------------------------------------
 void checkFFPreconditions(ForceFields::ForceField *field,
                           MMFFMolProperties *mmffMolProperties, int ffOpts) {
-#ifndef RDK_BUILD_WITH_OPENMM
+#ifdef RDK_BUILD_WITH_OPENMM
+  RDUNUSED_PARAM(ffOpts);
+#else
   PRECONDITION(!(ffOpts & ForceFields::USE_OPENMM),
                "OpenMM support was not built in the RDKit");
 #endif
@@ -82,7 +84,6 @@ void addBonds(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  "-------------------------------------------------------------"
                  "------------------------" << std::endl;
     }
-    //field->initialize();
   }
   for (ROMol::ConstBondIterator bi = mol.beginBonds(); bi != mol.endBonds();
        ++bi) {
@@ -297,7 +298,6 @@ void addAngles(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  "-------------------------------------------------------------"
                  "-----------------------------------------" << std::endl;
     }
-    //field->initialize();
     points = field->positions();
   }
   for (idx[1] = 0; idx[1] < nAtoms; ++idx[1]) {
@@ -423,7 +423,6 @@ void addStretchBend(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  "-----------------------------------------------------"
               << std::endl;
     }
-    //field->initialize();
     points = field->positions();
   }
   for (idx[1] = 0; idx[1] < nAtoms; ++idx[1]) {
@@ -578,7 +577,6 @@ void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  "-------------------------------------------------------------"
                  "-----------------------------" << std::endl;
     }
-    //field->initialize();
     points = field->positions();
   }
   for (idx[1] = 0; idx[1] < mol.getNumAtoms(); ++idx[1]) {
@@ -716,7 +714,6 @@ void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  "-----------------------------------------------------"
               << std::endl;
     }
-    //field->initialize();
     points = field->positions();
   }
   std::vector<MatchVectType> matchVect;
@@ -1157,7 +1154,7 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
     }
 #endif
   }
-#if 0
+  ff->initialize();
   if (mmffMolProperties->getMMFFBondTerm()) {
     Tools::addBonds(mol, mmffMolProperties, ff, ffOpts);
   }
@@ -1173,17 +1170,14 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
   if (mmffMolProperties->getMMFFTorsionTerm()) {
     Tools::addTorsions(mol, mmffMolProperties, ff, ffOpts);
   }
-#endif
   if (mmffMolProperties->getMMFFVdWTerm() ||
       mmffMolProperties->getMMFFEleTerm()) {
     boost::shared_array<boost::uint8_t> neighborMat =
         Tools::buildNeighborMatrix(mol);
-#if 0
     if (mmffMolProperties->getMMFFVdWTerm()) {
       Tools::addVdW(mol, confId, mmffMolProperties, ff, ffOpts, neighborMat,
                     nonBondedThresh, ignoreInterfragInteractions);
     }
-#endif
     if (mmffMolProperties->getMMFFEleTerm()) {
       Tools::addEle(mol, confId, mmffMolProperties, ff, ffOpts, neighborMat,
                     nonBondedThresh, ignoreInterfragInteractions);
@@ -1191,8 +1185,6 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
   }
   if (ffOMM)
     ffOMM->initialize();
-  else
-    ff->initialize();
 #ifdef RDK_BUILD_WITH_OPENMM
   if (ffOMM)
     ffOMM->context()->setPositions(positionsOMM);

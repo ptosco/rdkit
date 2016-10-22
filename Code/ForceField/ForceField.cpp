@@ -364,7 +364,6 @@ OpenMMForceField::OpenMMForceField(const OpenMMForceField &other) :
 
 void OpenMMForceField::initialize() {
   std::cerr << "OpenMMForceField::initialize()" << std::endl;
-  ForceField::initialize();
   if (!d_openmmContext) {
     #if 0
     OpenMM::Platform& platform = OpenMM::Platform::getPlatformByName("Reference");
