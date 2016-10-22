@@ -394,19 +394,14 @@ int mmffValidationSuite(int argc, char *argv[]) {
                       << std::endl;
             continue;
           } else {
-#ifdef RDK_BUILD_WITH_OPENMM
             MMFF::OpenMMForceField *field = MMFF::constructOpenMMForceField(
                 *mol, mmffMolProperties, 100.0, -1, false);
-#else
-            ForceFields::ForceField *field = MMFF::constructForceField(
-                *mol, mmffMolProperties, 100.0, -1, false);
-#endif
-            field->initialize();
             field->minimize();
             sdfWriter->write(*mol);
             rdkFStream << "\nTOTAL MMFF ENERGY              =" << std::right
                        << std::setw(16) << std::fixed << std::setprecision(4)
                        << field->calcEnergy() << "\n\n" << std::endl;
+            delete field;
           }
         }
         sdfWriter->close();
@@ -1414,6 +1409,7 @@ int mmffValidationSuite(int argc, char *argv[]) {
   return 0;
 }
 
+#if 0
 void testMMFFAllConstraints() {
   std::cerr << "-------------------------------------" << std::endl;
   std::cerr << "Unit tests for all MMFF constraint terms." << std::endl;
@@ -1458,11 +1454,7 @@ void testMMFFAllConstraints() {
       "  9 12  1  0  0  0  0\n"
       "M  END\n";
   RDKit::RWMol *mol;
-#ifdef RDK_BUILD_WITH_OPENMM
   MMFF::OpenMMForceField *field;
-#else
-  ForceFields::ForceField *field;
-#endif
   MMFF::MMFFMolProperties *mmffMolProperties;
 
   // distance constraints
@@ -1472,20 +1464,12 @@ void testMMFFAllConstraints() {
   mmffMolProperties = new MMFF::MMFFMolProperties(*mol);
   TEST_ASSERT(mmffMolProperties);
   TEST_ASSERT(mmffMolProperties->isValid());
-#ifdef RDK_BUILD_WITH_OPENMM
   field = RDKit::MMFF::constructOpenMMForceField(*mol, mmffMolProperties);
-#else
-  field = RDKit::MMFF::constructForceField(*mol, mmffMolProperties);
-#endif
   TEST_ASSERT(field);
-  field->initialize();
-#ifdef RDK_BUILD_WITH_OPENMM
-#else
   ForceFields::MMFF::DistanceConstraintContrib *dc;
   dc = new ForceFields::MMFF::DistanceConstraintContrib(field, 1, 3, 2.0, 2.0,
                                                         1.0e5);
   field->contribs().push_back(ForceFields::ContribPtr(dc));
-#endif
   field->minimize();
   TEST_ASSERT(RDKit::feq(
       MolTransforms::getBondLength(mol->getConformer(), 1, 3), 2.0, 0.1));
@@ -1494,18 +1478,10 @@ void testMMFFAllConstraints() {
   mmffMolProperties = new MMFF::MMFFMolProperties(*mol);
   TEST_ASSERT(mmffMolProperties);
   TEST_ASSERT(mmffMolProperties->isValid());
-#ifdef RDK_BUILD_WITH_OPENMM
   field = RDKit::MMFF::constructOpenMMForceField(*mol, mmffMolProperties);
-#else
-  field = RDKit::MMFF::constructForceField(*mol, mmffMolProperties);
-#endif
-  field->initialize();
-#ifdef RDK_BUILD_WITH_OPENMM
-#else
   dc = new ForceFields::MMFF::DistanceConstraintContrib(field, 1, 3, true, -0.2,
                                                         0.2, 1.0e5);
   field->contribs().push_back(ForceFields::ContribPtr(dc));
-#endif
   field->minimize();
   TEST_ASSERT(MolTransforms::getBondLength(mol->getConformer(), 1, 3) > 1.79);
   delete field;
@@ -1519,20 +1495,12 @@ void testMMFFAllConstraints() {
   mmffMolProperties = new MMFF::MMFFMolProperties(*mol);
   TEST_ASSERT(mmffMolProperties);
   TEST_ASSERT(mmffMolProperties->isValid());
-#ifdef RDK_BUILD_WITH_OPENMM
   field = RDKit::MMFF::constructOpenMMForceField(*mol, mmffMolProperties);
-#else
-  field = RDKit::MMFF::constructForceField(*mol, mmffMolProperties);
-#endif
   TEST_ASSERT(field);
-  field->initialize();
-#ifdef RDK_BUILD_WITH_OPENMM
-#else
   ForceFields::MMFF::AngleConstraintContrib *ac;
   ac = new ForceFields::MMFF::AngleConstraintContrib(field, 1, 3, 6, 90.0, 90.0,
                                                      1.0e5);
   field->contribs().push_back(ForceFields::ContribPtr(ac));
-#endif
   field->minimize();
   TEST_ASSERT(RDKit::feq(
       MolTransforms::getAngleDeg(mol->getConformer(), 1, 3, 6), 90.0, 0.5));
@@ -1541,18 +1509,10 @@ void testMMFFAllConstraints() {
   mmffMolProperties = new MMFF::MMFFMolProperties(*mol);
   TEST_ASSERT(mmffMolProperties);
   TEST_ASSERT(mmffMolProperties->isValid());
-#ifdef RDK_BUILD_WITH_OPENMM
   field = RDKit::MMFF::constructOpenMMForceField(*mol, mmffMolProperties);
-#else
-  field = RDKit::MMFF::constructForceField(*mol, mmffMolProperties);
-#endif
-  field->initialize();
-#ifdef RDK_BUILD_WITH_OPENMM
-#else
   ac = new ForceFields::MMFF::AngleConstraintContrib(field, 1, 3, 6, true,
                                                      -10.0, 10.0, 1.0e5);
   field->contribs().push_back(ForceFields::ContribPtr(ac));
-#endif
   field->minimize();
   TEST_ASSERT(RDKit::feq(
       MolTransforms::getAngleDeg(mol->getConformer(), 1, 3, 6), 100.0, 0.5));
@@ -1562,18 +1522,10 @@ void testMMFFAllConstraints() {
   mmffMolProperties = new MMFF::MMFFMolProperties(*mol);
   TEST_ASSERT(mmffMolProperties);
   TEST_ASSERT(mmffMolProperties->isValid());
-#ifdef RDK_BUILD_WITH_OPENMM
   field = RDKit::MMFF::constructOpenMMForceField(*mol, mmffMolProperties);
-#else
-  field = RDKit::MMFF::constructForceField(*mol, mmffMolProperties);
-#endif
-  field->initialize();
-#ifdef RDK_BUILD_WITH_OPENMM
-#else
   ac = new ForceFields::MMFF::AngleConstraintContrib(field, 1, 3, 6, false,
                                                      -10.0, 10.0, 1.0e5);
   field->contribs().push_back(ForceFields::ContribPtr(ac));
-#endif
   field->minimize();
   TEST_ASSERT(RDKit::feq(
       MolTransforms::getAngleDeg(mol->getConformer(), 1, 3, 6), 10.0, 0.5));
@@ -1588,20 +1540,12 @@ void testMMFFAllConstraints() {
   mmffMolProperties = new MMFF::MMFFMolProperties(*mol);
   TEST_ASSERT(mmffMolProperties);
   TEST_ASSERT(mmffMolProperties->isValid());
-#ifdef RDK_BUILD_WITH_OPENMM
   field = RDKit::MMFF::constructOpenMMForceField(*mol, mmffMolProperties);
-#else
-  field = RDKit::MMFF::constructForceField(*mol, mmffMolProperties);
-#endif
   TEST_ASSERT(field);
-  field->initialize();
-#ifdef RDK_BUILD_WITH_OPENMM
-#else
   ForceFields::MMFF::TorsionConstraintContrib *tc;
   tc = new ForceFields::MMFF::TorsionConstraintContrib(field, 1, 3, 6, 8, 10.0,
                                                        20.0, 1.0e5);
   field->contribs().push_back(ForceFields::ContribPtr(tc));
-#endif
   field->minimize();
   TEST_ASSERT(
       RDKit::feq(MolTransforms::getDihedralDeg(mol->getConformer(), 1, 3, 6, 8),
@@ -1612,18 +1556,10 @@ void testMMFFAllConstraints() {
   mmffMolProperties = new MMFF::MMFFMolProperties(*mol);
   TEST_ASSERT(mmffMolProperties);
   TEST_ASSERT(mmffMolProperties->isValid());
-#ifdef RDK_BUILD_WITH_OPENMM
   field = RDKit::MMFF::constructOpenMMForceField(*mol, mmffMolProperties);
-#else
-  field = RDKit::MMFF::constructForceField(*mol, mmffMolProperties);
-#endif
-  field->initialize();
-#ifdef RDK_BUILD_WITH_OPENMM
-#else
   tc = new ForceFields::MMFF::TorsionConstraintContrib(field, 1, 3, 6, 8, true,
                                                        -10.0, -8.0, 1.0e5);
   field->contribs().push_back(ForceFields::ContribPtr(tc));
-#endif
   field->minimize();
   TEST_ASSERT(
       RDKit::feq(MolTransforms::getDihedralDeg(mol->getConformer(), 1, 3, 6, 8),
@@ -1634,18 +1570,10 @@ void testMMFFAllConstraints() {
   mmffMolProperties = new MMFF::MMFFMolProperties(*mol);
   TEST_ASSERT(mmffMolProperties);
   TEST_ASSERT(mmffMolProperties->isValid());
-#ifdef RDK_BUILD_WITH_OPENMM
   field = RDKit::MMFF::constructOpenMMForceField(*mol, mmffMolProperties);
-#else
-  field = RDKit::MMFF::constructForceField(*mol, mmffMolProperties);
-#endif
-  field->initialize();
-#ifdef RDK_BUILD_WITH_OPENMM
-#else
   tc = new ForceFields::MMFF::TorsionConstraintContrib(field, 1, 3, 6, 8, false,
                                                        -10.0, -8.0, 1.0e5);
   field->contribs().push_back(ForceFields::ContribPtr(tc));
-#endif
   field->minimize(500);
   TEST_ASSERT(
       RDKit::feq(MolTransforms::getDihedralDeg(mol->getConformer(), 1, 3, 6, 8),
@@ -1660,20 +1588,12 @@ void testMMFFAllConstraints() {
   mmffMolProperties = new MMFF::MMFFMolProperties(*mol);
   TEST_ASSERT(mmffMolProperties);
   TEST_ASSERT(mmffMolProperties->isValid());
-#ifdef RDK_BUILD_WITH_OPENMM
   field = RDKit::MMFF::constructOpenMMForceField(*mol, mmffMolProperties);
-#else
-  field = RDKit::MMFF::constructForceField(*mol, mmffMolProperties);
-#endif
   TEST_ASSERT(field);
-  field->initialize();
   RDGeom::Point3D p = mol->getConformer().getAtomPos(1);
-#ifdef RDK_BUILD_WITH_OPENMM
-#else
   ForceFields::MMFF::PositionConstraintContrib *pc;
   pc = new ForceFields::MMFF::PositionConstraintContrib(field, 1, 0.3, 1.0e5);
   field->contribs().push_back(ForceFields::ContribPtr(pc));
-#endif
   field->minimize();
   RDGeom::Point3D q = mol->getConformer().getAtomPos(1);
   TEST_ASSERT((p - q).length() < 0.3);
@@ -1684,13 +1604,8 @@ void testMMFFAllConstraints() {
   // fixed atoms
   mol = RDKit::MolBlockToMol(molBlock, true, false);
   TEST_ASSERT(mol);
-#ifdef RDK_BUILD_WITH_OPENMM
   field = RDKit::MMFF::constructOpenMMForceField(*mol);
-#else
-  field = RDKit::MMFF::constructForceField(*mol);
-#endif
   TEST_ASSERT(field);
-  field->initialize();
   RDGeom::Point3D fp = mol->getConformer().getAtomPos(1);
   field->fixedPoints().push_back(1);
   field->minimize();
@@ -1756,36 +1671,22 @@ void testMMFFCopy() {
         new MMFF::MMFFMolProperties(*mol);
     TEST_ASSERT(mmffMolProperties);
     TEST_ASSERT(mmffMolProperties->isValid());
-#ifdef RDK_BUILD_WITH_OPENMM
     RDKit::MMFF::OpenMMForceField *field =
         RDKit::MMFF::constructOpenMMForceField(*mol, mmffMolProperties);
-#else
-    ForceFields::ForceField *field =
-        RDKit::MMFF::constructForceField(*mol, mmffMolProperties);
-#endif
     TEST_ASSERT(field);
-    field->initialize();
-#ifdef RDK_BUILD_WITH_OPENMM
-#else
     ForceFields::MMFF::DistanceConstraintContrib *dc =
         new ForceFields::MMFF::DistanceConstraintContrib(field, 1, 3, 2.0, 2.0,
                                                          1.0e5);
     field->contribs().push_back(ForceFields::ContribPtr(dc));
-#endif
     field->minimize();
     TEST_ASSERT(MolTransforms::getBondLength(mol->getConformer(), 1, 3) > 1.99);
 
-#ifdef RDK_BUILD_WITH_OPENMM
     RDKit::MMFF::OpenMMForceField *cfield = new RDKit::MMFF::OpenMMForceField(*field);
-#else
-    ForceFields::ForceField *cfield = new ForceFields::ForceField(*field);
-#endif
     cfield->positions().clear();
 
     for (unsigned int i = 0; i < cmol->getNumAtoms(); i++) {
       cfield->positions().push_back(&cmol->getConformer().getAtomPos(i));
     }
-    cfield->initialize();
     cfield->minimize();
     TEST_ASSERT(MolTransforms::getBondLength(cmol->getConformer(), 1, 3) >
                 1.99);
@@ -1809,11 +1710,14 @@ void testMMFFCopy() {
   }
   std::cerr << "  done" << std::endl;
 }
+#endif
 
 int main(int argc, char *argv[]) {
   if (!mmffValidationSuite(argc, argv)) {
+#if 0
     testMMFFAllConstraints();
     testMMFFCopy();
+#endif
   }
 
   return 0;

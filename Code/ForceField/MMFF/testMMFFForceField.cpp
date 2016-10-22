@@ -402,6 +402,7 @@ int mmffValidationSuite(int argc, char *argv[]) {
             rdkFStream << "\nTOTAL MMFF ENERGY              =" << std::right
                        << std::setw(16) << std::fixed << std::setprecision(4)
                        << field->calcEnergy() << "\n\n" << std::endl;
+            delete field;
           }
         }
         sdfWriter->close();

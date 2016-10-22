@@ -28,7 +28,7 @@ namespace Utils {
 static const double cb = -0.006981317;
 static const double c2 = 0.5 * MDYNE_A_TO_KCAL_MOL * DEG2RAD * DEG2RAD;
 
-inline bool isLinear(const MMFFProp *mmffPropParamsCentralAtom) {
+bool isLinear(const MMFFProp *mmffPropParamsCentralAtom) {
   return (mmffPropParamsCentralAtom->linh ? true : false);
 }
 
@@ -93,20 +93,20 @@ void calcAngleBendGrad(RDGeom::Point3D *r, double *dist, double **g,
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMM::CustomAngleForce *getOpenMMAngleBendForce(const MMFFProp *mmffPropParamsCentralAtom) {
-  static const double c1OMM = MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
-  static const double c2OMM = 0.5 * MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
-  static const double cbOMM = cb * OpenMM::DegreesPerRadian;
-  std::stringstream af;
+OpenMM::CustomAngleForce *getOpenMMAngleBendForce() {
+  static const double c1AB = MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
+  static const double cbAB = cb * OpenMM::DegreesPerRadian;
   // theta, v0 are in radians
-  if (Utils::isLinear(mmffPropParamsCentralAtom)) {
-    af << c1OMM << "*ka*(1.0+cos(theta))";
-  } else {
-    af << c2OMM << "*ka*(theta-v0)^2*(1.0+" << cbOMM << "*(theta-v0))";
-  }
-  OpenMM::CustomAngleForce *res = new OpenMM::CustomAngleForce(af.str());
+  static const std::string af = "c1AB*ka*(isLinear*(one+cos(theta)) "
+    "+ (one-isLinear)*oneHalf*(theta-v0)^2*(one+cbAB*(theta-v0)))";
+  OpenMM::CustomAngleForce *res = new OpenMM::CustomAngleForce(af);
+  res->addGlobalParameter("one", 1.0);
+  res->addGlobalParameter("oneHalf", 0.5);
+  res->addGlobalParameter("c1AB", c1AB);
+  res->addGlobalParameter("cbAB", cbAB);
   res->addPerAngleParameter("ka");
   res->addPerAngleParameter("v0");
+  res->addPerAngleParameter("isLinear");
   
   return res;
 }

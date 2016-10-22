@@ -175,7 +175,6 @@ double ForceField::distance(unsigned int i, unsigned int j, double *pos) const {
 }
 
 void ForceField::initialize() {
-  std::cerr << "ForceField::initialize()" << std::endl;
   // clean up if we have used this already:
   df_init = false;
   delete[] dp_distMat;
@@ -363,10 +362,9 @@ OpenMMForceField::OpenMMForceField(const OpenMMForceField &other) :
 }
 
 void OpenMMForceField::initialize() {
-  std::cerr << "OpenMMForceField::initialize()" << std::endl;
   if (!d_openmmContext) {
-    #if 0
-    OpenMM::Platform& platform = OpenMM::Platform::getPlatformByName("Reference");
+    #if 1
+    OpenMM::Platform& platform = OpenMM::Platform::getPlatformByName("CPU");
     std::map<std::string, std::string> properties;
     d_openmmContext = new OpenMM::Context(*d_openmmSystem,
       *d_openmmIntegrator, platform, properties);

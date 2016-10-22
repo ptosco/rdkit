@@ -38,6 +38,50 @@ namespace Tools {
 //
 //
 // ------------------------------------------------------------------------
+#ifdef RDK_BUILD_WITH_OPENMM
+class OpenMMPlugins {
+  public:
+    const std::vector<std::string>& load(
+      bool force = false, const std::string &dir = std::string());
+    const std::vector<std::string>& loadedPlugins() {
+      return d_loadedPlugins;
+    }
+    const std::vector<std::string>& failedPlugins() {
+      return d_failedPlugins;
+    }
+    static OpenMMPlugins *instance();
+  private:
+    //! to force this to be a singleton, the constructor must be private
+    OpenMMPlugins() :
+      d_alreadyLoaded(false) {};
+    static class OpenMMPlugins *ds_instance;  //!< the singleton
+    bool d_alreadyLoaded;
+    std::vector<std::string> d_loadedPlugins;
+    std::vector<std::string> d_failedPlugins;
+};
+
+OpenMMPlugins *OpenMMPlugins::ds_instance = NULL;
+
+OpenMMPlugins *OpenMMPlugins::instance()
+{
+  if (!ds_instance)
+    ds_instance = new OpenMMPlugins();
+  return ds_instance;
+}
+
+const std::vector<std::string> &OpenMMPlugins::load(
+  bool force, const std::string &dir) {
+  if (!(d_alreadyLoaded || force)) {
+    std::string d(dir.length() ? dir
+      : OpenMM::Platform::getDefaultPluginsDirectory());
+    d_loadedPlugins = OpenMM::Platform::loadPluginsFromDirectory(d);
+    d_failedPlugins = OpenMM::Platform::getPluginLoadFailures();
+    d_alreadyLoaded = true;
+  }
+  return d_loadedPlugins;
+}
+#endif
+
 void checkFFPreconditions(ForceFields::ForceField *field,
                           MMFFMolProperties *mmffMolProperties, int ffOpts) {
 #ifdef RDK_BUILD_WITH_OPENMM
@@ -1195,7 +1239,7 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
 
 #ifdef RDK_BUILD_WITH_OPENMM
 OpenMMForceField::OpenMMForceField(OpenMM::Integrator *integrator,
-  const std::string &pluginsDir) :
+  bool force, const std::string &pluginsDir) :
   ForceFields::OpenMMForceField(integrator),
   d_bondStretchForce(NULL),
   d_angleBendForce(NULL),
@@ -1205,10 +1249,7 @@ OpenMMForceField::OpenMMForceField(OpenMM::Integrator *integrator,
   d_vdWForce(NULL),
   d_eleForce(NULL),
   d_eleForce1_4(NULL) {
-  std::string _pluginsDir = (pluginsDir.size() ? pluginsDir
-    : OpenMM::Platform::getDefaultPluginsDirectory());
-  d_loadedPlugins = OpenMM::Platform::loadPluginsFromDirectory(_pluginsDir);
-  d_failedPlugins = OpenMM::Platform::getPluginLoadFailures();
+  Tools::OpenMMPlugins::instance()->load(force, pluginsDir);
 }
 
 void OpenMMForceField::addBondStretchContrib(unsigned int idx1,
@@ -1227,12 +1268,13 @@ void OpenMMForceField::addAngleBendContrib(unsigned int idx1,
   unsigned int idx2, unsigned int idx3, const MMFFAngle *mmffAngleParams,
   const MMFFProp *mmffPropParamsCentralAtom) {
   if (!d_angleBendForce) {
-    d_angleBendForce = MMFF::Utils::getOpenMMAngleBendForce(mmffPropParamsCentralAtom);
+    d_angleBendForce = MMFF::Utils::getOpenMMAngleBendForce();
     d_openmmSystem->addForce(d_angleBendForce);
   }
   std::vector<double> params;
   params.push_back(mmffAngleParams->ka);
   params.push_back(mmffAngleParams->theta0 * OpenMM::RadiansPerDegree);
+  params.push_back(MMFF::Utils::isLinear(mmffPropParamsCentralAtom) ? 1.0 : 0.0);
   d_angleBendForce->addAngle(idx1, idx2, idx3, params);
 }
 
@@ -1240,7 +1282,7 @@ void OpenMMForceField::addStretchBendContrib(unsigned int idx1,
   unsigned int idx2, unsigned int idx3, const MMFFStbn *mmffStbnParams,
   const MMFFAngle *mmffAngleParams, const MMFFBond *mmffBondParams1,
   const MMFFBond *mmffBondParams2) {
-  static const double c1OMM = MDYNE_A_TO_KCAL_MOL * OpenMM::RadiansPerDegree
+  static const double c1SB = MDYNE_A_TO_KCAL_MOL * OpenMM::RadiansPerDegree
     * OpenMM::AngstromsPerNm * OpenMM::KJPerKcal; 
   if (!d_stretchBendForce) {
     d_stretchBendForce = MMFF::Utils::getOpenMMStretchBendForce();
@@ -1252,7 +1294,7 @@ void OpenMMForceField::addStretchBendContrib(unsigned int idx1,
     mmffBondParams1->r0 * OpenMM::NmPerAngstrom,
     mmffBondParams2->r0 * OpenMM::NmPerAngstrom,
     mmffAngleParams->theta0 * OpenMM::RadiansPerDegree,
-    c1OMM * forceConstants.first, c1OMM * forceConstants.second);
+    c1SB * forceConstants.first, c1SB * forceConstants.second);
 }
 
 void OpenMMForceField::addTorsionAngleContrib(unsigned int idx1,
@@ -1272,7 +1314,7 @@ void OpenMMForceField::addTorsionAngleContrib(unsigned int idx1,
 void OpenMMForceField::addOopBendContrib(unsigned int idx1,
   unsigned int idx2, unsigned int idx3,
   unsigned int idx4, const MMFFOop *mmffOopParams) {
-  static const double c2OMM = 0.5 * MDYNE_A_TO_KCAL_MOL
+  static const double c2OOP = 0.5 * MDYNE_A_TO_KCAL_MOL
     * OpenMM::RadiansPerDegree * OpenMM::RadiansPerDegree
     * OpenMM::KJPerKcal;
   if (!d_oopBendForce) {
@@ -1284,7 +1326,7 @@ void OpenMMForceField::addOopBendContrib(unsigned int idx1,
     d_openmmSystem->addForce(d_oopBendForce);
   }
   d_oopBendForce->addOutOfPlaneBend(idx1, idx4, idx3, idx2,
-    c2OMM * mmffOopParams->koop);
+    c2OOP * mmffOopParams->koop);
 }
 
 void OpenMMForceField::addVdWContrib(unsigned int idx,

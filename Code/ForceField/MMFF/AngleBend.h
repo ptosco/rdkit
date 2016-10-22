@@ -58,7 +58,7 @@ class AngleBendContrib : public ForceFieldContrib {
 };
 namespace Utils {
 //! returns true if the angle is linear
-inline bool isLinear(const MMFFProp *mmffPropParamsCentralAtom);
+bool isLinear(const MMFFProp *mmffPropParamsCentralAtom);
 //! returns the MMFF rest value for an angle
 double calcAngleRestValue(const MMFFAngle *mmffAngleParams);
 //! returns the MMFF force constant for an angle
@@ -72,7 +72,7 @@ double calcAngleBendEnergy(const double theta0, const double ka, bool isLinear,
 void calcAngleBendGrad(RDGeom::Point3D *r, double *dist, double **g,
                        double &dE_dTheta, double &cosTheta, double &sinTheta);
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMM::CustomAngleForce *getOpenMMAngleBendForce(const MMFFProp *mmffPropParamsCentralAtom);
+OpenMM::CustomAngleForce *getOpenMMAngleBendForce();
 #endif
 }
 }

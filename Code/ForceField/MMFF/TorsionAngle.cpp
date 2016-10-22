@@ -94,13 +94,16 @@ void calcTorsionGrad(RDGeom::Point3D *r, RDGeom::Point3D *t, double *d,
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-static const double c1OMM = 0.5 * OpenMM::KJPerKcal;
-
 OpenMM::CustomTorsionForce *getOpenMMTorsionAngleForce() {
-  std::stringstream tf;
+  static const double c1TA = 0.5 * OpenMM::KJPerKcal;
   // V1, V2, V3, theta are in radians
-  tf << c1OMM << "*(V1*(1.0+cos(theta))+V2*(1.0-cos(2.0*theta))+V3*(1.0+cos(3.0*theta)))";
-  OpenMM::CustomTorsionForce *res = new OpenMM::CustomTorsionForce(tf.str());
+  static const std::string tf = "c1TA*(V1*(one+cos(theta))"
+    "+V2*(one-cos(two*theta))+V3*(one+cos(three*theta)))";
+  OpenMM::CustomTorsionForce *res = new OpenMM::CustomTorsionForce(tf);
+  res->addGlobalParameter("one", 1.0);
+  res->addGlobalParameter("two", 2.0);
+  res->addGlobalParameter("three", 3.0);
+  res->addGlobalParameter("c1TA", c1TA);
   res->addPerTorsionParameter("V1");
   res->addPerTorsionParameter("V2");
   res->addPerTorsionParameter("V3");

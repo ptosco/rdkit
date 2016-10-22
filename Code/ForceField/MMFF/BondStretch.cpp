@@ -13,7 +13,6 @@
 
 #include "BondStretch.h"
 #include "Params.h"
-#include <sstream>
 #include <cmath>
 #include <ForceField/ForceField.h>
 #include <RDGeneral/Invariant.h>
@@ -53,16 +52,17 @@ double calcBondStretchEnergy(const double r0, const double kb,
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-static const double c1OMM = c1 * OpenMM::KJPerKcal
+static const double c1BS = c1 * OpenMM::KJPerKcal
   * OpenMM::AngstromsPerNm * OpenMM::AngstromsPerNm;
-static const double csOMM = cs * OpenMM::AngstromsPerNm;
-static const double c3OMM = c3 * OpenMM::AngstromsPerNm * OpenMM::AngstromsPerNm;
+static const double csBS = cs * OpenMM::AngstromsPerNm;
+static const double c3BS = c3 * OpenMM::AngstromsPerNm * OpenMM::AngstromsPerNm;
 
 OpenMM::CustomBondForce *getOpenMMBondStretchForce() {
-  std::stringstream bf;
-  bf << c1OMM << "*kb*(r-r0)^2*(1.0+"
-     << csOMM << "*(r-r0)+" << c3OMM << "*(r-r0)^2)";
-  OpenMM::CustomBondForce *res = new OpenMM::CustomBondForce(bf.str());
+  static const std::string bf = "c1BS*kb*(r-r0)^2*(1.0+csBS*(r-r0)+c3BS*(r-r0)^2)";
+  OpenMM::CustomBondForce *res = new OpenMM::CustomBondForce(bf);
+  res->addGlobalParameter("c1BS", c1BS);
+  res->addGlobalParameter("csBS", csBS);
+  res->addGlobalParameter("c3BS", c3BS);
   res->addPerBondParameter("kb");
   res->addPerBondParameter("r0");
   

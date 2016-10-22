@@ -14,5 +14,12 @@ rdkit_test(testMMFFForceField testMMFFForceField.cpp
     DistGeomHelpers DistGeometry ForceFieldHelpers ForceField 
     FileParsers MolTransforms SmilesParse SubstructMatch MolAlign
     Optimizer EigenSolvers Alignment GraphMol RDGeometryLib RDGeneral ${RDKit_THREAD_LIBS} )
+if(RDK_BUILD_WITH_OPENMM)
+rdkit_test(testMMFFForceFieldOpenMM testMMFFForceFieldOpenMM.cpp 
+    LINK_LIBRARIES 
+    DistGeomHelpers DistGeometry ForceFieldHelpers ForceField 
+    FileParsers MolTransforms SmilesParse SubstructMatch MolAlign
+    Optimizer EigenSolvers Alignment GraphMol RDGeometryLib RDGeneral ${RDKit_THREAD_LIBS} )
+endif(RDK_BUILD_WITH_OPENMM)
 endif(RDK_TEST_MMFF_COMPLIANCE)
 
