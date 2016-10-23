@@ -20,6 +20,7 @@ namespace OpenMM {
 class System;
 class Integrator;
 class Context;
+class Platform;
 class Vec3;
 }
 
@@ -284,9 +285,6 @@ class OpenMMForceField : public ForceField {
     OpenMMForceField(OpenMM::Integrator *integrator = NULL);
     ~OpenMMForceField();
 
-    //! copy ctor, copies contribs.
-    OpenMMForceField(const OpenMMForceField &other);
-  
     OpenMM::System *system() const {
       return d_openmmSystem;
     }
@@ -296,9 +294,21 @@ class OpenMMForceField : public ForceField {
     OpenMM::Integrator *integrator() const {
       return d_openmmIntegrator;
     }
+    
+    void setUseOpenMM(bool s) {
+      d_useOpenMM = s;
+    }
+
+    bool getUseOpenMM() {
+      return d_useOpenMM;
+    }
 
     //! does initialization
     void initialize();
+
+    //! does initialization allowing to set a specific Platform and relative properties
+    void initialize(OpenMM::Platform& platform,
+      const std::map<std::string, std::string> &properties);
 
     //! calculates and returns the energy (in kcal/mol) based on existing
     //! positions in the forcefield
@@ -389,8 +399,13 @@ class OpenMMForceField : public ForceField {
     OpenMM::System *d_openmmSystem;
     OpenMM::Integrator *d_openmmIntegrator;
     OpenMM::Context *d_openmmContext;
-    std::vector<OpenMM::Vec3> d_storedPos;
   private:
+    // private, so noncopyable
+    OpenMMForceField(const OpenMMForceField &other);
+    bool d_useOpenMM;
+    std::string d_platformName;
+    std::map<std::string, std::string> d_platformProperties;
+    std::vector<OpenMM::Vec3> d_storedPos;
     void replacePositions(double *pos);
     void restorePositions();
 };

@@ -54,7 +54,7 @@ namespace MMFF {
 class OpenMMForceField : public ForceFields::OpenMMForceField {
   public:
     OpenMMForceField(OpenMM::Integrator *integrator = NULL,
-      bool force = false, const std::string &pluginsDir = std::string());
+      bool forceLoadPlugins = false, const std::string &pluginsDir = std::string());
     void addBondStretchContrib(unsigned int idx1, unsigned int idx2,
       const ForceFields::MMFF::MMFFBond *mmffBondParams);
     void addAngleBendContrib(unsigned int idx1, unsigned int idx2,

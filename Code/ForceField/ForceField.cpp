@@ -345,7 +345,8 @@ void ForceField::initDistanceMatrix() {
 OpenMMForceField::OpenMMForceField(OpenMM::Integrator *integrator) :
   ForceField::ForceField(3),
   d_openmmSystem(new OpenMM::System()),
-  d_openmmContext(NULL) {
+  d_openmmContext(NULL),
+  d_useOpenMM(true) {
   static const double defaultStepSize = 2.0;
   d_openmmIntegrator = (integrator ? integrator
     : new OpenMM::VerletIntegrator(defaultStepSize * OpenMM::PsPerFs));
@@ -362,15 +363,30 @@ OpenMMForceField::OpenMMForceField(const OpenMMForceField &other) :
 }
 
 void OpenMMForceField::initialize() {
-  if (!d_openmmContext) {
-    #if 1
-    OpenMM::Platform& platform = OpenMM::Platform::getPlatformByName("CPU");
-    std::map<std::string, std::string> properties;
+  if (!d_useOpenMM) return;
+  if (!d_openmmContext)
+    d_openmmContext = new OpenMM::Context(*d_openmmSystem, *d_openmmIntegrator);
+  else
+    d_openmmContext->reinitialize();
+}
+
+void OpenMMForceField::initialize(OpenMM::Platform& platform,
+  const std::map<std::string, std::string> &properties) {
+  if (!d_useOpenMM) return;
+  bool needNewContext = (!d_openmmContext || (platform.getName() != d_platformName));
+  for (std::map<std::string, std::string>::const_iterator it = d_platformProperties.begin();
+    (!needNewContext) && (it != d_platformProperties.end()); ++it) {
+    std::map<std::string, std::string>::const_iterator f = properties.find(it->first);
+    needNewContext = (f == properties.end());
+    if (!needNewContext)
+      needNewContext = (it->second != f->second);
+  }
+  if (needNewContext) {
+    delete d_openmmContext;
     d_openmmContext = new OpenMM::Context(*d_openmmSystem,
       *d_openmmIntegrator, platform, properties);
-    #else
-    d_openmmContext = new OpenMM::Context(*d_openmmSystem, *d_openmmIntegrator);
-    #endif
+    d_platformName = platform.getName();
+    d_platformProperties = properties;
   }
   else
     d_openmmContext->reinitialize();
@@ -400,35 +416,48 @@ void OpenMMForceField::restorePositions() {
 }
 
 double OpenMMForceField::calcEnergy(std::vector<double> *contribs) const {
-  return (contribs ? ForceField::calcEnergy(contribs)
+  return ((contribs || !d_useOpenMM) ? ForceField::calcEnergy(contribs)
     : OpenMM::KcalPerKJ * d_openmmContext->getState(
     OpenMM::State::Energy).getPotentialEnergy());
 }
 
 double OpenMMForceField::calcEnergy(double *pos) {
-  replacePositions(pos);
-  double res = d_openmmContext->getState(
-    OpenMM::State::Energy).getPotentialEnergy();
-  restorePositions();
+  double res = 0.0;
+  if (!d_useOpenMM)
+    res = ForceField::calcEnergy(pos);
+  else {
+    replacePositions(pos);
+    res = d_openmmContext->getState(
+      OpenMM::State::Energy).getPotentialEnergy();
+    restorePositions();
+  }
 
   return res;
 }
 
 void OpenMMForceField::calcGrad(double *forces) const {
-  const std::vector<OpenMM::Vec3> &forceVec = d_openmmContext->getState(
-    OpenMM::State::Forces).getForces();
-  unsigned int n = 0;
-  for (unsigned int i = 0; i < forceVec.size(); ++i) {
-    forces[n++] = forceVec[i][0];
-    forces[n++] = forceVec[i][1];
-    forces[n++] = forceVec[i][2];
+  if (!d_useOpenMM)
+    ForceField::calcGrad(forces);
+  else {
+    const std::vector<OpenMM::Vec3> &forceVec = d_openmmContext->getState(
+      OpenMM::State::Forces).getForces();
+    unsigned int n = 0;
+    for (unsigned int i = 0; i < forceVec.size(); ++i) {
+      forces[n++] = forceVec[i][0];
+      forces[n++] = forceVec[i][1];
+      forces[n++] = forceVec[i][2];
+    }
   }
 }
 
 void OpenMMForceField::calcGrad(double *pos, double *forces) {
-  replacePositions(pos);
-  calcGrad(forces);
-  restorePositions();
+  if (!d_useOpenMM)
+    ForceField::calcGrad(pos, forces);
+  else {
+    replacePositions(pos);
+    calcGrad(forces);
+    restorePositions();
+  }
 }
 
 int OpenMMForceField::minimize(unsigned int snapshotFreq,
@@ -440,10 +469,16 @@ int OpenMMForceField::minimize(unsigned int snapshotFreq,
 
 int OpenMMForceField::minimize(unsigned int maxIts,
   double forceTol, double energyTol) {
-  RDUNUSED_PARAM(energyTol);
+  int res = 0;
+  if (!d_useOpenMM)
+    res = ForceField::minimize(maxIts, forceTol, energyTol);
+  else {
+    RDUNUSED_PARAM(energyTol);
+    res = ((OpenMM::LocalEnergyMinimizer::minimize(*d_openmmContext,
+      forceTol, maxIts) == LBFGSERR_MAXIMUMITERATION) ? 1 : 0);
+  }
   
-  return ((OpenMM::LocalEnergyMinimizer::minimize(*d_openmmContext,
-    forceTol, maxIts) == LBFGSERR_MAXIMUMITERATION) ? 1 : 0);
+  return res;
 }
 #endif
 

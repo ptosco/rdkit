@@ -67,6 +67,73 @@ class PyForceField {
   boost::shared_ptr<ForceField> field;
 };
 
+#ifdef RDK_BUILD_WITH_OPENMM
+class PyOpenMMForceField : public PyForceField {
+  public:
+    PyOpenMMForceField(OpenMMForceField *f) :
+      PyForceField(f),
+      fieldOMM(f) {};
+
+    ~PyOpenMMForceField() {
+      // std::cerr << " *** destroy PyOpenMMForce field " << std::endl;
+      fieldOMM.reset();
+    }
+
+    OpenMM::System *system() const {
+      checkFieldOMM();
+      return fieldOMM->system();
+    }
+
+    OpenMM::Context *context() const {
+      checkFieldOMM();
+      return fieldOMM->context();
+    }
+
+    OpenMM::Integrator *integrator() const {
+      checkFieldOMM();
+      return fieldOMM->integrator();
+    }
+    
+    void setUseOpenMM(bool s) {
+      checkFieldOMM();
+      fieldOMM->setUseOpenMM(s);
+    }
+
+    bool getUseOpenMM() const {
+      checkFieldOMM();
+      return fieldOMM->getUseOpenMM();
+    }
+
+    void initialize() {
+      checkFieldOMM();
+      this->fieldOMM->initialize();
+    }
+
+    void initialize(OpenMM::Platform& platform,
+      const std::map<std::string, std::string> &properties) {
+      checkFieldOMM();
+      this->fieldOMM->initialize(platform, properties);
+    }
+
+    double calcEnergy() const {
+      checkFieldOMM();
+      return this->fieldOMM->calcEnergy();
+    }
+
+    int minimize(int maxIts, double forceTol, double energyTol) {
+      checkFieldOMM();
+      return this->fieldOMM->minimize(maxIts, forceTol, energyTol);
+    }
+
+    // private:
+    boost::shared_ptr<OpenMMForceField> fieldOMM;
+  private:
+    void checkFieldOMM() const {
+      PRECONDITION(this->fieldOMM, "no force field");
+    }
+};
+#endif
+
 class PyMMFFMolProperties {
  public:
   PyMMFFMolProperties(RDKit::MMFF::MMFFMolProperties *mp)
@@ -156,4 +223,4 @@ PyObject *getUFFInversionParams(const RDKit::ROMol &mol,
                                 const unsigned int idx4);
 PyObject *getUFFVdWParams(const RDKit::ROMol &mol, const unsigned int idx1,
                           const unsigned int idx2);
-}
+}  // end namespace ForceFields
