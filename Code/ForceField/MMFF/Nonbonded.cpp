@@ -93,6 +93,9 @@ void scaleVdWParams(double &R_star_ij, double &wellDepth,
                     const MMFFVdW *mmffVdWParamsJAtom) {
   if (((mmffVdWParamsIAtom->DA == 'D') && (mmffVdWParamsJAtom->DA == 'A')) ||
       ((mmffVdWParamsIAtom->DA == 'A') && (mmffVdWParamsJAtom->DA == 'D'))) {
+#if 0
+    std::cerr << "RDKit::scaleVdWParams() scaling" << std::endl;
+#endif
     R_star_ij *= mmffVdW->DARAD;
     wellDepth *= mmffVdW->DAEPS;
   }

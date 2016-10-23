@@ -377,6 +377,11 @@ void OpenMMForceField::initializeContext() {
     d_openmmContext->reinitialize();
 }
 
+void OpenMMForceField::initializeContext(std::string& platformName,
+  const std::map<std::string, std::string> &properties) {
+  initializeContext(OpenMM::Platform::getPlatformByName(platformName), properties);
+}
+
 void OpenMMForceField::initializeContext(OpenMM::Platform& platform,
   const std::map<std::string, std::string> &properties) {
   if (!d_useOpenMM) return;
@@ -389,9 +394,18 @@ void OpenMMForceField::initializeContext(OpenMM::Platform& platform,
       needNewContext = (it->second != f->second);
   }
   if (needNewContext) {
-    delete d_openmmContext;
+    d_storedPos.clear();
+    if (d_openmmContext) {
+      OpenMM::State state(d_openmmContext->getState(OpenMM::State::Positions));
+      d_storedPos = state.getPositions();
+      delete d_openmmContext;
+    }
     d_openmmContext = new OpenMM::Context(*d_openmmSystem,
       *d_openmmIntegrator, platform, properties);
+    if (d_storedPos.size()) {
+      d_openmmContext->setPositions(d_storedPos);
+      d_storedPos.clear();
+    }
     d_platformName = platform.getName();
     d_platformProperties = properties;
   }

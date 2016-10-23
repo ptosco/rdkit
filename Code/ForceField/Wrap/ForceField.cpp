@@ -379,7 +379,7 @@ BOOST_PYTHON_MODULE(rdForceField) {
       .def("Initialize", &PyOpenMMForceField::initialize,
            "Initializes the force field (call this before minimizing)")
       .def("InitializeContext", &PyOpenMMForceField::initializeContext,
-           (python::arg("platform") = python::object(), python::arg("properties") = python::dict()),
+           (python::arg("platformName") = "", python::arg("properties") = python::dict()),
            "Initializes the OpenMM Context, optionally allowing to set a platform and properties");
 #endif
   python::class_<PyMMFFMolProperties>(

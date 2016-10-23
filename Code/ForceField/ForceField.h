@@ -308,6 +308,10 @@ class OpenMMForceField : public ForceField {
     //! creates context
     void initializeContext();
 
+    //! creates context allowing to set a specific platform name and relative properties
+    void initializeContext(std::string& platformName,
+      const std::map<std::string, std::string> &properties);
+
     //! creates context allowing to set a specific Platform and relative properties
     void initializeContext(OpenMM::Platform& platform,
       const std::map<std::string, std::string> &properties);

@@ -942,6 +942,7 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
         continue;
       }
       if (getTwoBitCell(neighborMatrix, i * nAtoms + j) >= RELATION_1_4) {
+      //if (true) {
         double dist = (conf.getAtomPos(i) - conf.getAtomPos(j)).length();
         if (dist > nonBondedThresh) {
           continue;
@@ -1338,11 +1339,13 @@ void OpenMMForceField::addVdWContrib(unsigned int idx,
     d_vdWForce = MMFF::Utils::getOpenMMVdWForce();
     d_vdWForce->setSigmaCombiningRule("MMFF");
     d_vdWForce->setEpsilonCombiningRule("MMFF");
+    d_vdWForce->setUseDispersionCorrection(false);
     d_openmmSystem->addForce(d_vdWForce);
   }
+  const double alpha_i_d_N_i = mmffVdWParams->alpha_i / mmffVdWParams->N_i;
   d_vdWForce->addParticle(idx, ((mmffVdWParams->DA == 'D')
     ? -mmffVdWParams->R_star : mmffVdWParams->R_star) * OpenMM::NmPerAngstrom,
-    mmffVdWParams->alpha_i / mmffVdWParams->N_i,
+    (mmffVdWParams->DA == 'A') ? -alpha_i_d_N_i : alpha_i_d_N_i,
     mmffVdWParams->G_i * mmffVdWParams->alpha_i);
   d_vdWForce->setParticleExclusions(idx, exclusions);
 }

@@ -116,10 +116,10 @@ class PyOpenMMForceField {
       fieldOMM->initialize();
     }
 
-    void initializeContext(OpenMM::Platform *platform = NULL,
+    void initializeContext(std::string platformName = std::string(),
       python::dict properties = python::dict()) {
       checkFieldOMM();
-      if (!platform)
+      if (!platformName.size())
         fieldOMM->initializeContext();
       else {
         python::list keys = properties.keys();
@@ -130,7 +130,7 @@ class PyOpenMMForceField {
             propertiesMap[python::extract<std::string>(keys[i])] =
               python::extract<std::string>(value);
         }
-        fieldOMM->initializeContext(*platform, propertiesMap);
+        fieldOMM->initializeContext(platformName, propertiesMap);
       }
     }
 
