@@ -21,6 +21,9 @@
 #include <GraphMol/ForceFieldHelpers/MMFF/AtomTyper.h>
 #include <GraphMol/ForceFieldHelpers/MMFF/Builder.h>
 #include <GraphMol/ForceFieldHelpers/MMFF/MMFF.h>
+#ifdef RDK_BUILD_WITH_OPENMM
+#include <OpenMM.h>
+#endif
 
 namespace python = boost::python;
 
@@ -126,7 +129,6 @@ ForceFields::PyForceField *MMFFGetMoleculeForceField(
     double nonBondedThresh = 100.0, int confId = -1,
     bool ignoreInterfragInteractions = true) {
   ForceFields::PyForceField *pyFF = NULL;
-  boost::python::list res;
 
   if (pyMMFFMolProperties) {
     MMFF::MMFFMolProperties *mmffMolProperties =
@@ -142,6 +144,30 @@ ForceFields::PyForceField *MMFFGetMoleculeForceField(
 
   return pyFF;
 }
+
+#ifdef RDK_BUILD_WITH_OPENMM
+ForceFields::PyOpenMMForceField *MMFFGetMoleculeOpenMMForceField(
+    ROMol &mol, ForceFields::PyMMFFMolProperties *pyMMFFMolProperties,
+    double nonBondedThresh = 100.0, int confId = -1,
+    bool ignoreInterfragInteractions = true,
+    OpenMM::Integrator *integrator = NULL) {
+  ForceFields::PyMMFFOpenMMForceField *pyFF = NULL;
+
+  if (pyMMFFMolProperties) {
+    MMFF::MMFFMolProperties *mmffMolProperties =
+        &(*(pyMMFFMolProperties->mmffMolProperties));
+    MMFF::OpenMMForceField *ff =
+        MMFF::constructOpenMMForceField(mol, mmffMolProperties, nonBondedThresh,
+                              confId, ignoreInterfragInteractions, integrator);
+    pyFF = new ForceFields::PyMMFFOpenMMForceField(ff);
+    if (pyFF) {
+      pyFF->initialize();
+    }
+  }
+
+  return pyFF;
+}
+#endif
 
 bool MMFFHasAllMoleculeParams(const ROMol &mol) {
   ROMol molCopy(mol);
@@ -363,6 +389,32 @@ BOOST_PYTHON_MODULE(rdForceFieldHelpers) {
        python::arg("ignoreInterfragInteractions") = true),
       python::return_value_policy<python::manage_new_object>(),
       docString.c_str());
+
+#ifdef RDK_BUILD_WITH_OPENMM
+  docString =
+      "returns a MMFF OpenMM force field for a molecule\n\n\
+ \n\
+ ARGUMENTS:\n\n\
+    - mol : the molecule of interest\n\
+    - pyMMFFMolProperties : PyMMFFMolProperties object as returned\n\
+                  by MMFFGetMoleculeProperties()\n\
+    - nonBondedThresh : used to exclude long-range non-bonded\n\
+                  interactions (defaults to 100.0)\n\
+    - confId : indicates which conformer to optimize\n\
+    - ignoreInterfragInteractions : if true, nonbonded terms between\n\
+                  fragments will not be added to the forcefield\n\
+    - integrator : the OpenMM integrator to be used by the forcefield,\n\
+                   defaults to Verlet\n\
+\n";
+  python::def(
+      "MMFFGetMoleculeOpenMMForceField", RDKit::MMFFGetMoleculeOpenMMForceField,
+      (python::arg("mol"), python::arg("pyMMFFMolProperties"),
+       python::arg("nonBondedThresh") = 100.0, python::arg("confId") = -1,
+       python::arg("ignoreInterfragInteractions") = true,
+       python::arg("integrator") = python::object()),
+      python::return_value_policy<python::manage_new_object>(),
+      docString.c_str());
+#endif
 
   docString =
       "checks if MMFF parameters are available for all of a molecule's atoms\n\n\

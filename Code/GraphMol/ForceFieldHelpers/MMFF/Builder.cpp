@@ -1196,7 +1196,7 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
         posPtr->x * OpenMM::NmPerAngstrom,
         posPtr->y * OpenMM::NmPerAngstrom,
         posPtr->z * OpenMM::NmPerAngstrom));
-      ffOMM->system()->addParticle(tbl->getAtomicWeight(
+      ffOMM->getSystem()->addParticle(tbl->getAtomicWeight(
         mol.getAtomWithIdx(i)->getAtomicNum()));
     }
 #endif
@@ -1231,10 +1231,10 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
     }
   }
   if (ffOMM)
-    ffOMM->initialize();
+    ffOMM->initializeContext();
 #ifdef RDK_BUILD_WITH_OPENMM
   if (ffOMM)
-    ffOMM->context()->setPositions(positionsOMM);
+    ffOMM->getContext(true)->setPositions(positionsOMM);
 #endif
 
   return ff;
@@ -1376,22 +1376,22 @@ void OpenMMForceField::addEleContrib1_4(unsigned int idx,
   d_eleForce1_4->addInteractionGroup(self, partners1_4);
 }
 
-OpenMMForceField *constructOpenMMForceField(
-  ROMol &mol, double nonBondedThresh,
-  int confId, bool ignoreInterfragInteractions) {
+OpenMMForceField *constructOpenMMForceField(ROMol &mol,
+  double nonBondedThresh, int confId, bool ignoreInterfragInteractions,
+  OpenMM::Integrator *integrator) {
   MMFFMolProperties mmffMolProperties(mol);
 
   return constructOpenMMForceField(mol, &mmffMolProperties,
-    nonBondedThresh, confId, ignoreInterfragInteractions);
+    nonBondedThresh, confId, ignoreInterfragInteractions, integrator);
 }
 
-OpenMMForceField *constructOpenMMForceField(
-  ROMol &mol, MMFFMolProperties *mmffMolProperties, double nonBondedThresh,
-  int confId, bool ignoreInterfragInteractions) {
+OpenMMForceField *constructOpenMMForceField(ROMol &mol,
+  MMFFMolProperties *mmffMolProperties, double nonBondedThresh, int confId,
+  bool ignoreInterfragInteractions, OpenMM::Integrator *integrator) {
 
   return static_cast<OpenMMForceField *>(
     constructForceField(mol, mmffMolProperties, ForceFields::USE_OPENMM,
-    nonBondedThresh, confId, ignoreInterfragInteractions));
+    nonBondedThresh, confId, ignoreInterfragInteractions, integrator));
 }
 #endif
 

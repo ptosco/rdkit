@@ -283,15 +283,17 @@ class OpenMMForceField : public ForceField {
   public:
     //! construct with a dimension
     OpenMMForceField(OpenMM::Integrator *integrator = NULL);
-    ~OpenMMForceField();
+    virtual ~OpenMMForceField();
 
-    OpenMM::System *system() const {
+    OpenMM::System *getSystem() const {
       return d_openmmSystem;
     }
 
-    OpenMM::Context *context() const;
+    OpenMM::Context *getContext(bool throwIfNull = false) const;
 
-    OpenMM::Integrator *integrator() const {
+    void setIntegrator(OpenMM::Integrator *integrator);
+
+    OpenMM::Integrator *getIntegrator() const {
       return d_openmmIntegrator;
     }
     
@@ -303,11 +305,11 @@ class OpenMMForceField : public ForceField {
       return d_useOpenMM;
     }
 
-    //! does initialization
-    void initialize();
+    //! creates context
+    void initializeContext();
 
-    //! does initialization allowing to set a specific Platform and relative properties
-    void initialize(OpenMM::Platform& platform,
+    //! creates context allowing to set a specific Platform and relative properties
+    void initializeContext(OpenMM::Platform& platform,
       const std::map<std::string, std::string> &properties);
 
     //! calculates and returns the energy (in kcal/mol) based on existing

@@ -154,11 +154,13 @@ ForceFields::ForceField *constructForceField(
 #ifdef RDK_BUILD_WITH_OPENMM
 OpenMMForceField *constructOpenMMForceField(ROMol &mol,
   double nonBondedThresh = 100.0,
-  int confId = -1, bool ignoreInterfragInteractions = true);
+  int confId = -1, bool ignoreInterfragInteractions = true,
+  OpenMM::Integrator *integrator = NULL);
 
 OpenMMForceField *constructOpenMMForceField(ROMol &mol,
   MMFFMolProperties *mmffMolProperties, double nonBondedThresh = 100.0,
-  int confId = -1, bool ignoreInterfragInteractions = true);
+  int confId = -1, bool ignoreInterfragInteractions = true,
+  OpenMM::Integrator *integrator = NULL);
 #endif
 
 namespace Tools {

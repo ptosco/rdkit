@@ -10,6 +10,7 @@
 //
 #include <ForceField/ForceField.h>
 #include <GraphMol/ForceFieldHelpers/MMFF/AtomTyper.h>
+#include <GraphMol/ForceFieldHelpers/MMFF/Builder.h>
 #include <ForceField/MMFF/Params.h>
 #include <GraphMol/Trajectory/Snapshot.h>
 #include <boost/python/tuple.hpp>
@@ -17,6 +18,8 @@
 #include <vector>
 #include <algorithm>
 #include <Geometry/point.h>
+
+namespace python = boost::python;
 
 namespace ForceFields {
 class PyForceField {
@@ -55,7 +58,7 @@ class PyForceField {
     return this->field->minimize(maxIts, forceTol, energyTol);
   }
 
-  boost::python::tuple minimizeTrajectory(unsigned int snapshotFreq, int maxIts, double forceTol, double energyTol);
+  python::tuple minimizeTrajectory(unsigned int snapshotFreq, int maxIts, double forceTol, double energyTol);
 
   void initialize() {
     PRECONDITION(this->field, "no force field");
@@ -68,10 +71,9 @@ class PyForceField {
 };
 
 #ifdef RDK_BUILD_WITH_OPENMM
-class PyOpenMMForceField : public PyForceField {
+class PyOpenMMForceField {
   public:
     PyOpenMMForceField(OpenMMForceField *f) :
-      PyForceField(f),
       fieldOMM(f) {};
 
     ~PyOpenMMForceField() {
@@ -79,19 +81,24 @@ class PyOpenMMForceField : public PyForceField {
       fieldOMM.reset();
     }
 
-    OpenMM::System *system() const {
+    OpenMM::System *getSystem() const {
       checkFieldOMM();
-      return fieldOMM->system();
+      return fieldOMM->getSystem();
     }
 
-    OpenMM::Context *context() const {
+    OpenMM::Context *getContext(bool throwIfNull = false) const {
       checkFieldOMM();
-      return fieldOMM->context();
+      return fieldOMM->getContext(throwIfNull);
     }
 
-    OpenMM::Integrator *integrator() const {
+    OpenMM::Integrator *getIntegrator() const {
       checkFieldOMM();
-      return fieldOMM->integrator();
+      return fieldOMM->getIntegrator();
+    }
+    
+    void setIntegrator(OpenMM::Integrator *integrator) const {
+      checkFieldOMM();
+      fieldOMM->setIntegrator(integrator);
     }
     
     void setUseOpenMM(bool s) {
@@ -103,33 +110,74 @@ class PyOpenMMForceField : public PyForceField {
       checkFieldOMM();
       return fieldOMM->getUseOpenMM();
     }
-
+    
     void initialize() {
       checkFieldOMM();
-      this->fieldOMM->initialize();
+      fieldOMM->initialize();
     }
 
-    void initialize(OpenMM::Platform& platform,
-      const std::map<std::string, std::string> &properties) {
+    void initializeContext(OpenMM::Platform *platform = NULL,
+      python::dict properties = python::dict()) {
       checkFieldOMM();
-      this->fieldOMM->initialize(platform, properties);
+      if (!platform)
+        fieldOMM->initializeContext();
+      else {
+        python::list keys = properties.keys();
+        std::map<std::string, std::string> propertiesMap;
+        for (unsigned int i = 0; i < len(keys); ++i) {
+          python::object value = properties[keys[i]];
+          if (value)
+            propertiesMap[python::extract<std::string>(keys[i])] =
+              python::extract<std::string>(value);
+        }
+        fieldOMM->initializeContext(*platform, propertiesMap);
+      }
     }
 
     double calcEnergy() const {
       checkFieldOMM();
-      return this->fieldOMM->calcEnergy();
+      return fieldOMM->calcEnergy();
     }
 
     int minimize(int maxIts, double forceTol, double energyTol) {
       checkFieldOMM();
-      return this->fieldOMM->minimize(maxIts, forceTol, energyTol);
+      return fieldOMM->minimize(maxIts, forceTol, energyTol);
     }
 
     // private:
     boost::shared_ptr<OpenMMForceField> fieldOMM;
   private:
     void checkFieldOMM() const {
-      PRECONDITION(this->fieldOMM, "no force field");
+      PRECONDITION(fieldOMM.get(), "no force field");
+    }
+};
+
+class PyMMFFOpenMMForceField : public PyOpenMMForceField {
+  public:
+    PyMMFFOpenMMForceField(RDKit::MMFF::OpenMMForceField *f) :
+      PyOpenMMForceField(f) {};
+    python::list loadedPlugins() {
+      python::list lp;
+      RDKit::MMFF::OpenMMForceField *f = upcast();
+      for (std::vector<std::string>::const_iterator it = f->loadedPlugins().begin();
+        it != f->loadedPlugins().end() ; ++it)
+        lp.append(*it);
+      return lp;
+    }
+    python::list failedPlugins() {
+      python::list fp;
+      RDKit::MMFF::OpenMMForceField *f = upcast();
+      for (std::vector<std::string>::const_iterator it = f->failedPlugins().begin();
+        it != f->failedPlugins().end() ; ++it)
+        fp.append(*it);
+      return fp;
+    }
+  private:
+    RDKit::MMFF::OpenMMForceField *upcast() const {
+      PRECONDITION(fieldOMM.get(), "no force field");
+      RDKit::MMFF::OpenMMForceField *super = dynamic_cast<RDKit::MMFF::OpenMMForceField *>(fieldOMM.get());
+      PRECONDITION(super, "not a MMFF OpenMM force field");
+      return super;
     }
 };
 #endif

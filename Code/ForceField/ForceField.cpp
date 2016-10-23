@@ -358,11 +358,18 @@ OpenMMForceField::~OpenMMForceField() {
   delete d_openmmContext;
 }
 
-OpenMMForceField::OpenMMForceField(const OpenMMForceField &other) :
-  ForceField::ForceField(other) {
+void OpenMMForceField::setIntegrator(OpenMM::Integrator *integrator) {
+  if (integrator == d_openmmIntegrator) return;
+  delete d_openmmIntegrator;
+  d_openmmIntegrator = integrator;
+  delete d_openmmContext;
+  d_openmmContext = (d_platformName.size()
+    ? new OpenMM::Context(*d_openmmSystem, *d_openmmIntegrator,
+    OpenMM::Platform::getPlatformByName(d_platformName), d_platformProperties)
+    : new OpenMM::Context(*d_openmmSystem, *d_openmmIntegrator));
 }
 
-void OpenMMForceField::initialize() {
+void OpenMMForceField::initializeContext() {
   if (!d_useOpenMM) return;
   if (!d_openmmContext)
     d_openmmContext = new OpenMM::Context(*d_openmmSystem, *d_openmmIntegrator);
@@ -370,7 +377,7 @@ void OpenMMForceField::initialize() {
     d_openmmContext->reinitialize();
 }
 
-void OpenMMForceField::initialize(OpenMM::Platform& platform,
+void OpenMMForceField::initializeContext(OpenMM::Platform& platform,
   const std::map<std::string, std::string> &properties) {
   if (!d_useOpenMM) return;
   bool needNewContext = (!d_openmmContext || (platform.getName() != d_platformName));
@@ -392,8 +399,9 @@ void OpenMMForceField::initialize(OpenMM::Platform& platform,
     d_openmmContext->reinitialize();
 }
 
-OpenMM::Context *OpenMMForceField::context() const {
-  PRECONDITION(d_openmmContext, "OpenMM::Context has not been created yet");
+OpenMM::Context *OpenMMForceField::getContext(bool throwIfNull) const {
+  if (throwIfNull)
+    PRECONDITION(d_openmmContext, "OpenMM::Context has not been created yet");
   return d_openmmContext;
 }
 

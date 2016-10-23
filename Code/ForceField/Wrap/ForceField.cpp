@@ -23,6 +23,9 @@
 #include <ForceField/MMFF/TorsionConstraint.h>
 #include <ForceField/MMFF/PositionConstraint.h>
 #include "PyForceField.h"
+#ifdef RDK_BUILD_WITH_OPENMM
+#include <OpenMM.h>
+#endif
 
 using namespace ForceFields;
 namespace python = boost::python;
@@ -243,6 +246,9 @@ PyObject *PyMMFFMolProperties::getMMFFVdWParams(const unsigned int idx1,
 
 BOOST_PYTHON_MODULE(rdForceField) {
   python::scope().attr("__doc__") = "Exposes the ForceField class";
+#ifdef RDK_BUILD_WITH_OPENMM
+  python::scope().attr("__doc__") += " and the OpenMMForceField class";
+#endif
 
   std::string docString;
 
@@ -342,6 +348,40 @@ BOOST_PYTHON_MODULE(rdForceField) {
       .def("GetExtraPointPos", ForceFieldGetExtraPointLoc,
            (python::arg("self"), python::arg("idx")),
            "returns the location of an extra point as a tuple");
+#ifdef RDK_BUILD_WITH_OPENMM
+  python::class_<PyOpenMMForceField>("OpenMMForceField", "An OpenMM force field", python::no_init)
+      .def("CalcEnergy",
+           (double (PyOpenMMForceField::*)() const) & PyOpenMMForceField::calcEnergy,
+           "Returns the energy (in kcal/mol) of the current arrangement")
+      .def("Minimize", &PyOpenMMForceField::minimize,
+           (python::arg("maxIts") = 200, python::arg("forceTol") = 1e-4,
+            python::arg("energyTol") = 1e-6),
+           "Runs some minimization iterations.\n\n  Returns 0 if the "
+           "minimization succeeded.")
+      .def("GetSystem", &PyOpenMMForceField::getSystem,
+           python::return_value_policy<python::reference_existing_object>(),
+           "Returns the OpenMM System corresponding to the current arrangement")
+      .def("GetContext", &PyOpenMMForceField::getContext,
+           (python::arg("throwIfNull") = false),
+           python::return_value_policy<python::reference_existing_object>(),
+           "Returns the OpenMM Context corresponding to the current arrangement")
+      .def("GetIntegrator", &PyOpenMMForceField::getIntegrator,
+           python::return_value_policy<python::reference_existing_object>(),
+           "Returns the OpenMM Integrator currently in use")
+      .def("SetIntegrator", &PyOpenMMForceField::setIntegrator,
+           (python::arg("integrator")),
+           "Sets the OpenMM Integrator to be used")
+      .def("SetUseOpenMM", &PyOpenMMForceField::setUseOpenMM,
+           (python::arg("s")),
+           "Sets whether the OpenMM (True) or RDKit (False) force-field implementation should be used")
+      .def("GetUseOpenMM", &PyOpenMMForceField::getUseOpenMM,
+           "Gets whether the OpenMM (True) or RDKit (False) force-field implementation will be used")
+      .def("Initialize", &PyOpenMMForceField::initialize,
+           "Initializes the force field (call this before minimizing)")
+      .def("InitializeContext", &PyOpenMMForceField::initializeContext,
+           (python::arg("platform") = python::object(), python::arg("properties") = python::dict()),
+           "Initializes the OpenMM Context, optionally allowing to set a platform and properties");
+#endif
   python::class_<PyMMFFMolProperties>(
       "MMFFMolProperties", "MMFF molecular properties", python::no_init)
       .def("GetMMFFAtomType", &PyMMFFMolProperties::getMMFFAtomType,
