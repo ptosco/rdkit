@@ -281,8 +281,9 @@ class ForceField {
 */
 class OpenMMForceField : public ForceField {
   public:
+    static const double DEFAULT_STEP_SIZE;
     //! construct with a dimension
-    OpenMMForceField(OpenMM::Integrator *integrator = NULL);
+    OpenMMForceField();
     virtual ~OpenMMForceField();
 
     OpenMM::System *getSystem() const {
@@ -297,14 +298,6 @@ class OpenMMForceField : public ForceField {
       return d_openmmIntegrator;
     }
     
-    void setUseOpenMM(bool s) {
-      d_useOpenMM = s;
-    }
-
-    bool getUseOpenMM() {
-      return d_useOpenMM;
-    }
-
     //! creates context
     void initializeContext();
 
@@ -408,7 +401,7 @@ class OpenMMForceField : public ForceField {
   private:
     // private, so noncopyable
     OpenMMForceField(const OpenMMForceField &other);
-    bool d_useOpenMM;
+    double d_stepSize;
     std::string d_platformName;
     std::map<std::string, std::string> d_platformProperties;
     std::vector<OpenMM::Vec3> d_storedPos;

@@ -371,11 +371,6 @@ BOOST_PYTHON_MODULE(rdForceField) {
       .def("SetIntegrator", &PyOpenMMForceField::setIntegrator,
            (python::arg("integrator")),
            "Sets the OpenMM Integrator to be used")
-      .def("SetUseOpenMM", &PyOpenMMForceField::setUseOpenMM,
-           (python::arg("s")),
-           "Sets whether the OpenMM (True) or RDKit (False) force-field implementation should be used")
-      .def("GetUseOpenMM", &PyOpenMMForceField::getUseOpenMM,
-           "Gets whether the OpenMM (True) or RDKit (False) force-field implementation will be used")
       .def("Initialize", &PyOpenMMForceField::initialize,
            "Initializes the force field (call this before minimizing)")
       .def("InitializeContext", &PyOpenMMForceField::initializeContext,

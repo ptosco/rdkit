@@ -101,8 +101,6 @@ OpenMMForceField *getOpenMMForceField(ForceFields::ForceField *field, int ffOpts
 #ifdef RDK_BUILD_WITH_OPENMM
   if (ffOpts & ForceFields::USE_OPENMM) {
     res = static_cast<OpenMMForceField *>(field);
-    if (!res->getUseOpenMM())
-      res = NULL;
   }
 #endif
   return res;
@@ -1166,8 +1164,7 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
 
 ForceFields::ForceField *constructForceField(ROMol &mol,
   MMFFMolProperties *mmffMolProperties, int ffOpts,
-  double nonBondedThresh, int confId, bool ignoreInterfragInteractions,
-  void *ffParam) {
+  double nonBondedThresh, int confId, bool ignoreInterfragInteractions) {
   PRECONDITION(mmffMolProperties, "bad MMFFMolProperties");
   PRECONDITION(mmffMolProperties->isValid(),
                "missing atom types - invalid force-field");
@@ -1177,8 +1174,7 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
 #ifdef RDK_BUILD_WITH_OPENMM
   const PeriodicTable *tbl = PeriodicTable::getTable();
   if (ffOpts & ForceFields::USE_OPENMM) {
-    OpenMM::Integrator *integrator = static_cast<OpenMM::Integrator *>(ffParam);
-    ff = new OpenMMForceField(integrator);
+    ff = new OpenMMForceField();
     ffOMM = static_cast<OpenMMForceField *>(ff);
   }
   std::vector<OpenMM::Vec3> positionsOMM;
@@ -1242,9 +1238,9 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMMForceField::OpenMMForceField(OpenMM::Integrator *integrator,
-  bool forceLoadPlugins, const std::string &pluginsDir) :
-  ForceFields::OpenMMForceField(integrator),
+OpenMMForceField::OpenMMForceField(bool forceLoadPlugins,
+  const std::string &pluginsDir) :
+  ForceFields::OpenMMForceField(),
   d_bondStretchForce(NULL),
   d_angleBendForce(NULL),
   d_stretchBendForce(NULL),
@@ -1380,21 +1376,20 @@ void OpenMMForceField::addEleContrib1_4(unsigned int idx,
 }
 
 OpenMMForceField *constructOpenMMForceField(ROMol &mol,
-  double nonBondedThresh, int confId, bool ignoreInterfragInteractions,
-  OpenMM::Integrator *integrator) {
+  double nonBondedThresh, int confId, bool ignoreInterfragInteractions) {
   MMFFMolProperties mmffMolProperties(mol);
 
   return constructOpenMMForceField(mol, &mmffMolProperties,
-    nonBondedThresh, confId, ignoreInterfragInteractions, integrator);
+    nonBondedThresh, confId, ignoreInterfragInteractions);
 }
 
 OpenMMForceField *constructOpenMMForceField(ROMol &mol,
   MMFFMolProperties *mmffMolProperties, double nonBondedThresh, int confId,
-  bool ignoreInterfragInteractions, OpenMM::Integrator *integrator) {
+  bool ignoreInterfragInteractions) {
 
   return static_cast<OpenMMForceField *>(
     constructForceField(mol, mmffMolProperties, ForceFields::USE_OPENMM,
-    nonBondedThresh, confId, ignoreInterfragInteractions, integrator));
+    nonBondedThresh, confId, ignoreInterfragInteractions));
 }
 #endif
 

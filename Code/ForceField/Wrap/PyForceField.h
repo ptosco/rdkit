@@ -101,16 +101,6 @@ class PyOpenMMForceField {
       fieldOMM->setIntegrator(integrator);
     }
     
-    void setUseOpenMM(bool s) {
-      checkFieldOMM();
-      fieldOMM->setUseOpenMM(s);
-    }
-
-    bool getUseOpenMM() const {
-      checkFieldOMM();
-      return fieldOMM->getUseOpenMM();
-    }
-    
     void initialize() {
       checkFieldOMM();
       fieldOMM->initialize();

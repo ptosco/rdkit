@@ -149,8 +149,7 @@ ForceFields::PyForceField *MMFFGetMoleculeForceField(
 ForceFields::PyOpenMMForceField *MMFFGetMoleculeOpenMMForceField(
     ROMol &mol, ForceFields::PyMMFFMolProperties *pyMMFFMolProperties,
     double nonBondedThresh = 100.0, int confId = -1,
-    bool ignoreInterfragInteractions = true,
-    OpenMM::Integrator *integrator = NULL) {
+    bool ignoreInterfragInteractions = true) {
   ForceFields::PyMMFFOpenMMForceField *pyFF = NULL;
 
   if (pyMMFFMolProperties) {
@@ -158,7 +157,7 @@ ForceFields::PyOpenMMForceField *MMFFGetMoleculeOpenMMForceField(
         &(*(pyMMFFMolProperties->mmffMolProperties));
     MMFF::OpenMMForceField *ff =
         MMFF::constructOpenMMForceField(mol, mmffMolProperties, nonBondedThresh,
-                              confId, ignoreInterfragInteractions, integrator);
+                              confId, ignoreInterfragInteractions);
     pyFF = new ForceFields::PyMMFFOpenMMForceField(ff);
     if (pyFF) {
       pyFF->initialize();
@@ -403,15 +402,12 @@ BOOST_PYTHON_MODULE(rdForceFieldHelpers) {
     - confId : indicates which conformer to optimize\n\
     - ignoreInterfragInteractions : if true, nonbonded terms between\n\
                   fragments will not be added to the forcefield\n\
-    - integrator : the OpenMM integrator to be used by the forcefield,\n\
-                   defaults to Verlet\n\
 \n";
   python::def(
       "MMFFGetMoleculeOpenMMForceField", RDKit::MMFFGetMoleculeOpenMMForceField,
       (python::arg("mol"), python::arg("pyMMFFMolProperties"),
        python::arg("nonBondedThresh") = 100.0, python::arg("confId") = -1,
-       python::arg("ignoreInterfragInteractions") = true,
-       python::arg("integrator") = python::object()),
+       python::arg("ignoreInterfragInteractions") = true),
       python::return_value_policy<python::manage_new_object>(),
       docString.c_str());
 #endif
