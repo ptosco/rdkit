@@ -470,13 +470,6 @@ void OpenMMForceField::calcGrad(double *pos, double *forces) {
   restorePositions();
 }
 
-int OpenMMForceField::minimize(unsigned int snapshotFreq,
-  RDKit::SnapshotVect *snapshotVect,
-  unsigned int maxIts, double forceTol, double energyTol) {
-  return ForceField::minimize(snapshotFreq, snapshotVect, maxIts,
-    forceTol, energyTol);
-}
-
 int OpenMMForceField::minimize(unsigned int maxIts,
   double forceTol, double energyTol) {
   RDUNUSED_PARAM(energyTol);
@@ -488,6 +481,13 @@ int OpenMMForceField::minimize(unsigned int maxIts,
   int res = OpenMM::LocalEnergyMinimizer::minimize(*d_openmmContext,
     forceTol * OpenMM::KJPerKcal * OpenMM::AngstromsPerNm, maxIts);
 #endif
+  OpenMM::State state(d_openmmContext->getState(OpenMM::State::Positions));
+  const std::vector<OpenMM::Vec3> &minPos = state.getPositions();
+  for (unsigned int i = 0; i < state.getPositions().size(); ++i) {
+    (*(d_positions[i]))[0] = minPos[i][0] * OpenMM::AngstromsPerNm;
+    (*(d_positions[i]))[1] = minPos[i][1] * OpenMM::AngstromsPerNm;
+    (*(d_positions[i]))[2] = minPos[i][2] * OpenMM::AngstromsPerNm;
+  }
   
   return res;
 }
