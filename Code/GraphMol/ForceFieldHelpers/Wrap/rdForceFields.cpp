@@ -150,7 +150,7 @@ ForceFields::PyOpenMMForceField *MMFFGetMoleculeOpenMMForceField(
     ROMol &mol, ForceFields::PyMMFFMolProperties *pyMMFFMolProperties,
     double nonBondedThresh = 100.0, int confId = -1,
     bool ignoreInterfragInteractions = true) {
-  ForceFields::PyMMFFOpenMMForceField *pyFF = NULL;
+  ForceFields::PyOpenMMForceField *pyFF = NULL;
 
   if (pyMMFFMolProperties) {
     MMFF::MMFFMolProperties *mmffMolProperties =
@@ -158,10 +158,7 @@ ForceFields::PyOpenMMForceField *MMFFGetMoleculeOpenMMForceField(
     MMFF::OpenMMForceField *ff =
         MMFF::constructOpenMMForceField(mol, mmffMolProperties, nonBondedThresh,
                               confId, ignoreInterfragInteractions);
-    pyFF = new ForceFields::PyMMFFOpenMMForceField(ff);
-    if (pyFF) {
-      pyFF->initialize();
-    }
+    pyFF = new ForceFields::PyOpenMMForceField(ff);
   }
 
   return pyFF;

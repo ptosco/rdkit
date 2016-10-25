@@ -96,11 +96,54 @@ void testMMFFBuilder2() {
   BOOST_LOG(rdErrorLog) << "  done" << std::endl;
 }
 
+void testMMFFBuilder3() {
+  BOOST_LOG(rdErrorLog) << "-------------------------------------" << std::endl;
+  BOOST_LOG(rdErrorLog) << "    Testing MMFF builder tools." << std::endl;
+
+  ROMol *mol;
+
+  boost::shared_array<boost::uint8_t> nbrMat;
+
+  mol = SmilesToMol("ClCNO");
+  TEST_ASSERT(DGeomHelpers::EmbedMolecule(*mol) >= 0);
+  MMFF::MMFFMolProperties *mmffMolProperties =
+      new MMFF::MMFFMolProperties(*mol);
+  TEST_ASSERT(mmffMolProperties);
+  TEST_ASSERT(mmffMolProperties->isValid());
+  #if 1
+  mmffMolProperties->setMMFFVerbosity(MMFF::MMFF_VERBOSITY_LOW);
+  {
+    ForceFields::ForceField *field = MMFF::constructForceField(*mol, mmffMolProperties, ForceFields::USE_RDK);
+    TEST_ASSERT(field);
+    std::cerr << "RDKit MMFF energy = " << field->calcEnergy() << std::endl;
+    delete field;
+  }
+  #endif
+  {
+    MMFF::OpenMMForceField *field = static_cast<MMFF::OpenMMForceField *>(
+      MMFF::constructForceField(*mol, mmffMolProperties, ForceFields::USE_OPENMM));
+    TEST_ASSERT(field);
+    std::cerr << "1) OpenMM MMFF energy = " << field->calcEnergy() << std::endl;
+    MolToMolFile(*mol, "/tmp/coord1.sdf");
+    field->dynamics(100);
+    std::cerr << "2) OpenMM MMFF energy = " << field->calcEnergy() << std::endl;
+    MolToMolFile(*mol, "/tmp/coord2.sdf");
+      
+    delete field;
+  }
+  delete mol;
+  delete mmffMolProperties;
+  BOOST_LOG(rdErrorLog) << "  done" << std::endl;
+}
+
 //-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
 //
 //-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
 int main() {
   RDLog::InitLogs();
+#if 0
   testMMFFBuilder1();
   testMMFFBuilder2();
+#endif
+  testMMFFBuilder3();
 }

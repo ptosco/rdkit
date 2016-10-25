@@ -349,7 +349,8 @@ OpenMMForceField::OpenMMForceField() :
   d_stepSize(DEFAULT_STEP_SIZE),
   d_openmmSystem(new OpenMM::System()),
   d_openmmContext(NULL),
-  d_openmmIntegrator(new OpenMM::VerletIntegrator(d_stepSize * OpenMM::PsPerFs)) {
+  d_openmmIntegrator(new OpenMM::VerletIntegrator(d_stepSize * OpenMM::PsPerFs)),
+  d_andersenThermostat(NULL) {
 }
 
 OpenMMForceField::~OpenMMForceField() {
@@ -379,7 +380,7 @@ void OpenMMForceField::initializeContext() {
     d_openmmContext->reinitialize();
 }
 
-void OpenMMForceField::initializeContext(std::string& platformName,
+void OpenMMForceField::initializeContext(const std::string& platformName,
   const std::map<std::string, std::string> &properties) {
   initializeContext(OpenMM::Platform::getPlatformByName(platformName), properties);
 }
@@ -470,6 +471,16 @@ void OpenMMForceField::calcGrad(double *pos, double *forces) {
   restorePositions();
 }
 
+void OpenMMForceField::updatePositions() {
+  OpenMM::State state(d_openmmContext->getState(OpenMM::State::Positions));
+  const std::vector<OpenMM::Vec3> &curPos = state.getPositions();
+  for (unsigned int i = 0; i < state.getPositions().size(); ++i) {
+    (*(d_positions[i]))[0] = curPos[i][0] * OpenMM::AngstromsPerNm;
+    (*(d_positions[i]))[1] = curPos[i][1] * OpenMM::AngstromsPerNm;
+    (*(d_positions[i]))[2] = curPos[i][2] * OpenMM::AngstromsPerNm;
+  }
+}
+
 int OpenMMForceField::minimize(unsigned int maxIts,
   double forceTol, double energyTol) {
   RDUNUSED_PARAM(energyTol);
@@ -481,15 +492,28 @@ int OpenMMForceField::minimize(unsigned int maxIts,
   int res = OpenMM::LocalEnergyMinimizer::minimize(*d_openmmContext,
     forceTol * OpenMM::KJPerKcal * OpenMM::AngstromsPerNm, maxIts);
 #endif
-  OpenMM::State state(d_openmmContext->getState(OpenMM::State::Positions));
-  const std::vector<OpenMM::Vec3> &minPos = state.getPositions();
-  for (unsigned int i = 0; i < state.getPositions().size(); ++i) {
-    (*(d_positions[i]))[0] = minPos[i][0] * OpenMM::AngstromsPerNm;
-    (*(d_positions[i]))[1] = minPos[i][1] * OpenMM::AngstromsPerNm;
-    (*(d_positions[i]))[2] = minPos[i][2] * OpenMM::AngstromsPerNm;
-  }
+  updatePositions();
   
   return res;
+}
+
+void OpenMMForceField::dynamics(int numSteps) {
+  std::cerr << "OpenMMForceField::dynamics() d_openmmIntegrator = " << d_openmmIntegrator << std::endl;
+  d_openmmIntegrator->step(numSteps);
+  updatePositions();
+}
+
+void OpenMMForceField::setPeriodicBoxSize(double x, double y, double z) {
+  d_openmmSystem->setDefaultPeriodicBoxVectors(
+    OpenMM::Vec3(x * OpenMM::NmPerAngstrom, 0.0, 0.0),
+    OpenMM::Vec3(0.0, y * OpenMM::NmPerAngstrom, 0.0), 
+    OpenMM::Vec3(0.0, 0.0, z * OpenMM::NmPerAngstrom));
+}
+
+void OpenMMForceField::setAndersenThermostat(double temperature, double collisionFrequency) {
+  delete d_andersenThermostat;
+  d_andersenThermostat = new OpenMM::AndersenThermostat(temperature, collisionFrequency);
+  d_openmmSystem->addForce(d_andersenThermostat);
 }
 #endif
 

@@ -1375,6 +1375,25 @@ void OpenMMForceField::addEleContrib1_4(unsigned int idx,
   d_eleForce1_4->addInteractionGroup(self, partners1_4);
 }
 
+void OpenMMForceField::setCutoffDistance(double distance) {
+  const double distanceNm = distance * OpenMM::NmPerAngstrom;
+  d_vdWForce->setCutoffDistance(distanceNm);
+  d_eleForce->setCutoffDistance(distanceNm);
+  d_eleForce1_4->setCutoffDistance(distanceNm);
+}
+
+void OpenMMForceField::setNonbondedPeriodic(bool periodic) {
+  OpenMM::AmoebaVdwForce::NonbondedMethod vdWMethod = OpenMM::AmoebaVdwForce::NoCutoff;
+  OpenMM::CustomNonbondedForce::NonbondedMethod eleMethod = OpenMM::CustomNonbondedForce::NoCutoff;
+  if (periodic) {
+    vdWMethod = OpenMM::AmoebaVdwForce::CutoffPeriodic;
+    eleMethod = OpenMM::CustomNonbondedForce::CutoffPeriodic;
+  }
+  d_vdWForce->setNonbondedMethod(vdWMethod);
+  d_eleForce->setNonbondedMethod(eleMethod);
+  d_eleForce1_4->setNonbondedMethod(eleMethod);
+}
+
 OpenMMForceField *constructOpenMMForceField(ROMol &mol,
   double nonBondedThresh, int confId, bool ignoreInterfragInteractions) {
   MMFFMolProperties mmffMolProperties(mol);

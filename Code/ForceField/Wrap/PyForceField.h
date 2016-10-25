@@ -133,19 +133,32 @@ class PyOpenMMForceField {
       checkFieldOMM();
       return fieldOMM->minimize(maxIts, forceTol, energyTol);
     }
-
-    // private:
-    boost::shared_ptr<OpenMMForceField> fieldOMM;
-  private:
-    void checkFieldOMM() const {
-      PRECONDITION(fieldOMM.get(), "no force field");
+    
+    void dynamics(int numSteps) {
+      checkFieldOMM();
+      fieldOMM->dynamics(numSteps);
     }
-};
-
-class PyMMFFOpenMMForceField : public PyOpenMMForceField {
-  public:
-    PyMMFFOpenMMForceField(RDKit::MMFF::OpenMMForceField *f) :
-      PyOpenMMForceField(f) {};
+    
+    void setPeriodicBoxSize(double x, double y, double z) {
+      RDKit::MMFF::OpenMMForceField *f = upcast();
+      f->setPeriodicBoxSize(x, y, z);
+    }
+    
+    void setCutoffDistance(double distance) {
+      RDKit::MMFF::OpenMMForceField *f = upcast();
+      f->setCutoffDistance(distance);
+    }
+    
+    void setNonbondedPeriodic(bool periodic) {
+      RDKit::MMFF::OpenMMForceField *f = upcast();
+      f->setNonbondedPeriodic(periodic);
+    }
+    
+    void setAndersenThermostat(double temperature, double collisionFrequency) {
+      checkFieldOMM();
+      fieldOMM->setAndersenThermostat(temperature, collisionFrequency);
+    }
+    
     python::list loadedPlugins() {
       python::list lp;
       RDKit::MMFF::OpenMMForceField *f = upcast();
@@ -154,6 +167,7 @@ class PyMMFFOpenMMForceField : public PyOpenMMForceField {
         lp.append(*it);
       return lp;
     }
+    
     python::list failedPlugins() {
       python::list fp;
       RDKit::MMFF::OpenMMForceField *f = upcast();
@@ -162,7 +176,13 @@ class PyMMFFOpenMMForceField : public PyOpenMMForceField {
         fp.append(*it);
       return fp;
     }
+
+    // private:
+    boost::shared_ptr<OpenMMForceField> fieldOMM;
   private:
+    void checkFieldOMM() const {
+      PRECONDITION(fieldOMM.get(), "no force field");
+    }
     RDKit::MMFF::OpenMMForceField *upcast() const {
       PRECONDITION(fieldOMM.get(), "no force field");
       RDKit::MMFF::OpenMMForceField *super = dynamic_cast<RDKit::MMFF::OpenMMForceField *>(fieldOMM.get());

@@ -82,7 +82,35 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
     const std::vector<std::string>& failedPlugins() {
       return d_failedPlugins;
     }
-  protected:
+    OpenMM::CustomBondForce *getBondStretchForce() {
+      return d_bondStretchForce;
+    }
+    OpenMM::CustomAngleForce *getAngleBendForce() {
+      return d_angleBendForce;
+    }
+    OpenMM::AmoebaStretchBendForce *getStretchBendForce() {
+      return d_stretchBendForce;
+    }
+    OpenMM::CustomTorsionForce *getTorsionAngleForce() {
+      return d_torsionAngleForce;
+    }
+    OpenMM::AmoebaOutOfPlaneBendForce *getOopBendForce() {
+      return d_oopBendForce;
+    }
+    OpenMM::AmoebaVdwForce *getVdWForce() {
+      return d_vdWForce;
+    }
+    OpenMM::CustomNonbondedForce *getEleForce() {
+      return d_eleForce;
+    }
+    OpenMM::CustomNonbondedForce *getEleForce1_4() {
+      return d_eleForce1_4;
+    }
+    void setCutoffDistance(double distance);
+    void setNonbondedPeriodic(bool periodic);
+  private:
+    std::vector<std::string> d_loadedPlugins;
+    std::vector<std::string> d_failedPlugins;
     OpenMM::CustomBondForce *d_bondStretchForce;
     OpenMM::CustomAngleForce *d_angleBendForce;
     OpenMM::AmoebaStretchBendForce *d_stretchBendForce;
@@ -91,9 +119,6 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
     OpenMM::AmoebaVdwForce *d_vdWForce;
     OpenMM::CustomNonbondedForce *d_eleForce;
     OpenMM::CustomNonbondedForce *d_eleForce1_4;
-  private:
-    std::vector<std::string> d_loadedPlugins;
-    std::vector<std::string> d_failedPlugins;
 };
 #endif
 

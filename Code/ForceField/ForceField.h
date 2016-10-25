@@ -20,6 +20,7 @@ namespace OpenMM {
 class System;
 class Integrator;
 class Context;
+class AndersenThermostat;
 class Platform;
 class Vec3;
 }
@@ -302,12 +303,12 @@ class OpenMMForceField : public ForceField {
     void initializeContext();
 
     //! creates context allowing to set a specific platform name and relative properties
-    void initializeContext(std::string& platformName,
-      const std::map<std::string, std::string> &properties);
+    void initializeContext(const std::string& platformName,
+      const std::map<std::string, std::string> &properties = std::map<std::string, std::string>());
 
     //! creates context allowing to set a specific Platform and relative properties
     void initializeContext(OpenMM::Platform& platform,
-      const std::map<std::string, std::string> &properties);
+      const std::map<std::string, std::string> &properties = std::map<std::string, std::string>());
 
     //! calculates and returns the energy (in kcal/mol) based on existing
     //! positions in the forcefield
@@ -372,11 +373,18 @@ class OpenMMForceField : public ForceField {
     */
     int minimize(unsigned int maxIts = 200, double forceTol = 1e-4,
                  double energyTol = 1e-6);
+    
+    void dynamics(int numSteps);
+
+    void setPeriodicBoxSize(double x, double y, double z);
+    
+    void setAndersenThermostat(double temperature, double collisionFrequency);
 
   protected:
     OpenMM::System *d_openmmSystem;
     OpenMM::Integrator *d_openmmIntegrator;
     OpenMM::Context *d_openmmContext;
+    OpenMM::AndersenThermostat *d_andersenThermostat;
   private:
     // private, so noncopyable
     OpenMMForceField(const OpenMMForceField &other);
@@ -386,6 +394,7 @@ class OpenMMForceField : public ForceField {
     std::vector<OpenMM::Vec3> d_storedPos;
     void replacePositions(double *pos);
     void restorePositions();
+    void updatePositions();
 };
 #endif
 }

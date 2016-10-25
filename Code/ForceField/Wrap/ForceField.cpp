@@ -358,6 +358,9 @@ BOOST_PYTHON_MODULE(rdForceField) {
             python::arg("energyTol") = 1e-6),
            "Runs some minimization iterations.\n\n  Returns 0 if the "
            "minimization succeeded.")
+      .def("Dynamics", &PyOpenMMForceField::dynamics,
+           (python::arg("numSteps") = 200),
+           "Runs some molecular dynamics steps")
       .def("GetSystem", &PyOpenMMForceField::getSystem,
            python::return_value_policy<python::reference_existing_object>(),
            "Returns the OpenMM System corresponding to the current arrangement")
@@ -375,7 +378,24 @@ BOOST_PYTHON_MODULE(rdForceField) {
            "Initializes the force field (call this before minimizing)")
       .def("InitializeContext", &PyOpenMMForceField::initializeContext,
            (python::arg("platformName") = "", python::arg("properties") = python::dict()),
-           "Initializes the OpenMM Context, optionally allowing to set a platform and properties");
+           "Initializes the OpenMM Context, optionally allowing to set a platform and properties")
+      .def("SetPeriodicBoxSize", &PyOpenMMForceField::setPeriodicBoxSize,
+           (python::arg("x"), python::arg("y"), python::arg("z")),
+           "Set the periodic box sizes in x, y, z dimensions")
+      .def("SetCutoffDistance", &PyOpenMMForceField::setCutoffDistance,
+           (python::arg("distance")),
+           "Set the cutoff distance (angstrom)")
+      .def("SetNonbondedPeriodic", &PyOpenMMForceField::setNonbondedPeriodic,
+           (python::arg("isPeriodic")),
+           "Set whether the non-bonded method should be periodic")
+      .def("SetAndersenThermostat", &PyOpenMMForceField::setAndersenThermostat,
+           (python::arg("temperature"), python::arg("collisionFrequency")),
+           "Set an Andersen thermostat with the indicated temperature and collisionFrequency")
+      .def("LoadedPlugins", &PyOpenMMForceField::loadedPlugins,
+           "Get the list of the names of loaded plugins")
+      .def("FailedPlugins", &PyOpenMMForceField::failedPlugins,
+           "Get the list of the names of plugins which failed to load")
+           ;
 #endif
   python::class_<PyMMFFMolProperties>(
       "MMFFMolProperties", "MMFF molecular properties", python::no_init)
