@@ -1,5 +1,6 @@
 rdkit_python_extension(rdForceField ForceField.cpp
                        DEST ForceField
-                       LINK_LIBRARIES GraphMol ForceField ForceFieldHelpers Optimizer
+                       LINK_LIBRARIES GraphMol ForceField SmilesParse
+                       SubstructMatch ForceFieldHelpers Optimizer
                        RDGeneral RDGeometryLib RDBoost)
 add_pytest(pyForceFieldConstraints ${CMAKE_CURRENT_SOURCE_DIR}/testConstraints.py)
