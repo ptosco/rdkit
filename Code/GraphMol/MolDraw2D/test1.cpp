@@ -1422,7 +1422,7 @@ void testCrossedBonds() {
     drawer.finishDrawing();
     outs.close();
   }
-  std::cerr << "Done" << std::endl;
+  std::cerr << " Done" << std::endl;
 }
 void test10DrawSecondMol() {
   std::cout << " ----------------- Testing drawing a second molecule"
@@ -1668,6 +1668,28 @@ void test12DrawMols() {
   std::cerr << " Done" << std::endl;
 }
 
+void test13JSONConfig() {
+  std::cerr << " ----------------- Test JSON Configuration" << std::endl;
+  {
+    std::string smiles = "CCO";
+    RWMol *m = SmilesToMol(smiles);
+    TEST_ASSERT(m);
+    MolDraw2DUtils::prepareMolForDrawing(*m);
+    MolDraw2DSVG drawer(250, 200);
+    const char *json = "{\"legendColour\":[1.0,0.5,1.0]}";
+    MolDraw2DUtils::updateDrawerParamsFromJSON(drawer, json);
+    drawer.drawMolecule(*m, "foo");
+    drawer.finishDrawing();
+    std::string text = drawer.getDrawingText();
+    std::ofstream outs("test13_1.svg");
+    outs << text;
+    TEST_ASSERT(text.find("text-anchor:start;fill:#FF7FFF") !=
+                std::string::npos);
+    outs.close();
+  }
+  std::cerr << " Done" << std::endl;
+}
+
 void testGithub1090() {
   std::cout << " ----------------- Testing github 1090: escape html characters "
                "in SVG output"
@@ -1698,6 +1720,56 @@ void testGithub1090() {
   std::cerr << " Done" << std::endl;
 }
 
+void testGithub1035() {
+  std::cout << " ----------------- Testing github 1035: overflow bug in SVG "
+               "color generation"
+            << std::endl;
+
+  std::string smiles = "CCOC";  // made up
+  RWMol *m1 = SmilesToMol(smiles);
+  TEST_ASSERT(m1);
+  MolDraw2DUtils::prepareMolForDrawing(*m1);
+  std::vector<int> highlights;
+  highlights.push_back(0);
+  highlights.push_back(1);
+  {
+    MolDraw2DSVG drawer(250, 200);
+    drawer.drawOptions().highlightColour = DrawColour(1.1, .5, .5);
+    bool ok = false;
+    try {
+      drawer.drawMolecule(*m1, &highlights);
+    } catch (const ValueErrorException &e) {
+      ok = true;
+    }
+    TEST_ASSERT(ok);
+  }
+  {
+    MolDraw2DSVG drawer(250, 200);
+    drawer.drawOptions().highlightColour = DrawColour(.1, -.5, .5);
+    bool ok = false;
+    try {
+      drawer.drawMolecule(*m1, &highlights);
+    } catch (const ValueErrorException &e) {
+      ok = true;
+    }
+    TEST_ASSERT(ok);
+  }
+  {
+    MolDraw2DSVG drawer(250, 200);
+    drawer.drawOptions().highlightColour = DrawColour(1., .5, 1.5);
+    bool ok = false;
+    try {
+      drawer.drawMolecule(*m1, &highlights);
+    } catch (const ValueErrorException &e) {
+      ok = true;
+    }
+    TEST_ASSERT(ok);
+  }
+
+  delete m1;
+  std::cerr << " Done" << std::endl;
+}
+
 int main() {
   RDLog::InitLogs();
 #if 1
@@ -1723,7 +1795,9 @@ int main() {
   testCrossedBonds();
   test10DrawSecondMol();
   test11DrawMolGrid();
-#endif
   test12DrawMols();
+#endif
+  test13JSONConfig();
   testGithub1090();
+  testGithub1035();
 }

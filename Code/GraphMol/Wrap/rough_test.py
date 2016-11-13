@@ -510,6 +510,14 @@ class TestCase(unittest.TestCase):
                                       'e': 2,
                                       'd': -2,
                                       'prop1': 'foob'})
+    m = Chem.MolFromSmiles('C1=CN=CC=C1')
+    m.SetProp("int", "1000")
+    m.SetProp("double", "10000.123")
+    print(m.GetPropsAsDict())
+    self.assertEquals(m.GetPropsAsDict(), {"int": 1000, "double": 10000.123})
+
+    self.assertEquals(type(m.GetPropsAsDict()['int']), int)
+    self.assertEquals(type(m.GetPropsAsDict()['double']), float)
 
   def test17Kekulize(self):
     m = Chem.MolFromSmiles('c1ccccc1')
@@ -1923,6 +1931,9 @@ CAS<~>
       em = Chem.EditableMol(m)
       self.assertRaises(RuntimeError, lambda: em.RemoveAtom(12))
 
+      # confirm that an RWMol can be constructed without arguments
+      m = Chem.RWMol()
+
   def test47SmartsPieces(self):
     """ test the GetAtomSmarts and GetBondSmarts functions
 
@@ -3153,6 +3164,23 @@ CAS<~>
     qp.aromatizeIfPossible = False
     am = Chem.AdjustQueryProperties(m, qp)
     self.assertFalse(Chem.MolFromSmiles('c1ccccc1').HasSubstructMatch(am))
+
+    m = Chem.MolFromSmiles('C1CCC1OC')
+    qps = Chem.AdjustQueryParameters()
+    qps.makeAtomsGeneric = True
+    am = Chem.AdjustQueryProperties(m, qps)
+    self.assertEqual(Chem.MolToSmarts(am),'*1-*-*-*-1-*-*')
+    qps.makeAtomsGenericFlags = Chem.ADJUST_IGNORERINGS
+    am = Chem.AdjustQueryProperties(m, qps)
+    self.assertEqual(Chem.MolToSmarts(am),'[#6&D2]1-[#6&D2]-[#6&D2]-[#6&D3]-1-*-*')
+
+    qps = Chem.AdjustQueryParameters()
+    qps.makeBondsGeneric = True
+    am = Chem.AdjustQueryProperties(m, qps)
+    self.assertEqual(Chem.MolToSmarts(am),'[#6&D2]1~[#6&D2]~[#6&D2]~[#6&D3]~1~[#8]~[#6]')
+    qps.makeBondsGenericFlags = Chem.ADJUST_IGNORERINGS
+    am = Chem.AdjustQueryProperties(m, qps)
+    self.assertEqual(Chem.MolToSmarts(am),'[#6&D2]1-[#6&D2]-[#6&D2]-[#6&D3]-1~[#8]~[#6]')
 
   def testGithubIssue579(self):
     fileN = os.path.join(RDConfig.RDBaseDir, 'Code', 'GraphMol', 'FileParsers', 'test_data',
