@@ -2159,7 +2159,7 @@ void MMFFMolProperties::setMMFFHydrogenType(const Atom *atom) {
   bool isHOCO = false;
   bool isHOP = false;
   bool isHOS = false;
-  ROMol mol = atom->getOwningMol();
+  const ROMol &mol = atom->getOwningMol();
   ROMol::ADJ_ITER nbrIdx;
   ROMol::ADJ_ITER endNbrs;
   ROMol::ADJ_ITER nbr2Idx;
