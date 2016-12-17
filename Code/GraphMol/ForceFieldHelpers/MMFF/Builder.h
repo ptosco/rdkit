@@ -187,6 +187,7 @@ OpenMMForceField *constructOpenMMForceField(ROMol &mol,
 #endif
 
 namespace Tools {
+static const std::string defaultTorsionBondSmarts = "[!$(*#*)&!D1]~[!$(*#*)&!D1]";
 enum { RELATION_1_2 = 0, RELATION_1_3 = 1, RELATION_1_4 = 2, RELATION_1_X = 3 };
 // these functions are primarily exposed so they can be tested.
 void setTwoBitCell(boost::shared_array<boost::uint8_t> &res, unsigned int pos,
@@ -212,10 +213,9 @@ void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
   ForceFields::ForceField *field);
 void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
   ForceFields::ForceField *field, int ffOpts,
-  std::string torsionBondSmarts = "[!$(*#*)&!D1]~[!$(*#*)&!D1]");
+  std::string torsionBondSmarts = defaultTorsionBondSmarts);
 void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
-  ForceFields::ForceField *field, std::string torsionBondSmarts =
-  "[!$(*#*)&!D1]~[!$(*#*)&!D1]");
+  ForceFields::ForceField *field, std::string torsionBondSmarts = defaultTorsionBondSmarts);
 void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
   ForceFields::ForceField *field, int ffOpts,
   boost::shared_array<boost::uint8_t> neighborMatrix,
