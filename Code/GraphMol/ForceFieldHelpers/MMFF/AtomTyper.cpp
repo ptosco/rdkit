@@ -1,6 +1,6 @@
 // $Id$
 //
-//  Copyright (C) 2013 Paolo Tosco
+//  Copyright (C) 2013-2016 Paolo Tosco
 //
 //  Copyright (C) 2004-2006 Rational Discovery LLC
 //

@@ -1,6 +1,6 @@
 // $Id$
 //
-//  Copyright (C) 2016 Paolo Tosco
+//  Copyright (C) 2013-2016 Paolo Tosco
 //
 //  Copyright (C) 2004-2010 Greg Landrum and Rational Discovery LLC
 //
@@ -217,24 +217,20 @@ boost::uint8_t getTwoBitCell(boost::shared_array<boost::uint8_t> &res,
 //
 // ------------------------------------------------------------------------
 boost::shared_array<boost::uint8_t> buildNeighborMatrix(const ROMol &mol) {
-  std::cerr << "buildNeighborMatrix() start" << std::endl;
+  const boost::uint8_t RELATION_1_X_INIT = RELATION_1_X
+    | (RELATION_1_X << 2) | (RELATION_1_X << 4) | (RELATION_1_X << 6);
   unsigned int nAtoms = mol.getNumAtoms();
   unsigned nTwoBitCells = (nAtoms * (nAtoms + 1) - 1) / 8 + 1;
   boost::shared_array<boost::uint8_t> res(new boost::uint8_t[nTwoBitCells]);
-  for (unsigned int i = 0; i < nAtoms; ++i) {
-    for (unsigned int j = i; j < nAtoms; ++j) {
-      setTwoBitCell(res, twoBitCellPos(nAtoms, i, j), RELATION_1_X);
-    }
-  }
+  std::memset(res.get(), RELATION_1_X_INIT, nTwoBitCells);
   for (ROMol::ConstBondIterator bondi = mol.beginBonds(); bondi != mol.endBonds(); ++bondi) {
     setTwoBitCell(res, twoBitCellPos(nAtoms, (*bondi)->getBeginAtomIdx(),
                   (*bondi)->getEndAtomIdx()), RELATION_1_2);
-    for (ROMol::ConstBondIterator bondj = bondi; bondj != mol.endBonds(); ++bondj) {
-      if (*bondj == *bondi) continue;
+    unsigned int bondiBeginAtomIdx = (*bondi)->getBeginAtomIdx();
+    unsigned int bondiEndAtomIdx = (*bondi)->getEndAtomIdx();
+    for (ROMol::ConstBondIterator bondj = bondi; ++bondj != mol.endBonds();) {
       int idx1 = -1;
       int idx3 = -1;
-      unsigned int bondiBeginAtomIdx = (*bondi)->getBeginAtomIdx();
-      unsigned int bondiEndAtomIdx = (*bondi)->getEndAtomIdx();
       unsigned int bondjBeginAtomIdx = (*bondj)->getBeginAtomIdx();
       unsigned int bondjEndAtomIdx = (*bondj)->getEndAtomIdx();
       if (bondiBeginAtomIdx == bondjBeginAtomIdx) {
@@ -289,7 +285,6 @@ boost::shared_array<boost::uint8_t> buildNeighborMatrix(const ROMol &mol) {
       }
     }
   }
-  std::cerr << "buildNeighborMatrix() end" << std::endl;
   return res;
 }
 
@@ -715,17 +710,41 @@ void addOop(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
 //
 //
 // ------------------------------------------------------------------------
+const std::string DefaultTorsionBondSmarts::ds_string = "[!$(*#*)&!D1]~[!$(*#*)&!D1]";
+boost::scoped_ptr<const ROMol> DefaultTorsionBondSmarts::ds_instance;
+#ifdef BOOST_THREAD_PROVIDES_ONCE_CXX11
+boost::once_flag DefaultTorsionBondSmarts::ds_flag;
+#else
+boost::once_flag DefaultTorsionBondSmarts::ds_flag = BOOST_ONCE_INIT;
+#endif
+
+void DefaultTorsionBondSmarts::create() {
+  ds_instance.reset(SmartsToMol(ds_string));
+}
+
+const ROMol *DefaultTorsionBondSmarts::query() {
+#ifdef RDK_THREADSAFE_SSS
+  boost::call_once(&create, ds_flag);
+#else
+  static bool created = false;
+  if (!created) {
+    created = true;
+    create();
+  }
+#endif
+  return ds_instance.get();
+}
+
 void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  ForceFields::ForceField *field,
-                 std::string torsionBondSmarts) {
+                 const std::string &torsionBondSmarts) {
   addTorsions(mol, mmffMolProperties, field, 0, torsionBondSmarts);
 }
 
 void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
                  ForceFields::ForceField *field, int ffOpts,
-                 std::string torsionBondSmarts) {
+                 const std::string &torsionBondSmarts) {
   checkFFPreconditions(field, mmffMolProperties, ffOpts);
-
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
   OpenMMForceField *fieldOMM = getOpenMMForceField(field, ffOpts);
   ROMol::ADJ_ITER nbr1Idx;
@@ -749,8 +768,9 @@ void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
     points = field->positions();
   }
   std::vector<MatchVectType> matchVect;
-  static const ROMol *defaultQuery = SmartsToMol(defaultTorsionBondSmarts);
-  const ROMol *query = (torsionBondSmarts == defaultTorsionBondSmarts) ? defaultQuery : SmartsToMol(torsionBondSmarts);
+  const ROMol *defaultQuery = DefaultTorsionBondSmarts::query();
+  const ROMol *query = (torsionBondSmarts == DefaultTorsionBondSmarts::string())
+                       ? defaultQuery : SmartsToMol(torsionBondSmarts);
   TEST_ASSERT(query);
   unsigned int nHits = SubstructMatch(mol, *query, matchVect);
   if (query != defaultQuery) delete query;
@@ -928,7 +948,6 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
         continue;
       }
       if (getTwoBitCell(neighborMatrix, twoBitCellPos(nAtoms, i, j)) >= RELATION_1_4) {
-      //if (true) {
         double dist = (conf.getAtomPos(i) - conf.getAtomPos(j)).length();
         if (dist > nonBondedThresh) {
           continue;
