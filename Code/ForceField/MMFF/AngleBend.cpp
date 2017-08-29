@@ -19,6 +19,8 @@
 #include <RDGeneral/utils.h>
 #ifdef RDK_BUILD_WITH_OPENMM
 #include <OpenMM.h>
+#include <OpenMMMMFF.h>
+#include <openmm/Units.h>
 #endif
 
 namespace ForceFields {
@@ -93,22 +95,8 @@ void calcAngleBendGrad(RDGeom::Point3D *r, double *dist, double **g,
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMM::CustomAngleForce *getOpenMMAngleBendForce() {
-  static const double c1AB = MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
-  static const double cbAB = cb * OpenMM::DegreesPerRadian;
-  // theta, v0 are in radians
-  static const std::string af = "c1AB*ka*(isLinear*(one+cos(theta)) "
-    "+ (one-isLinear)*oneHalf*(theta-v0)^2*(one+cbAB*(theta-v0)))";
-  OpenMM::CustomAngleForce *res = new OpenMM::CustomAngleForce(af);
-  res->addGlobalParameter("one", 1.0);
-  res->addGlobalParameter("oneHalf", 0.5);
-  res->addGlobalParameter("c1AB", c1AB);
-  res->addGlobalParameter("cbAB", cbAB);
-  res->addPerAngleParameter("ka");
-  res->addPerAngleParameter("v0");
-  res->addPerAngleParameter("isLinear");
-  
-  return res;
+OpenMM::MMFFAngleForce *getOpenMMAngleBendForce() {
+  return new OpenMM::MMFFAngleForce();
 }
 #endif
 }  // end of namespace Utils

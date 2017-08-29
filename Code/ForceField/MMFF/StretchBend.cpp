@@ -20,7 +20,7 @@
 #include <RDGeneral/utils.h>
 #ifdef RDK_BUILD_WITH_OPENMM
 #include <OpenMM.h>
-#include <OpenMMAmoeba.h>
+#include <OpenMMMMFF.h>
 #endif
 
 namespace ForceFields {
@@ -45,8 +45,8 @@ std::pair<double, double> calcStretchBendEnergy(
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMM::AmoebaStretchBendForce *getOpenMMStretchBendForce() {
-  return new OpenMM::AmoebaStretchBendForce();
+OpenMM::MMFFStretchBendForce *getOpenMMStretchBendForce() {
+  return new OpenMM::MMFFStretchBendForce();
 }
 #endif
 }  // end of namespace Utils

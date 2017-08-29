@@ -24,7 +24,7 @@
 #include "Builder.h"
 #ifdef RDK_BUILD_WITH_OPENMM
 #include <OpenMM.h>
-#include <OpenMMAmoeba.h>
+#include <OpenMMMMFF.h>
 #include <openmm/Units.h>
 #endif
 
@@ -1265,10 +1265,7 @@ void OpenMMForceField::addBondStretchContrib(unsigned int idx1,
     d_bondStretchForce = MMFF::Utils::getOpenMMBondStretchForce();
     d_openmmSystem->addForce(d_bondStretchForce);
   }
-  std::vector<double> params;
-  params.push_back(mmffBondParams->kb);
-  params.push_back(mmffBondParams->r0 * OpenMM::NmPerAngstrom);
-  d_bondStretchForce->addBond(idx1, idx2, params);
+  d_bondStretchForce->addBond(idx1, idx2, mmffBondParams->r0 * OpenMM::NmPerAngstrom, mmffBondParams->kb);
 }
 
 void OpenMMForceField::addAngleBendContrib(unsigned int idx1,
@@ -1278,11 +1275,8 @@ void OpenMMForceField::addAngleBendContrib(unsigned int idx1,
     d_angleBendForce = MMFF::Utils::getOpenMMAngleBendForce();
     d_openmmSystem->addForce(d_angleBendForce);
   }
-  std::vector<double> params;
-  params.push_back(mmffAngleParams->ka);
-  params.push_back(mmffAngleParams->theta0 * OpenMM::RadiansPerDegree);
-  params.push_back(MMFF::Utils::isLinear(mmffPropParamsCentralAtom) ? 1.0 : 0.0);
-  d_angleBendForce->addAngle(idx1, idx2, idx3, params);
+  d_angleBendForce->addAngle(idx1, idx2, idx3, mmffAngleParams->theta0 * OpenMM::RadiansPerDegree,
+    mmffAngleParams->ka, MMFF::Utils::isLinear(mmffPropParamsCentralAtom));
 }
 
 void OpenMMForceField::addStretchBendContrib(unsigned int idx1,
@@ -1326,10 +1320,6 @@ void OpenMMForceField::addOopBendContrib(unsigned int idx1,
     * OpenMM::KJPerKcal;
   if (!d_oopBendForce) {
     d_oopBendForce = MMFF::Utils::getOpenMMOopBendForce();
-    d_oopBendForce->setAmoebaGlobalOutOfPlaneBendCubic(0.0);
-    d_oopBendForce->setAmoebaGlobalOutOfPlaneBendQuartic(0.0);
-    d_oopBendForce->setAmoebaGlobalOutOfPlaneBendPentic(0.0);
-    d_oopBendForce->setAmoebaGlobalOutOfPlaneBendSextic(0.0);
     d_openmmSystem->addForce(d_oopBendForce);
   }
   d_oopBendForce->addOutOfPlaneBend(idx1, idx4, idx3, idx2,
@@ -1390,10 +1380,10 @@ void OpenMMForceField::setCutoffDistance(double distance) {
 }
 
 void OpenMMForceField::setNonbondedPeriodic(bool periodic) {
-  OpenMM::AmoebaVdwForce::NonbondedMethod vdWMethod = OpenMM::AmoebaVdwForce::NoCutoff;
+  OpenMM::MMFFVdwForce::NonbondedMethod vdWMethod = OpenMM::MMFFVdwForce::NoCutoff;
   OpenMM::CustomNonbondedForce::NonbondedMethod eleMethod = OpenMM::CustomNonbondedForce::NoCutoff;
   if (periodic) {
-    vdWMethod = OpenMM::AmoebaVdwForce::CutoffPeriodic;
+    vdWMethod = OpenMM::MMFFVdwForce::CutoffPeriodic;
     eleMethod = OpenMM::CustomNonbondedForce::CutoffPeriodic;
   }
   d_vdWForce->setNonbondedMethod(vdWMethod);

@@ -17,7 +17,7 @@
 
 #ifdef RDK_BUILD_WITH_OPENMM
 namespace OpenMM {
-class AmoebaStretchBendForce;
+class MMFFStretchBendForce;
 }
 #endif
 
@@ -70,7 +70,7 @@ std::pair<double, double> calcStretchBendEnergy(
     const double deltaDist1, const double deltaDist2, const double deltaTheta,
     const std::pair<double, double> forceConstants);
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMM::AmoebaStretchBendForce *getOpenMMStretchBendForce();
+OpenMM::MMFFStretchBendForce *getOpenMMStretchBendForce();
 #endif
 }
 }

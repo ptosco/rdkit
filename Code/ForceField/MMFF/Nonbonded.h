@@ -17,7 +17,7 @@
 
 #ifdef RDK_BUILD_WITH_OPENMM
 namespace OpenMM {
-class AmoebaVdwForce;
+class MMFFVdwForce;
 class CustomNonbondedForce;
 }
 #endif
@@ -100,7 +100,7 @@ double calcVdWEnergy(const double dist, const double R_star_ij,
 double calcEleEnergy(unsigned int idx1, unsigned int idx2, double dist,
                      double chargeTerm, boost::uint8_t dielModel, bool is1_4);
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMM::AmoebaVdwForce *getOpenMMVdWForce();
+OpenMM::MMFFVdwForce *getOpenMMVdWForce();
 OpenMM::CustomNonbondedForce *getOpenMMEleForce(boost::uint8_t dielModel, double dielConst, bool is1_4);
 #endif
 }

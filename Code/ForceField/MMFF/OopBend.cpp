@@ -17,7 +17,7 @@
 #include <RDGeneral/Invariant.h>
 #ifdef RDK_BUILD_WITH_OPENMM
 #include <OpenMM.h>
-#include <OpenMMAmoeba.h>
+#include <OpenMMMMFF.h>
 #endif
 
 namespace ForceFields {
@@ -53,8 +53,8 @@ double calcOopBendEnergy(const double chi, const double koop) {
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMM::AmoebaOutOfPlaneBendForce *getOpenMMOopBendForce() {
-  return new OpenMM::AmoebaOutOfPlaneBendForce();
+OpenMM::MMFFOutOfPlaneBendForce *getOpenMMOopBendForce() {
+  return new OpenMM::MMFFOutOfPlaneBendForce();
 }
 #endif
 }  // end of namespace Utils

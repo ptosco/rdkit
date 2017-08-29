@@ -15,7 +15,7 @@
 
 #ifdef RDK_BUILD_WITH_OPENMM
 namespace OpenMM {
-class CustomBondForce;
+class MMFFBondForce;
 }
 #endif
 
@@ -64,7 +64,7 @@ double calcBondForceConstant(const MMFFBond *mmffBondParams);
 double calcBondStretchEnergy(const double r0, const double kb,
                              const double distance);
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMM::CustomBondForce *getOpenMMBondStretchForce();
+OpenMM::MMFFBondForce *getOpenMMBondStretchForce();
 #endif
 }
 }

@@ -25,12 +25,12 @@
 
 #ifdef RDK_BUILD_WITH_OPENMM
 namespace OpenMM {
-class CustomBondForce;
-class CustomAngleForce;
-class AmoebaStretchBendForce;
+class MMFFBondForce;
+class MMFFAngleForce;
+class MMFFStretchBendForce;
 class CustomTorsionForce;
-class AmoebaOutOfPlaneBendForce;
-class AmoebaVdwForce;
+class MMFFOutOfPlaneBendForce;
+class MMFFVdwForce;
 class CustomNonbondedForce;
 }
 #else
@@ -85,22 +85,22 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
     const std::vector<std::string>& failedPlugins() {
       return d_failedPlugins;
     }
-    OpenMM::CustomBondForce *getBondStretchForce() {
+    OpenMM::MMFFBondForce *getBondStretchForce() {
       return d_bondStretchForce;
     }
-    OpenMM::CustomAngleForce *getAngleBendForce() {
+    OpenMM::MMFFAngleForce *getAngleBendForce() {
       return d_angleBendForce;
     }
-    OpenMM::AmoebaStretchBendForce *getStretchBendForce() {
+    OpenMM::MMFFStretchBendForce *getStretchBendForce() {
       return d_stretchBendForce;
     }
     OpenMM::CustomTorsionForce *getTorsionAngleForce() {
       return d_torsionAngleForce;
     }
-    OpenMM::AmoebaOutOfPlaneBendForce *getOopBendForce() {
+    OpenMM::MMFFOutOfPlaneBendForce *getOopBendForce() {
       return d_oopBendForce;
     }
-    OpenMM::AmoebaVdwForce *getVdWForce() {
+    OpenMM::MMFFVdwForce *getVdWForce() {
       return d_vdWForce;
     }
     OpenMM::CustomNonbondedForce *getEleForce() {
@@ -114,12 +114,12 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
   private:
     std::vector<std::string> d_loadedPlugins;
     std::vector<std::string> d_failedPlugins;
-    OpenMM::CustomBondForce *d_bondStretchForce;
-    OpenMM::CustomAngleForce *d_angleBendForce;
-    OpenMM::AmoebaStretchBendForce *d_stretchBendForce;
+    OpenMM::MMFFBondForce *d_bondStretchForce;
+    OpenMM::MMFFAngleForce *d_angleBendForce;
+    OpenMM::MMFFStretchBendForce *d_stretchBendForce;
     OpenMM::CustomTorsionForce *d_torsionAngleForce;
-    OpenMM::AmoebaOutOfPlaneBendForce *d_oopBendForce;
-    OpenMM::AmoebaVdwForce *d_vdWForce;
+    OpenMM::MMFFOutOfPlaneBendForce *d_oopBendForce;
+    OpenMM::MMFFVdwForce *d_vdWForce;
     OpenMM::CustomNonbondedForce *d_eleForce;
     OpenMM::CustomNonbondedForce *d_eleForce1_4;
 };

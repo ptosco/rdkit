@@ -244,7 +244,7 @@ int mmffValidationSuite(int argc, char *argv[]) {
   unsigned int n = 0;
   bool error = false;
   bool fullTest = false;
-  int inc = 4;
+  int inc = 40;
   bool testFailure = false;
   while (iarg < argc) {
     arg = argv[iarg];

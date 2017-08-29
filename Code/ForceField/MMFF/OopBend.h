@@ -17,7 +17,7 @@
 
 #ifdef RDK_BUILD_WITH_OPENMM
 namespace OpenMM {
-class AmoebaOutOfPlaneBendForce;
+class MMFFOutOfPlaneBendForce;
 }
 #endif
 
@@ -61,7 +61,7 @@ double calcOopBendForceConstant(const MMFFOop *mmffOopParams);
 //! calculates and returns the out-of-plane MMFF energy
 double calcOopBendEnergy(const double chi, const double koop);
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMM::AmoebaOutOfPlaneBendForce *getOpenMMOopBendForce();
+OpenMM::MMFFOutOfPlaneBendForce *getOpenMMOopBendForce();
 #endif
 }
 }

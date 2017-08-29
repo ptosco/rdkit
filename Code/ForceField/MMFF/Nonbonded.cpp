@@ -19,7 +19,7 @@
 #include <GraphMol/ForceFieldHelpers/MMFF/AtomTyper.h>
 #ifdef RDK_BUILD_WITH_OPENMM
 #include <OpenMM.h>
-#include <OpenMMAmoeba.h>
+#include <OpenMMMMFF.h>
 #endif
 
 namespace ForceFields {
@@ -116,8 +116,8 @@ double calcEleEnergy(unsigned int idx1, unsigned int idx2, double dist,
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMM::AmoebaVdwForce *getOpenMMVdWForce() {
-  return new OpenMM::AmoebaVdwForce();
+OpenMM::MMFFVdwForce *getOpenMMVdWForce() {
+  return new OpenMM::MMFFVdwForce();
 }
 
 OpenMM::CustomNonbondedForce *getOpenMMEleForce(boost::uint8_t dielModel, double dielConst, bool is1_4) {

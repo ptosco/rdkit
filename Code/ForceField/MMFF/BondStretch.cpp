@@ -19,6 +19,7 @@
 #include <RDGeneral/utils.h>
 #ifdef RDK_BUILD_WITH_OPENMM
 #include <OpenMM.h>
+#include <OpenMMMMFF.h>
 #include <openmm/Units.h>
 #endif
 
@@ -57,16 +58,8 @@ static const double c1BS = c1 * OpenMM::KJPerKcal
 static const double csBS = cs * OpenMM::AngstromsPerNm;
 static const double c3BS = c3 * OpenMM::AngstromsPerNm * OpenMM::AngstromsPerNm;
 
-OpenMM::CustomBondForce *getOpenMMBondStretchForce() {
-  static const std::string bf = "c1BS*kb*(r-r0)^2*(1.0+csBS*(r-r0)+c3BS*(r-r0)^2)";
-  OpenMM::CustomBondForce *res = new OpenMM::CustomBondForce(bf);
-  res->addGlobalParameter("c1BS", c1BS);
-  res->addGlobalParameter("csBS", csBS);
-  res->addGlobalParameter("c3BS", c3BS);
-  res->addPerBondParameter("kb");
-  res->addPerBondParameter("r0");
-  
-  return res;
+OpenMM::MMFFBondForce *getOpenMMBondStretchForce() {
+  return new OpenMM::MMFFBondForce();
 }
 #endif
 }  // end of namespace Utils

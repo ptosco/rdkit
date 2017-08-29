@@ -17,7 +17,7 @@
 
 #ifdef RDK_BUILD_WITH_OPENMM
 namespace OpenMM {
-class CustomAngleForce;
+class MMFFAngleForce;
 }
 #endif
 
@@ -72,7 +72,7 @@ double calcAngleBendEnergy(const double theta0, const double ka, bool isLinear,
 void calcAngleBendGrad(RDGeom::Point3D *r, double *dist, double **g,
                        double &dE_dTheta, double &cosTheta, double &sinTheta);
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMM::CustomAngleForce *getOpenMMAngleBendForce();
+OpenMM::MMFFAngleForce *getOpenMMAngleBendForce();
 #endif
 }
 }
