@@ -17,7 +17,7 @@
 
 #ifdef RDK_BUILD_WITH_OPENMM
 namespace OpenMM {
-class CustomTorsionForce;
+class MMFFTorsionForce;
 }
 #endif
 
@@ -76,7 +76,7 @@ double calcTorsionEnergy(const double V1, const double V2, const double V3,
 void calcTorsionGrad(RDGeom::Point3D *r, RDGeom::Point3D *t, double *d,
                      double **g, double &sinTerm, double &cosPhi);
 #ifdef RDK_BUILD_WITH_OPENMM
-OpenMM::CustomTorsionForce *getOpenMMTorsionAngleForce();
+OpenMM::MMFFTorsionForce *getOpenMMTorsionAngleForce();
 #endif
 }
 }

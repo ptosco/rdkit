@@ -53,11 +53,6 @@ double calcBondStretchEnergy(const double r0, const double kb,
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
-static const double c1BS = c1 * OpenMM::KJPerKcal
-  * OpenMM::AngstromsPerNm * OpenMM::AngstromsPerNm;
-static const double csBS = cs * OpenMM::AngstromsPerNm;
-static const double c3BS = c3 * OpenMM::AngstromsPerNm * OpenMM::AngstromsPerNm;
-
 OpenMM::MMFFBondForce *getOpenMMBondStretchForce() {
   return new OpenMM::MMFFBondForce();
 }

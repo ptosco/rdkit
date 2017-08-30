@@ -1261,22 +1261,25 @@ OpenMMForceField::OpenMMForceField(bool forceLoadPlugins,
 
 void OpenMMForceField::addBondStretchContrib(unsigned int idx1,
   unsigned int idx2, const MMFFBond *mmffBondParams) {
+  static const double c1B = MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal
+    * OpenMM::AngstromsPerNm * OpenMM::AngstromsPerNm;
   if (!d_bondStretchForce) {
     d_bondStretchForce = MMFF::Utils::getOpenMMBondStretchForce();
     d_openmmSystem->addForce(d_bondStretchForce);
   }
-  d_bondStretchForce->addBond(idx1, idx2, mmffBondParams->r0 * OpenMM::NmPerAngstrom, mmffBondParams->kb);
+  d_bondStretchForce->addBond(idx1, idx2, mmffBondParams->r0 * OpenMM::NmPerAngstrom, c1B * mmffBondParams->kb);
 }
 
 void OpenMMForceField::addAngleBendContrib(unsigned int idx1,
   unsigned int idx2, unsigned int idx3, const MMFFAngle *mmffAngleParams,
   const MMFFProp *mmffPropParamsCentralAtom) {
+  static const double c1AB = MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
   if (!d_angleBendForce) {
     d_angleBendForce = MMFF::Utils::getOpenMMAngleBendForce();
     d_openmmSystem->addForce(d_angleBendForce);
   }
   d_angleBendForce->addAngle(idx1, idx2, idx3, mmffAngleParams->theta0 * OpenMM::RadiansPerDegree,
-    mmffAngleParams->ka, MMFF::Utils::isLinear(mmffPropParamsCentralAtom));
+    c1AB * mmffAngleParams->ka, MMFF::Utils::isLinear(mmffPropParamsCentralAtom));
 }
 
 void OpenMMForceField::addStretchBendContrib(unsigned int idx1,
@@ -1305,17 +1308,14 @@ void OpenMMForceField::addTorsionAngleContrib(unsigned int idx1,
     d_torsionAngleForce = MMFF::Utils::getOpenMMTorsionAngleForce();
     d_openmmSystem->addForce(d_torsionAngleForce);
   }
-  std::vector<double> params;
-  params.push_back(mmffTorParams->V1);
-  params.push_back(mmffTorParams->V2);
-  params.push_back(mmffTorParams->V3);
-  d_torsionAngleForce->addTorsion(idx1, idx2, idx3, idx4, params);
+  d_torsionAngleForce->addTorsion(idx1, idx2, idx3, idx4, mmffTorParams->V1 * OpenMM::KJPerKcal,
+    mmffTorParams->V2 * OpenMM::KJPerKcal, mmffTorParams->V3 * OpenMM::KJPerKcal);
 }
 
 void OpenMMForceField::addOopBendContrib(unsigned int idx1,
   unsigned int idx2, unsigned int idx3,
   unsigned int idx4, const MMFFOop *mmffOopParams) {
-  static const double c2OOP = 0.5 * MDYNE_A_TO_KCAL_MOL
+  static const double c2OOP = MDYNE_A_TO_KCAL_MOL
     * OpenMM::RadiansPerDegree * OpenMM::RadiansPerDegree
     * OpenMM::KJPerKcal;
   if (!d_oopBendForce) {

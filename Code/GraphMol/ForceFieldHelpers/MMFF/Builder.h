@@ -28,7 +28,7 @@ namespace OpenMM {
 class MMFFBondForce;
 class MMFFAngleForce;
 class MMFFStretchBendForce;
-class CustomTorsionForce;
+class MMFFTorsionForce;
 class MMFFOutOfPlaneBendForce;
 class MMFFVdwForce;
 class CustomNonbondedForce;
@@ -94,7 +94,7 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
     OpenMM::MMFFStretchBendForce *getStretchBendForce() {
       return d_stretchBendForce;
     }
-    OpenMM::CustomTorsionForce *getTorsionAngleForce() {
+    OpenMM::MMFFTorsionForce *getTorsionAngleForce() {
       return d_torsionAngleForce;
     }
     OpenMM::MMFFOutOfPlaneBendForce *getOopBendForce() {
@@ -117,7 +117,7 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
     OpenMM::MMFFBondForce *d_bondStretchForce;
     OpenMM::MMFFAngleForce *d_angleBendForce;
     OpenMM::MMFFStretchBendForce *d_stretchBendForce;
-    OpenMM::CustomTorsionForce *d_torsionAngleForce;
+    OpenMM::MMFFTorsionForce *d_torsionAngleForce;
     OpenMM::MMFFOutOfPlaneBendForce *d_oopBendForce;
     OpenMM::MMFFVdwForce *d_vdWForce;
     OpenMM::CustomNonbondedForce *d_eleForce;
