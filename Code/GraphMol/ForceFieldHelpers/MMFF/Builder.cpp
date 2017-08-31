@@ -1330,16 +1330,13 @@ void OpenMMForceField::addVdWContrib(unsigned int idx,
   const MMFFVdW *mmffVdWParams, std::vector<int> &exclusions) {
   if (!d_vdWForce) {
     d_vdWForce = MMFF::Utils::getOpenMMVdWForce();
-    d_vdWForce->setSigmaCombiningRule("MMFF");
-    d_vdWForce->setEpsilonCombiningRule("MMFF");
     d_vdWForce->setUseDispersionCorrection(false);
     d_openmmSystem->addForce(d_vdWForce);
   }
-  const double alpha_i_d_N_i = mmffVdWParams->alpha_i / mmffVdWParams->N_i;
-  d_vdWForce->addParticle(idx, ((mmffVdWParams->DA == 'D')
-    ? -mmffVdWParams->R_star : mmffVdWParams->R_star) * OpenMM::NmPerAngstrom,
-    (mmffVdWParams->DA == 'A') ? -alpha_i_d_N_i : alpha_i_d_N_i,
-    mmffVdWParams->G_i * mmffVdWParams->alpha_i);
+  d_vdWForce->addParticle(mmffVdWParams->R_star * OpenMM::NmPerAngstrom,
+    mmffVdWParams->G_i * mmffVdWParams->alpha_i,
+    mmffVdWParams->alpha_i / mmffVdWParams->N_i,
+    static_cast<char>(mmffVdWParams->DA));
   d_vdWForce->setParticleExclusions(idx, exclusions);
 }
 
