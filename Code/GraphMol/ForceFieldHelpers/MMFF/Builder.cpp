@@ -28,6 +28,8 @@
 #include <openmm/Units.h>
 #endif
 
+#define USE_OPENMM_NONBONDED 1
+
 namespace RDKit {
 namespace MMFF {
 using namespace ForceFields::MMFF;
@@ -888,6 +890,153 @@ void addTorsions(const ROMol &mol, MMFFMolProperties *mmffMolProperties,
   }
 }
 
+#ifdef RDK_BUILD_WITH_OPENMM
+void addNonbonded(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
+            ForceFields::ForceField *field,
+            boost::shared_array<boost::uint8_t> neighborMatrix,
+            double nonBondedThresh, bool ignoreInterfragInteractions) {
+  checkFFPreconditions(field, mmffMolProperties, ForceFields::USE_OPENMM);
+
+  std::ostream &oStream = mmffMolProperties->getMMFFOStream();
+  OpenMMForceField *fieldOMM = getOpenMMForceField(field, ForceFields::USE_OPENMM);
+  INT_VECT fragMapping;
+  if (ignoreInterfragInteractions) {
+    std::vector<ROMOL_SPTR> molFrags =
+        MolOps::getMolFrags(mol, true, &fragMapping);
+  }
+  unsigned int nAtoms = mol.getNumAtoms();
+  double totalVdWEnergy = 0.0;
+  double totalEleEnergy = 0.0;
+  double dielConst = mmffMolProperties->getMMFFDielectricConstant();
+  boost::uint8_t dielModel = mmffMolProperties->getMMFFDielectricModel();
+  if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
+    oStream << "\n"
+               "V A N   D E R   W A A L S\n\n"
+               "------ATOMS------   ATOM TYPES                               "
+               "  WELL\n"
+               "  I        J          I    J    DISTANCE   ENERGY     R*     "
+               " DEPTH\n"
+               "-------------------------------------------------------------"
+               "-------" << std::endl;
+  }
+  const Conformer &conf = mol.getConformer(confId);
+  MMFFVdWCollection *mmffVdW = MMFFVdWCollection::getMMFFVdW();
+  std::vector<std::pair<int, int> > excl;
+  bool haveNonbondedContrib = false;
+  for (unsigned int i = 0; i < nAtoms; ++i) {
+    const unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(i);
+    const MMFFVdW *mmffVdWParams = (*mmffVdW)(iAtomType);
+    haveNonbondedContrib = true;
+    fieldOMM->addNonbondedContrib(i, mmffMolProperties->getMMFFEleTerm()
+      ? mmffMolProperties->getMMFFPartialCharge(i) : 0.0,
+      mmffMolProperties->getMMFFVdWTerm() ? mmffVdWParams : NULL);
+    for (unsigned int j = i + 1; j < nAtoms; ++j) {
+      if (ignoreInterfragInteractions && (fragMapping[i] != fragMapping[j])) {
+        excl.push_back(std::make_pair(i, j));
+        continue;
+      }
+      if (mmffMolProperties->getMMFFVerbosity()
+        && getTwoBitCell(neighborMatrix, twoBitCellPos(nAtoms, i, j)) >= RELATION_1_4) {
+        double dist = (conf.getAtomPos(i) - conf.getAtomPos(j)).length();
+        if (dist > nonBondedThresh) {
+          continue;
+        }
+        MMFFVdWRijstarEps mmffVdWConstants;
+        if (mmffMolProperties->getMMFFVdWParams(i, j, mmffVdWConstants)) {
+          const double vdWEnergy = MMFF::Utils::calcVdWEnergy(
+              dist, mmffVdWConstants.R_ij_star, mmffVdWConstants.epsilon);
+          if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
+            const unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(j);
+            const Atom *iAtom = mol.getAtomWithIdx(i);
+            const Atom *jAtom = mol.getAtomWithIdx(j);
+            oStream << std::left << std::setw(2) << iAtom->getSymbol() << " #"
+                    << std::setw(5) << i + 1 << std::setw(2)
+                    << jAtom->getSymbol() << " #" << std::setw(5) << j + 1
+                    << std::right << std::setw(5) << iAtomType << std::setw(5)
+                    << jAtomType << "  " << std::fixed << std::setprecision(3)
+                    << std::setw(9) << dist << std::setw(10) << vdWEnergy
+                    << std::setw(9) << mmffVdWConstants.R_ij_star << std::setw(9)
+                    << mmffVdWConstants.epsilon << std::endl;
+          }
+          totalVdWEnergy += vdWEnergy;
+        }
+      }
+    }
+#if 0
+    std::cerr << "particle " << i << ", excl = ";
+    for (std::vector<int>::const_iterator it = excl.begin(); it != excl.end(); ++it)
+      std::cerr << *it << ((it == excl.end() - 1) ? "\n" : ", ");
+#endif
+  }
+  if (mmffMolProperties->getMMFFVerbosity()) {
+    if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
+      oStream << std::endl;
+    }
+    oStream << "TOTAL VAN DER WAALS ENERGY     =" << std::right << std::setw(16)
+            << std::fixed << std::setprecision(4) << totalVdWEnergy
+            << std::endl;
+    if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
+      oStream << "\n"
+                 "E L E C T R O S T A T I C\n\n"
+                 "------ATOMS------   ATOM TYPES\n"
+                 "  I        J          I    J    DISTANCE   ENERGY\n"
+                 "--------------------------------------------------"
+              << std::endl;
+    }
+    for (unsigned int i = 0; i < nAtoms; ++i) {
+      if (!(mmffMolProperties->getMMFFEleTerm()
+        && !isDoubleZero(mmffMolProperties->getMMFFPartialCharge(i))))
+        continue;
+      for (unsigned int j = i + 1; j < nAtoms; ++j) {
+        if (ignoreInterfragInteractions && (fragMapping[i] != fragMapping[j])) {
+          continue;
+        }
+        boost::uint8_t cell = getTwoBitCell(neighborMatrix, twoBitCellPos(nAtoms, i, j));
+        bool is1_4 = (cell == RELATION_1_4);
+        if (cell >= RELATION_1_4) {
+          double dist = (conf.getAtomPos(i) - conf.getAtomPos(j)).length();
+          if (dist > nonBondedThresh) {
+            continue;
+          }
+          double chargeTerm = mmffMolProperties->getMMFFPartialCharge(i) *
+                              mmffMolProperties->getMMFFPartialCharge(j) /
+                              dielConst;
+          const unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(i);
+          const unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(j);
+          const Atom *iAtom = mol.getAtomWithIdx(i);
+          const Atom *jAtom = mol.getAtomWithIdx(j);
+          const double eleEnergy = MMFF::Utils::calcEleEnergy(
+            i, j, dist, chargeTerm, dielModel, is1_4);
+          if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
+            oStream << std::left << std::setw(2) << iAtom->getSymbol() << " #"
+                    << std::setw(5) << i + 1 << std::setw(2)
+                    << jAtom->getSymbol() << " #" << std::setw(5) << j + 1
+                    << std::right << std::setw(5) << iAtomType << std::setw(5)
+                    << jAtomType << "  " << std::fixed << std::setprecision(3)
+                    << std::setw(9) << dist << std::setw(10) << eleEnergy
+                    << std::endl;
+          }
+          totalEleEnergy += eleEnergy;
+        }
+      }
+    }
+    if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
+      oStream << std::endl;
+    }
+    oStream << "TOTAL ELECTROSTATIC ENERGY     =" << std::right << std::setw(16)
+            << std::fixed << std::setprecision(4) << totalEleEnergy
+            << std::endl;
+  }
+  if (haveNonbondedContrib) {
+    std::vector<std::pair<int, int> > bonds;
+    for (ROMol::ConstBondIterator it = mol.beginBonds(); it != mol.endBonds(); ++it)
+      bonds.push_back(std::make_pair((*it)->getBeginAtomIdx(), (*it)->getEndAtomIdx()));
+    fieldOMM->addNonbondedExclusionsAndExceptions(excl, bonds);
+  }
+}
+
+#endif
+
 // ------------------------------------------------------------------------
 //
 //
@@ -1223,15 +1372,28 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
   }
   if (mmffMolProperties->getMMFFVdWTerm() ||
       mmffMolProperties->getMMFFEleTerm()) {
+#if (defined RDK_BUILD_WITH_OPENMM) && (defined USE_OPENMM_NONBONDED)
+    bool haveSeparateVdwEle = !(ffOpts & ForceFields::USE_OPENMM);
+    boost::shared_array<boost::uint8_t> neighborMat;
+    if (haveSeparateVdwEle || (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH))
+      neighborMat = Tools::buildNeighborMatrix(mol);
+    if (!haveSeparateVdwEle)
+      Tools::addNonbonded(mol, confId, mmffMolProperties, ff, neighborMat,
+                    nonBondedThresh, ignoreInterfragInteractions);
+#else
+    bool haveSeparateVdwEle = true;
     boost::shared_array<boost::uint8_t> neighborMat =
         Tools::buildNeighborMatrix(mol);
-    if (mmffMolProperties->getMMFFVdWTerm()) {
-      Tools::addVdW(mol, confId, mmffMolProperties, ff, ffOpts, neighborMat,
-                    nonBondedThresh, ignoreInterfragInteractions);
-    }
-    if (mmffMolProperties->getMMFFEleTerm()) {
-      Tools::addEle(mol, confId, mmffMolProperties, ff, ffOpts, neighborMat,
-                    nonBondedThresh, ignoreInterfragInteractions);
+#endif
+    if (haveSeparateVdwEle) {
+      if (mmffMolProperties->getMMFFVdWTerm()) {
+        Tools::addVdW(mol, confId, mmffMolProperties, ff, ffOpts, neighborMat,
+                      nonBondedThresh, ignoreInterfragInteractions);
+      }
+      if (mmffMolProperties->getMMFFEleTerm()) {
+        Tools::addEle(mol, confId, mmffMolProperties, ff, ffOpts, neighborMat,
+                      nonBondedThresh, ignoreInterfragInteractions);
+      }
     }
   }
   if (ffOMM)
@@ -1253,6 +1415,7 @@ OpenMMForceField::OpenMMForceField(bool forceLoadPlugins,
   d_stretchBendForce(NULL),
   d_torsionAngleForce(NULL),
   d_oopBendForce(NULL),
+  d_nonbondedForce(NULL),
   d_vdWForce(NULL),
   d_eleForce(NULL),
   d_eleForce1_4(NULL) {
@@ -1324,6 +1487,48 @@ void OpenMMForceField::addOopBendContrib(unsigned int idx1,
   }
   d_oopBendForce->addOutOfPlaneBend(idx1, idx4, idx3, idx2,
     c2OOP * mmffOopParams->koop);
+}
+
+void OpenMMForceField::addNonbondedContrib(unsigned int idx,
+  double charge, const MMFFVdW *mmffVdWParams) {
+  if (!d_nonbondedForce) {
+    d_nonbondedForce = MMFF::Utils::getOpenMMNonbondedForce();
+    d_nonbondedForce->setUseDispersionCorrection(false);
+    d_openmmSystem->addForce(d_nonbondedForce);
+  }
+  double sigma;
+  double G_t_alpha;
+  double alpha_d_N;
+  char vdwDA;
+  if (mmffVdWParams) {
+    sigma = mmffVdWParams->R_star * OpenMM::NmPerAngstrom;
+    G_t_alpha = mmffVdWParams->G_i * mmffVdWParams->alpha_i;
+    alpha_d_N = mmffVdWParams->alpha_i / mmffVdWParams->N_i;
+    vdwDA = static_cast<char>(mmffVdWParams->DA);
+  }
+  else {
+    sigma = 1.0;
+    G_t_alpha = 0.0;
+    alpha_d_N = 1.0;
+    vdwDA = '-';
+  }
+  int openmmIdx = d_nonbondedForce->addParticle(charge, sigma, G_t_alpha, alpha_d_N, vdwDA);
+  if (openmmIdx != static_cast<int>(idx)) {
+    std::stringstream ss;
+    ss << "RDKit idx (" << idx << ") and OpenMM idx (" << openmmIdx
+      <<") for this particle differ";
+    throw std::runtime_error(ss.str());
+  }
+}
+
+void OpenMMForceField::addNonbondedExclusionsAndExceptions(
+  const std::vector<std::pair<int, int> > &exclusions,
+  const std::vector<std::pair<int, int> > &bonds) {
+  PRECONDITION(d_nonbondedForce, "cannot add exclusions/exceptions if nonbondedForce is NULL");
+  d_nonbondedForce->createExceptionsFromBonds(bonds);
+  for (std::vector<std::pair<int, int> >::const_iterator it = exclusions.begin();
+    it != exclusions.end(); ++it)
+    d_nonbondedForce->addException(it->first, it->second, 0.0, 1.0, 0.0);
 }
 
 void OpenMMForceField::addVdWContrib(unsigned int idx,

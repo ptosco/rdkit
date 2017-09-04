@@ -32,6 +32,7 @@ class MMFFTorsionForce;
 class MMFFOutOfPlaneBendForce;
 class MMFFVdwForce;
 class CustomNonbondedForce;
+class MMFFNonbondedForce;
 }
 #else
 typedef ForceFields::ForceField ForceFields::MMFF::OpenMMForceField;
@@ -73,6 +74,11 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
       const ForceFields::MMFF::MMFFTor *mmffTorParams);
     void addOopBendContrib(unsigned int idx1, unsigned int idx2, unsigned int idx3,
       unsigned int idx4, const ForceFields::MMFF::MMFFOop *mmffOopParams);
+    void addNonbondedContrib(unsigned int idx, double charge,
+      const ForceFields::MMFF::MMFFVdW *mmffVdWParams);
+    void addNonbondedExclusionsAndExceptions(
+      const std::vector<std::pair<int, int> > &exclusions,
+      const std::vector<std::pair<int, int> > &bonds);
     void addVdWContrib(unsigned int idx,
       const ForceFields::MMFF::MMFFVdW *mmffVdWParams, std::vector<int> &exclusions);
     void addEleContrib(unsigned int idx, double charge, boost::uint8_t dielModel,
@@ -100,6 +106,9 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
     OpenMM::MMFFOutOfPlaneBendForce *getOopBendForce() {
       return d_oopBendForce;
     }
+    OpenMM::MMFFNonbondedForce *getNonbondedForce() {
+      return d_nonbondedForce;
+    }
     OpenMM::MMFFVdwForce *getVdWForce() {
       return d_vdWForce;
     }
@@ -119,6 +128,7 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
     OpenMM::MMFFStretchBendForce *d_stretchBendForce;
     OpenMM::MMFFTorsionForce *d_torsionAngleForce;
     OpenMM::MMFFOutOfPlaneBendForce *d_oopBendForce;
+    OpenMM::MMFFNonbondedForce *d_nonbondedForce;
     OpenMM::MMFFVdwForce *d_vdWForce;
     OpenMM::CustomNonbondedForce *d_eleForce;
     OpenMM::CustomNonbondedForce *d_eleForce1_4;
@@ -255,6 +265,12 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
   boost::shared_array<boost::uint8_t> neighborMatrix,
   double nonBondedThresh = 100.0,
   bool ignoreInterfragInteractions = true);
+#ifdef RDK_BUILD_WITH_OPENMM
+void addNonbonded(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
+  ForceFields::ForceField *field,
+  boost::shared_array<boost::uint8_t> neighborMatrix,
+  double nonBondedThresh, bool ignoreInterfragInteractions);
+#endif
 }
 }
 }

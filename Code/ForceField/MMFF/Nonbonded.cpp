@@ -116,6 +116,10 @@ double calcEleEnergy(unsigned int idx1, unsigned int idx2, double dist,
 }
 
 #ifdef RDK_BUILD_WITH_OPENMM
+OpenMM::MMFFNonbondedForce *getOpenMMNonbondedForce() {
+  return new OpenMM::MMFFNonbondedForce();
+}
+
 OpenMM::MMFFVdwForce *getOpenMMVdWForce() {
   return new OpenMM::MMFFVdwForce();
 }
