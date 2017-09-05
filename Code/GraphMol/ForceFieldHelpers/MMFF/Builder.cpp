@@ -28,8 +28,6 @@
 #include <openmm/Units.h>
 #endif
 
-#define USE_OPENMM_NONBONDED 1
-
 namespace RDKit {
 namespace MMFF {
 using namespace ForceFields::MMFF;
@@ -1057,7 +1055,6 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
   checkFFPreconditions(field, mmffMolProperties, ffOpts);
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
-  OpenMMForceField *fieldOMM = getOpenMMForceField(field, ffOpts);
   INT_VECT fragMapping;
   if (ignoreInterfragInteractions) {
     std::vector<ROMOL_SPTR> molFrags =
@@ -1079,21 +1076,9 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
     }
   }
   const Conformer &conf = mol.getConformer(confId);
-#ifdef RDK_BUILD_WITH_OPENMM
-  MMFFVdWCollection *mmffVdW = MMFFVdWCollection::getMMFFVdW();
-#endif
   for (unsigned int i = 0; i < nAtoms; ++i) {
-#ifdef RDK_BUILD_WITH_OPENMM
-    std::vector<int> excl;
-#endif
-    for (unsigned int j = (fieldOMM ? 0 : i + 1); j < nAtoms; ++j) {
-      if (fieldOMM && (i == j))
-        continue;
+    for (unsigned int j = i + 1; j < nAtoms; ++j) {
       if (ignoreInterfragInteractions && (fragMapping[i] != fragMapping[j])) {
-#ifdef RDK_BUILD_WITH_OPENMM
-        if (fieldOMM)
-          excl.push_back(j);
-#endif
         continue;
       }
       if (getTwoBitCell(neighborMatrix, twoBitCellPos(nAtoms, i, j)) >= RELATION_1_4) {
@@ -1103,10 +1088,8 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
         }
         MMFFVdWRijstarEps mmffVdWConstants;
         if (mmffMolProperties->getMMFFVdWParams(i, j, mmffVdWConstants)) {
-          if (!fieldOMM) {
-            VdWContrib *contrib = new VdWContrib(field, i, j, &mmffVdWConstants);
-            field->contribs().push_back(ForceFields::ContribPtr(contrib));
-          }
+          VdWContrib *contrib = new VdWContrib(field, i, j, &mmffVdWConstants);
+          field->contribs().push_back(ForceFields::ContribPtr(contrib));
           if (mmffMolProperties->getMMFFVerbosity() && (j > i)) {
             const Atom *iAtom = mol.getAtomWithIdx(i);
             const Atom *jAtom = mol.getAtomWithIdx(j);
@@ -1128,24 +1111,7 @@ void addVdW(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
           }
         }
       }
-#ifdef RDK_BUILD_WITH_OPENMM
-      else if (fieldOMM)
-        excl.push_back(j);
-#endif
     }
-#ifdef RDK_BUILD_WITH_OPENMM
-#if 0
-    std::cerr << "particle " << i << ", excl = ";
-    for (std::vector<int>::const_iterator it = excl.begin(); it != excl.end(); ++it)
-      std::cerr << *it << ((it == excl.end() - 1) ? "\n" : ", ");
-#endif
-    if (fieldOMM) {
-      const unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(i);
-      const MMFFVdW *mmffVdWParams = (*mmffVdW)(iAtomType);
-      if (mmffVdWParams)
-        fieldOMM->addVdWContrib(i, mmffVdWParams, excl);
-    }
-#endif
   }
   if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
@@ -1177,7 +1143,6 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
   checkFFPreconditions(field, mmffMolProperties, ffOpts);
 
   std::ostream &oStream = mmffMolProperties->getMMFFOStream();
-  OpenMMForceField *fieldOMM = getOpenMMForceField(field, ffOpts);
   INT_VECT fragMapping;
   if (ignoreInterfragInteractions) {
     std::vector<ROMOL_SPTR> molFrags =
@@ -1199,31 +1164,13 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
   double dielConst = mmffMolProperties->getMMFFDielectricConstant();
   boost::uint8_t dielModel = mmffMolProperties->getMMFFDielectricModel();
   for (unsigned int i = 0; i < nAtoms; ++i) {
-#ifdef RDK_BUILD_WITH_OPENMM
-    std::vector<int> excl;
-    std::set<int> partner1_4;
-#endif
-    for (unsigned int j = (fieldOMM ? 0 : i + 1); j < nAtoms; ++j) {
-      if (fieldOMM && (i == j))
-        continue;
+    for (unsigned int j = i + 1; j < nAtoms; ++j) {
       if (ignoreInterfragInteractions && (fragMapping[i] != fragMapping[j])) {
-#ifdef RDK_BUILD_WITH_OPENMM
-        if (fieldOMM && (j < i))
-          excl.push_back(j);
-#endif
         continue;
       }
       boost::uint8_t cell = getTwoBitCell(neighborMatrix, twoBitCellPos(nAtoms, i, j));
       bool is1_4 = (cell == RELATION_1_4);
       if (cell >= RELATION_1_4) {
-#ifdef RDK_BUILD_WITH_OPENMM
-        if (fieldOMM) {
-          if (is1_4 && (j < i)) {
-            excl.push_back(j);
-            partner1_4.insert(j);
-          }
-        }
-#endif
         if (isDoubleZero(mmffMolProperties->getMMFFPartialCharge(i))
           || isDoubleZero(mmffMolProperties->getMMFFPartialCharge(j)))
           continue;
@@ -1234,11 +1181,9 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
         double chargeTerm = mmffMolProperties->getMMFFPartialCharge(i) *
                             mmffMolProperties->getMMFFPartialCharge(j) /
                             dielConst;
-        if (!fieldOMM) {
-          EleContrib *contrib = new EleContrib(
-            field, i, j, chargeTerm, dielModel, is1_4);
-          field->contribs().push_back(ForceFields::ContribPtr(contrib));
-        }
+        EleContrib *contrib = new EleContrib(
+          field, i, j, chargeTerm, dielModel, is1_4);
+        field->contribs().push_back(ForceFields::ContribPtr(contrib));
         if (mmffMolProperties->getMMFFVerbosity() && (j > i)) {
           const unsigned int iAtomType = mmffMolProperties->getMMFFAtomType(i);
           const unsigned int jAtomType = mmffMolProperties->getMMFFAtomType(j);
@@ -1258,27 +1203,7 @@ void addEle(const ROMol &mol, int confId, MMFFMolProperties *mmffMolProperties,
           totalEleEnergy += eleEnergy;
         }
       }
-#ifdef RDK_BUILD_WITH_OPENMM
-      else if (fieldOMM && (j < i))
-        excl.push_back(j);
-#endif
     }
-#ifdef RDK_BUILD_WITH_OPENMM
-#if 0
-    std::cerr << "particle " << i << ", excl = ";
-    for (std::vector<int>::const_iterator it = excl.begin(); it != excl.end(); ++it)
-      std::cerr << *it << ((it == excl.end() - 1) ? "; " : ",");
-    std::cerr << "partner1_4 = ";
-    for (std::vector<int>::const_iterator it = partner1_4.begin(); it != partner1_4.end(); ++it)
-      std::cerr << *it << ((it == partner1_4.end() - 1) ? "\n" : ",");
-#endif
-    if (fieldOMM) {
-      fieldOMM->addEleContrib(i, mmffMolProperties->getMMFFPartialCharge(i),
-        dielModel, dielConst, excl);
-      fieldOMM->addEleContrib1_4(i, mmffMolProperties->getMMFFPartialCharge(i),
-        dielModel, dielConst, partner1_4);
-    }
-#endif
   }
   if (mmffMolProperties->getMMFFVerbosity()) {
     if (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH) {
@@ -1372,7 +1297,7 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
   }
   if (mmffMolProperties->getMMFFVdWTerm() ||
       mmffMolProperties->getMMFFEleTerm()) {
-#if (defined RDK_BUILD_WITH_OPENMM) && (defined USE_OPENMM_NONBONDED)
+#ifdef RDK_BUILD_WITH_OPENMM
     bool haveSeparateVdwEle = !(ffOpts & ForceFields::USE_OPENMM);
     boost::shared_array<boost::uint8_t> neighborMat;
     if (haveSeparateVdwEle || (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH))
@@ -1415,10 +1340,7 @@ OpenMMForceField::OpenMMForceField(bool forceLoadPlugins,
   d_stretchBendForce(NULL),
   d_torsionAngleForce(NULL),
   d_oopBendForce(NULL),
-  d_nonbondedForce(NULL),
-  d_vdWForce(NULL),
-  d_eleForce(NULL),
-  d_eleForce1_4(NULL) {
+  d_nonbondedForce(NULL) {
   Tools::OpenMMPlugins::instance()->load(forceLoadPlugins, pluginsDir);
 }
 
@@ -1531,66 +1453,15 @@ void OpenMMForceField::addNonbondedExclusionsAndExceptions(
     d_nonbondedForce->addException(it->first, it->second, 0.0, 1.0, 0.0);
 }
 
-void OpenMMForceField::addVdWContrib(unsigned int idx,
-  const MMFFVdW *mmffVdWParams, std::vector<int> &exclusions) {
-  if (!d_vdWForce) {
-    d_vdWForce = MMFF::Utils::getOpenMMVdWForce();
-    d_vdWForce->setUseDispersionCorrection(false);
-    d_openmmSystem->addForce(d_vdWForce);
-  }
-  d_vdWForce->addParticle(mmffVdWParams->R_star * OpenMM::NmPerAngstrom,
-    mmffVdWParams->G_i * mmffVdWParams->alpha_i,
-    mmffVdWParams->alpha_i / mmffVdWParams->N_i,
-    static_cast<char>(mmffVdWParams->DA));
-  d_vdWForce->setParticleExclusions(idx, exclusions);
-}
-
-void OpenMMForceField::addEleContrib(unsigned int idx,
-  double charge, boost::uint8_t dielModel, double dielConst,
-  std::vector<int> &exclusions) {
-  if (!d_eleForce) {
-    d_eleForce = MMFF::Utils::getOpenMMEleForce(dielModel, dielConst, false);
-    d_openmmSystem->addForce(d_eleForce);
-  }
-  std::vector<double> params;
-  params.push_back(charge);
-  d_eleForce->addParticle(params);
-  for (unsigned int i = 0; i < exclusions.size(); ++i)
-    d_eleForce->addExclusion(idx, exclusions[i]);
-}
-
-void OpenMMForceField::addEleContrib1_4(unsigned int idx,
-  double charge, boost::uint8_t dielModel, double dielConst,
-  std::set<int> &partners1_4) {
-  if (!d_eleForce1_4) {
-    d_eleForce1_4 = MMFF::Utils::getOpenMMEleForce(dielModel, dielConst, true);
-    d_openmmSystem->addForce(d_eleForce1_4);
-  }
-  std::vector<double> params;
-  params.push_back(charge);
-  d_eleForce1_4->addParticle(params);
-  std::set<int> self;
-  self.insert(idx);
-  d_eleForce1_4->addInteractionGroup(self, partners1_4);
-}
-
 void OpenMMForceField::setCutoffDistance(double distance) {
   const double distanceNm = distance * OpenMM::NmPerAngstrom;
-  d_vdWForce->setCutoffDistance(distanceNm);
-  d_eleForce->setCutoffDistance(distanceNm);
-  d_eleForce1_4->setCutoffDistance(distanceNm);
+  d_nonbondedForce->setCutoffDistance(distanceNm);
 }
 
 void OpenMMForceField::setNonbondedPeriodic(bool periodic) {
-  OpenMM::MMFFVdwForce::NonbondedMethod vdWMethod = OpenMM::MMFFVdwForce::NoCutoff;
-  OpenMM::CustomNonbondedForce::NonbondedMethod eleMethod = OpenMM::CustomNonbondedForce::NoCutoff;
-  if (periodic) {
-    vdWMethod = OpenMM::MMFFVdwForce::CutoffPeriodic;
-    eleMethod = OpenMM::CustomNonbondedForce::CutoffPeriodic;
-  }
-  d_vdWForce->setNonbondedMethod(vdWMethod);
-  d_eleForce->setNonbondedMethod(eleMethod);
-  d_eleForce1_4->setNonbondedMethod(eleMethod);
+  OpenMM::MMFFNonbondedForce::NonbondedMethod nonbondedMethod = (periodic
+    ? OpenMM::MMFFNonbondedForce::CutoffPeriodic : OpenMM::MMFFNonbondedForce::NoCutoff);
+  d_nonbondedForce->setNonbondedMethod(nonbondedMethod);
 }
 
 OpenMMForceField *constructOpenMMForceField(ROMol &mol,

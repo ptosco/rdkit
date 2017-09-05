@@ -30,8 +30,6 @@ class MMFFAngleForce;
 class MMFFStretchBendForce;
 class MMFFTorsionForce;
 class MMFFOutOfPlaneBendForce;
-class MMFFVdwForce;
-class CustomNonbondedForce;
 class MMFFNonbondedForce;
 }
 #else
@@ -79,12 +77,6 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
     void addNonbondedExclusionsAndExceptions(
       const std::vector<std::pair<int, int> > &exclusions,
       const std::vector<std::pair<int, int> > &bonds);
-    void addVdWContrib(unsigned int idx,
-      const ForceFields::MMFF::MMFFVdW *mmffVdWParams, std::vector<int> &exclusions);
-    void addEleContrib(unsigned int idx, double charge, boost::uint8_t dielModel,
-      double dielConst, std::vector<int> &exclusions);
-    void addEleContrib1_4(unsigned int idx, double charge, boost::uint8_t dielModel,
-      double dielConst, std::set<int> &partners1_4);
     const std::vector<std::string>& loadedPlugins() {
       return d_loadedPlugins;
     }
@@ -109,15 +101,6 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
     OpenMM::MMFFNonbondedForce *getNonbondedForce() {
       return d_nonbondedForce;
     }
-    OpenMM::MMFFVdwForce *getVdWForce() {
-      return d_vdWForce;
-    }
-    OpenMM::CustomNonbondedForce *getEleForce() {
-      return d_eleForce;
-    }
-    OpenMM::CustomNonbondedForce *getEleForce1_4() {
-      return d_eleForce1_4;
-    }
     void setCutoffDistance(double distance);
     void setNonbondedPeriodic(bool periodic);
   private:
@@ -129,9 +112,6 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
     OpenMM::MMFFTorsionForce *d_torsionAngleForce;
     OpenMM::MMFFOutOfPlaneBendForce *d_oopBendForce;
     OpenMM::MMFFNonbondedForce *d_nonbondedForce;
-    OpenMM::MMFFVdwForce *d_vdWForce;
-    OpenMM::CustomNonbondedForce *d_eleForce;
-    OpenMM::CustomNonbondedForce *d_eleForce1_4;
 };
 #endif
 

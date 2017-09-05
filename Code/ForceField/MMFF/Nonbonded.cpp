@@ -119,28 +119,6 @@ double calcEleEnergy(unsigned int idx1, unsigned int idx2, double dist,
 OpenMM::MMFFNonbondedForce *getOpenMMNonbondedForce() {
   return new OpenMM::MMFFNonbondedForce();
 }
-
-OpenMM::MMFFVdwForce *getOpenMMVdWForce() {
-  return new OpenMM::MMFFVdwForce();
-}
-
-OpenMM::CustomNonbondedForce *getOpenMMEleForce(boost::uint8_t dielModel, double dielConst, bool is1_4) {
-  static const double sc1_4 = 0.75;
-  static const double cOMM = 332.0716 * OpenMM::KJPerKcal;
-  static const double delta = 0.05;
-  // we need to use different global const names for the two ele forces or OpenMM gets confused
-  const std::string cName = (is1_4 ? "cDamp" : "c");
-  const std::string ef = cName + "*q1*q2/(D*(ntoa*r+delta)^n)";
-  OpenMM::CustomNonbondedForce *res = new OpenMM::CustomNonbondedForce(ef);
-  res->addGlobalParameter(cName, cOMM * (is1_4 ? sc1_4 : 1.0));
-  res->addGlobalParameter("D", dielConst);
-  res->addGlobalParameter("n", ((dielModel == RDKit::MMFF::DISTANCE) ? 2.0 : 1.0));
-  res->addGlobalParameter("ntoa", OpenMM::AngstromsPerNm);
-  res->addGlobalParameter("delta", delta);
-  res->addPerParticleParameter("q");
-  
-  return res;
-}
 #endif
 }  // end of namespace utils
 
