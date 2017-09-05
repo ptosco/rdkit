@@ -430,9 +430,9 @@ void OpenMMForceField::replacePositions(double *pos) {
   std::vector<OpenMM::Vec3> newPos(d_storedPos.size());
   unsigned int n = 0;
   for (unsigned int i = 0; i < newPos.size(); ++i) {
-    newPos[i][0] = pos[n++];
-    newPos[i][1] = pos[n++];
-    newPos[i][2] = pos[n++];
+    newPos[i][0] = pos[n++] * OpenMM::NmPerAngstrom;
+    newPos[i][1] = pos[n++] * OpenMM::NmPerAngstrom;
+    newPos[i][2] = pos[n++] * OpenMM::NmPerAngstrom;
   }
   d_openmmContext->setPositions(newPos);
 }
@@ -457,13 +457,13 @@ double OpenMMForceField::calcEnergy(double *pos) {
 }
 
 void OpenMMForceField::calcGrad(double *forces) const {
-  const std::vector<OpenMM::Vec3> &forceVec = d_openmmContext->getState(
+  const std::vector<OpenMM::Vec3> forceVec = d_openmmContext->getState(
     OpenMM::State::Forces).getForces();
   unsigned int n = 0;
   for (unsigned int i = 0; i < forceVec.size(); ++i) {
-    forces[n++] = forceVec[i][0];
-    forces[n++] = forceVec[i][1];
-    forces[n++] = forceVec[i][2];
+    forces[n++] = -forceVec[i][0] * OpenMM::NmPerAngstrom * OpenMM::KcalPerKJ;
+    forces[n++] = -forceVec[i][1] * OpenMM::NmPerAngstrom * OpenMM::KcalPerKJ;
+    forces[n++] = -forceVec[i][2] * OpenMM::NmPerAngstrom * OpenMM::KcalPerKJ;
   }
 }
 
@@ -500,7 +500,6 @@ int OpenMMForceField::minimize(unsigned int maxIts,
 }
 
 void OpenMMForceField::dynamics(int numSteps) {
-  std::cerr << "OpenMMForceField::dynamics() d_openmmIntegrator = " << d_openmmIntegrator << std::endl;
   d_openmmIntegrator->step(numSteps);
   updatePositions();
 }
