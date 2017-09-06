@@ -28,6 +28,8 @@
 #include <openmm/Units.h>
 #endif
 
+//#define PRINT_MMFF_FORCES 1
+
 namespace RDKit {
 namespace MMFF {
 using namespace ForceFields::MMFF;
@@ -1353,6 +1355,11 @@ void OpenMMForceField::addBondStretchContrib(unsigned int idx1,
     d_openmmSystem->addForce(d_bondStretchForce);
   }
   d_bondStretchForce->addBond(idx1, idx2, mmffBondParams->r0 * OpenMM::NmPerAngstrom, c1B * mmffBondParams->kb);
+#ifdef PRINT_MMFF_FORCES
+  std::cerr << "d_bondStretchForce->addBond(" << idx1 << ", " << idx2 << ", "
+    << mmffBondParams->r0 << ", "
+    << MDYNE_A_TO_KCAL_MOL * mmffBondParams->kb << ");" << std::endl;
+#endif
 }
 
 void OpenMMForceField::addAngleBendContrib(unsigned int idx1,
@@ -1365,13 +1372,19 @@ void OpenMMForceField::addAngleBendContrib(unsigned int idx1,
   }
   d_angleBendForce->addAngle(idx1, idx2, idx3, mmffAngleParams->theta0 * OpenMM::RadiansPerDegree,
     c1AB * mmffAngleParams->ka, MMFF::Utils::isLinear(mmffPropParamsCentralAtom));
+#ifdef PRINT_MMFF_FORCES
+  std::cerr << "d_angleBendForce->addAngle(" << idx1 << ", " << idx2 << ", " << idx3 << ", "
+    << mmffAngleParams->theta0 << ", "
+    << MDYNE_A_TO_KCAL_MOL * mmffAngleParams->ka << ", "
+    << (MMFF::Utils::isLinear(mmffPropParamsCentralAtom) ? "true" : "false") << ");" << std::endl;
+#endif
 }
 
 void OpenMMForceField::addStretchBendContrib(unsigned int idx1,
   unsigned int idx2, unsigned int idx3, const MMFFStbn *mmffStbnParams,
   const MMFFAngle *mmffAngleParams, const MMFFBond *mmffBondParams1,
   const MMFFBond *mmffBondParams2) {
-  static const double c1SB = MDYNE_A_TO_KCAL_MOL * OpenMM::RadiansPerDegree
+  static const double c1SB = MDYNE_A_TO_KCAL_MOL
     * OpenMM::AngstromsPerNm * OpenMM::KJPerKcal; 
   if (!d_stretchBendForce) {
     d_stretchBendForce = MMFF::Utils::getOpenMMStretchBendForce();
@@ -1384,6 +1397,15 @@ void OpenMMForceField::addStretchBendContrib(unsigned int idx1,
     mmffBondParams2->r0 * OpenMM::NmPerAngstrom,
     mmffAngleParams->theta0 * OpenMM::RadiansPerDegree,
     c1SB * forceConstants.first, c1SB * forceConstants.second);
+#ifdef PRINT_MMFF_FORCES
+  std::cerr << "d_stretchBendForce->addStretchBend("
+    << idx1 << ", " << idx2 << ", " << idx3 << ", "
+    << mmffBondParams1->r0 << ", "
+    << mmffBondParams2->r0 << ", "
+    << mmffAngleParams->theta0 << ", "
+    << MDYNE_A_TO_KCAL_MOL * forceConstants.first
+    << ", " << MDYNE_A_TO_KCAL_MOL * forceConstants.second << ");" << std::endl;
+#endif
 }
 
 void OpenMMForceField::addTorsionAngleContrib(unsigned int idx1,
@@ -1395,20 +1417,30 @@ void OpenMMForceField::addTorsionAngleContrib(unsigned int idx1,
   }
   d_torsionAngleForce->addTorsion(idx1, idx2, idx3, idx4, mmffTorParams->V1 * OpenMM::KJPerKcal,
     mmffTorParams->V2 * OpenMM::KJPerKcal, mmffTorParams->V3 * OpenMM::KJPerKcal);
+#ifdef PRINT_MMFF_FORCES
+  std::cerr << "d_torsionAngleForce->addTorsion(" << idx1 << ", " << idx2 << ", "
+    << idx3 << ", " << idx4 << ", " << mmffTorParams->V1 << ", "
+    << mmffTorParams->V2 << ", "
+    << mmffTorParams->V3 << ");" << std::endl;
+#endif
 }
 
 void OpenMMForceField::addOopBendContrib(unsigned int idx1,
   unsigned int idx2, unsigned int idx3,
   unsigned int idx4, const MMFFOop *mmffOopParams) {
-  static const double c2OOP = MDYNE_A_TO_KCAL_MOL
-    * OpenMM::RadiansPerDegree * OpenMM::RadiansPerDegree
-    * OpenMM::KJPerKcal;
+  static const double c2OOP = MDYNE_A_TO_KCAL_MOL * OpenMM::KJPerKcal;
   if (!d_oopBendForce) {
     d_oopBendForce = MMFF::Utils::getOpenMMOopBendForce();
     d_openmmSystem->addForce(d_oopBendForce);
   }
   d_oopBendForce->addOutOfPlaneBend(idx1, idx4, idx3, idx2,
     c2OOP * mmffOopParams->koop);
+#ifdef PRINT_MMFF_FORCES
+  std::cerr << "d_oopBendForce->addOutOfPlaneBend(" << idx1 << ", "
+    << idx4 << ", " << idx3 << ", " << idx2 << ", "
+    << MDYNE_A_TO_KCAL_MOL * mmffOopParams->koop
+    << ");" << std::endl;
+#endif
 }
 
 void OpenMMForceField::addNonbondedContrib(unsigned int idx,
@@ -1441,6 +1473,11 @@ void OpenMMForceField::addNonbondedContrib(unsigned int idx,
       <<") for this particle differ";
     throw std::runtime_error(ss.str());
   }
+#ifdef PRINT_MMFF_FORCES
+  std::cerr << "d_nonbondedForce->addParticle(" << charge << ", "
+    << mmffVdWParams->R_star << ", " << G_t_alpha << ", " << alpha_d_N << ", '" << vdwDA
+    << "');" << std::endl;
+#endif
 }
 
 void OpenMMForceField::addNonbondedExclusionsAndExceptions(
