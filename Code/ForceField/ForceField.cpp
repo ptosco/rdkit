@@ -348,11 +348,11 @@ const double OpenMMForceField::DEFAULT_STEP_SIZE = 2.0;
 
 OpenMMForceField::OpenMMForceField() :
   ForceField::ForceField(3),
-  d_stepSize(DEFAULT_STEP_SIZE),
   d_openmmSystem(new OpenMM::System()),
   d_openmmContext(NULL),
-  d_openmmIntegrator(new OpenMM::VerletIntegrator(d_stepSize * OpenMM::PsPerFs)),
-  d_andersenThermostat(NULL) {
+  d_andersenThermostat(NULL),
+  d_stepSize(DEFAULT_STEP_SIZE) {
+  d_openmmIntegrator = new OpenMM::VerletIntegrator(d_stepSize * OpenMM::PsPerFs);
 }
 
 OpenMMForceField::~OpenMMForceField() {
@@ -476,7 +476,7 @@ void OpenMMForceField::calcGrad(double *pos, double *forces) {
 void OpenMMForceField::updatePositions() {
   OpenMM::State state(d_openmmContext->getState(OpenMM::State::Positions));
   const std::vector<OpenMM::Vec3> &curPos = state.getPositions();
-  for (unsigned int i = 0; i < state.getPositions().size(); ++i) {
+  for (unsigned int i = 0; i < curPos.size(); ++i) {
     (*(d_positions[i]))[0] = curPos[i][0] * OpenMM::AngstromsPerNm;
     (*(d_positions[i]))[1] = curPos[i][1] * OpenMM::AngstromsPerNm;
     (*(d_positions[i]))[2] = curPos[i][2] * OpenMM::AngstromsPerNm;
