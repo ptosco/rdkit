@@ -20,7 +20,6 @@ namespace OpenMM {
 class System;
 class Integrator;
 class Context;
-class AndersenThermostat;
 class Platform;
 class Vec3;
 }

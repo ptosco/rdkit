@@ -422,7 +422,7 @@ void OpenMMForceField::copyPositionsTo(OpenMM::Context& other) const {
 
 void OpenMMForceField::copyPositionsFrom(const OpenMM::Context& other) {
   OpenMM::State stateOther(other.getState(OpenMM::State::Positions));
-  const std::vector<OpenMM::Vec3> posOther = stateOther.getPositions();
+  const std::vector<OpenMM::Vec3> &posOther = stateOther.getPositions();
   d_openmmContext->setPositions(posOther);
   updatePositions(posOther);
 }
