@@ -350,7 +350,6 @@ OpenMMForceField::OpenMMForceField() :
   ForceField::ForceField(3),
   d_openmmSystem(new OpenMM::System()),
   d_openmmContext(NULL),
-  d_andersenThermostat(NULL),
   d_stepSize(DEFAULT_STEP_SIZE) {
   d_openmmIntegrator = new OpenMM::VerletIntegrator(d_stepSize * OpenMM::PsPerFs);
 }
@@ -359,17 +358,6 @@ OpenMMForceField::~OpenMMForceField() {
   delete d_openmmSystem;
   delete d_openmmIntegrator;
   delete d_openmmContext;
-}
-
-void OpenMMForceField::setIntegrator(OpenMM::Integrator *integrator) {
-  if (integrator == d_openmmIntegrator) return;
-  delete d_openmmIntegrator;
-  d_openmmIntegrator = integrator;
-  delete d_openmmContext;
-  d_openmmContext = (d_platformName.size()
-    ? new OpenMM::Context(*d_openmmSystem, *d_openmmIntegrator,
-    OpenMM::Platform::getPlatformByName(d_platformName), d_platformProperties)
-    : new OpenMM::Context(*d_openmmSystem, *d_openmmIntegrator));
 }
 
 void OpenMMForceField::initializeContext() {
@@ -423,6 +411,22 @@ OpenMM::Context *OpenMMForceField::getContext(bool throwIfNull) const {
   return d_openmmContext;
 }
 
+void OpenMMForceField::cloneSystemTo(OpenMM::System& other) const {
+  PRECONDITION(!other.getNumParticles(), "The supplied system must be empty");
+}
+
+void OpenMMForceField::copyPositionsTo(OpenMM::Context& other) const {
+  OpenMM::State state(d_openmmContext->getState(OpenMM::State::Positions));
+  other.setPositions(state.getPositions());
+}
+
+void OpenMMForceField::copyPositionsFrom(const OpenMM::Context& other) {
+  OpenMM::State stateOther(other.getState(OpenMM::State::Positions));
+  const std::vector<OpenMM::Vec3> posOther = stateOther.getPositions();
+  d_openmmContext->setPositions(posOther);
+  updatePositions(posOther);
+}
+
 void OpenMMForceField::replacePositions(double *pos) {
   OpenMM::State state(d_openmmContext->getState(OpenMM::State::Positions));
   d_storedPos.clear();
@@ -473,14 +477,16 @@ void OpenMMForceField::calcGrad(double *pos, double *forces) {
   restorePositions();
 }
 
-void OpenMMForceField::updatePositions() {
-  OpenMM::State state(d_openmmContext->getState(OpenMM::State::Positions));
-  const std::vector<OpenMM::Vec3> &curPos = state.getPositions();
-  for (unsigned int i = 0; i < curPos.size(); ++i) {
-    (*(d_positions[i]))[0] = curPos[i][0] * OpenMM::AngstromsPerNm;
-    (*(d_positions[i]))[1] = curPos[i][1] * OpenMM::AngstromsPerNm;
-    (*(d_positions[i]))[2] = curPos[i][2] * OpenMM::AngstromsPerNm;
+void OpenMMForceField::updatePositions(const std::vector<OpenMM::Vec3> &openmmPos) {
+  for (unsigned int i = 0; i < openmmPos.size(); ++i) {
+    (*(d_positions[i]))[0] = openmmPos[i][0] * OpenMM::AngstromsPerNm;
+    (*(d_positions[i]))[1] = openmmPos[i][1] * OpenMM::AngstromsPerNm;
+    (*(d_positions[i]))[2] = openmmPos[i][2] * OpenMM::AngstromsPerNm;
   }
+}
+
+void OpenMMForceField::updatePositions() {
+  updatePositions(d_openmmContext->getState(OpenMM::State::Positions).getPositions());
 }
 
 int OpenMMForceField::minimize(unsigned int maxIts,
@@ -497,24 +503,6 @@ int OpenMMForceField::minimize(unsigned int maxIts,
   updatePositions();
   
   return res;
-}
-
-void OpenMMForceField::dynamics(int numSteps) {
-  d_openmmIntegrator->step(numSteps);
-  updatePositions();
-}
-
-void OpenMMForceField::setPeriodicBoxSize(double x, double y, double z) {
-  d_openmmSystem->setDefaultPeriodicBoxVectors(
-    OpenMM::Vec3(x * OpenMM::NmPerAngstrom, 0.0, 0.0),
-    OpenMM::Vec3(0.0, y * OpenMM::NmPerAngstrom, 0.0), 
-    OpenMM::Vec3(0.0, 0.0, z * OpenMM::NmPerAngstrom));
-}
-
-void OpenMMForceField::setAndersenThermostat(double temperature, double collisionFrequency) {
-  delete d_andersenThermostat;
-  d_andersenThermostat = new OpenMM::AndersenThermostat(temperature, collisionFrequency);
-  d_openmmSystem->addForce(d_andersenThermostat);
 }
 #endif
 

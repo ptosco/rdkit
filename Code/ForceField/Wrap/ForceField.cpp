@@ -145,6 +145,46 @@ python::tuple PyForceField::minimizeTrajectory(unsigned int snapshotFreq, int ma
   
 }
 
+#ifdef RDK_BUILD_WITH_OPENMM
+void PyOpenMMForceField::initializeContext(std::string platformName,
+  python::dict properties) {
+  checkFieldOMM();
+  if (!platformName.size())
+    fieldOMM->initializeContext();
+  else {
+    python::list keys = properties.keys();
+    std::map<std::string, std::string> propertiesMap;
+    for (unsigned int i = 0; i < len(keys); ++i) {
+      python::object value = properties[keys[i]];
+      if (value)
+        propertiesMap[python::extract<std::string>(keys[i])] =
+          python::extract<std::string>(value);
+    }
+    fieldOMM->initializeContext(platformName, propertiesMap);
+  }
+}
+
+void *PyOpenMMForceField::getCObjFromPySwigObject(PyObject *pySwigObject) {
+  char thisStr[] = "this";
+  PRECONDITION(PyObject_HasAttrString(pySwigObject, thisStr), "the passed Python object does not have the \"this\" attribute");
+  PyObject *thisAttr = PyObject_GetAttrString(pySwigObject, thisStr);
+  PRECONDITION(thisAttr , "the passed Python object has a NULL \"this\" attribute");
+  return reinterpret_cast<PySwigObject *>(thisAttr)->cObj;
+}
+
+void PyOpenMMForceField::copyPositionsTo(PyObject *pyContext) {
+  fieldOMM->copyPositionsTo(*(reinterpret_cast<OpenMM::Context *>(getCObjFromPySwigObject(pyContext))));
+}
+
+void PyOpenMMForceField::copyPositionsFrom(PyObject *pyContext) {
+  fieldOMM->copyPositionsFrom(*(reinterpret_cast<const OpenMM::Context *>(getCObjFromPySwigObject(pyContext))));
+}
+
+void PyOpenMMForceField::cloneSystemTo(PyObject *pySystem) {
+  fieldOMM->cloneSystemTo(*(reinterpret_cast<OpenMM::System *>(getCObjFromPySwigObject(pySystem))));
+}
+#endif
+
 PyObject *PyMMFFMolProperties::getMMFFBondStretchParams(
     const RDKit::ROMol &mol, const unsigned int idx1, const unsigned int idx2) {
   PyObject *res = NULL;
@@ -358,39 +398,21 @@ BOOST_PYTHON_MODULE(rdForceField) {
             python::arg("energyTol") = 1e-6),
            "Runs some minimization iterations.\n\n  Returns 0 if the "
            "minimization succeeded.")
-      .def("Dynamics", &PyOpenMMForceField::dynamics,
-           (python::arg("numSteps") = 200),
-           "Runs some molecular dynamics steps")
-      .def("GetSystem", &PyOpenMMForceField::getSystem,
-           python::return_value_policy<python::reference_existing_object>(),
-           "Returns the OpenMM System corresponding to the current arrangement")
-      .def("GetContext", &PyOpenMMForceField::getContext,
-           (python::arg("throwIfNull") = false),
-           python::return_value_policy<python::reference_existing_object>(),
-           "Returns the OpenMM Context corresponding to the current arrangement")
-      .def("GetIntegrator", &PyOpenMMForceField::getIntegrator,
-           python::return_value_policy<python::reference_existing_object>(),
-           "Returns the OpenMM Integrator currently in use")
-      .def("SetIntegrator", &PyOpenMMForceField::setIntegrator,
-           (python::arg("integrator")),
-           "Sets the OpenMM Integrator to be used")
       .def("Initialize", &PyOpenMMForceField::initialize,
            "Initializes the force field (call this before minimizing)")
       .def("InitializeContext", &PyOpenMMForceField::initializeContext,
            (python::arg("platformName") = "", python::arg("properties") = python::dict()),
-           "Initializes the OpenMM Context, optionally allowing to set a platform and properties")
-      .def("SetPeriodicBoxSize", &PyOpenMMForceField::setPeriodicBoxSize,
-           (python::arg("x"), python::arg("y"), python::arg("z")),
-           "Set the periodic box sizes in x, y, z dimensions")
-      .def("SetCutoffDistance", &PyOpenMMForceField::setCutoffDistance,
-           (python::arg("distance")),
-           "Set the cutoff distance (angstrom)")
-      .def("SetNonbondedPeriodic", &PyOpenMMForceField::setNonbondedPeriodic,
-           (python::arg("isPeriodic")),
-           "Set whether the non-bonded method should be periodic")
-      .def("SetAndersenThermostat", &PyOpenMMForceField::setAndersenThermostat,
-           (python::arg("temperature"), python::arg("collisionFrequency")),
-           "Set an Andersen thermostat with the indicated temperature and collisionFrequency")
+           "Initializes the OpenMM Context, optionally allowing to set a platform name "
+           "and related properties")
+      .def("CloneSystemTo", &PyOpenMMForceField::cloneSystemTo,
+           (python::arg("system")),
+           "Clones the current System into the supplied one (which MUST be empty)")
+      .def("CopyPositionsTo", &PyOpenMMForceField::copyPositionsTo,
+           (python::arg("context")),
+           "Copy coordinates from the current force-field positions to the supplied Context")
+      .def("CopyPositionsFrom", &PyOpenMMForceField::copyPositionsFrom,
+           (python::arg("context")),
+           "Copy coordinates from the supplied Context to the current force-field positions ")
       .def("LoadedPlugins", &PyOpenMMForceField::loadedPlugins,
            "Get the list of the names of loaded plugins")
       .def("FailedPlugins", &PyOpenMMForceField::failedPlugins,

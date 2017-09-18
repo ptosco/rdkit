@@ -57,6 +57,7 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
   public:
     OpenMMForceField(bool forceLoadPlugins = false,
       const std::string &pluginsDir = std::string());
+    void cloneSystemTo(OpenMM::System& other) const;
     void addBondStretchContrib(unsigned int idx1, unsigned int idx2,
       const ForceFields::MMFF::MMFFBond *mmffBondParams);
     void addAngleBendContrib(unsigned int idx1, unsigned int idx2,

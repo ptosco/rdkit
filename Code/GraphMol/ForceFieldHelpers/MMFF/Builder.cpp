@@ -1302,7 +1302,7 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
 #ifdef RDK_BUILD_WITH_OPENMM
     bool haveSeparateVdwEle = !(ffOpts & ForceFields::USE_OPENMM);
     boost::shared_array<boost::uint8_t> neighborMat;
-    if (haveSeparateVdwEle || (mmffMolProperties->getMMFFVerbosity() == MMFF_VERBOSITY_HIGH))
+    if (haveSeparateVdwEle || mmffMolProperties->getMMFFVerbosity())
       neighborMat = Tools::buildNeighborMatrix(mol);
     if (!haveSeparateVdwEle)
       Tools::addNonbonded(mol, confId, mmffMolProperties, ff, neighborMat,
@@ -1323,11 +1323,11 @@ ForceFields::ForceField *constructForceField(ROMol &mol,
       }
     }
   }
-  if (ffOMM)
-    ffOMM->initializeContext();
 #ifdef RDK_BUILD_WITH_OPENMM
-  if (ffOMM)
+  if (ffOMM) {
+    ffOMM->initializeContext();
     ffOMM->getContext(true)->setPositions(positionsOMM);
+  }
 #endif
 
   return ff;
@@ -1344,6 +1344,135 @@ OpenMMForceField::OpenMMForceField(bool forceLoadPlugins,
   d_oopBendForce(NULL),
   d_nonbondedForce(NULL) {
   Tools::OpenMMPlugins::instance()->load(forceLoadPlugins, pluginsDir);
+}
+
+void OpenMMForceField::cloneSystemTo(OpenMM::System& other) const {
+  ForceFields::OpenMMForceField::cloneSystemTo(other);
+  for (int i = 0; i < d_openmmSystem->getNumParticles(); ++i)
+    other.addParticle(d_openmmSystem->getParticleMass(i));
+  for (int i = 0; i < d_openmmSystem->getNumForces(); ++i) {
+    const OpenMM::Force &f = d_openmmSystem->getForce(i);
+    const OpenMM::MMFFBondForce *bondForce = dynamic_cast<const OpenMM::MMFFBondForce *>(&f);
+    const OpenMM::MMFFAngleForce *angleForce = dynamic_cast<const OpenMM::MMFFAngleForce *>(&f);
+    const OpenMM::MMFFStretchBendForce *stbnForce = dynamic_cast<const OpenMM::MMFFStretchBendForce *>(&f);
+    const OpenMM::MMFFTorsionForce *torsionForce = dynamic_cast<const OpenMM::MMFFTorsionForce *>(&f);
+    const OpenMM::MMFFOutOfPlaneBendForce *oopForce = dynamic_cast<const OpenMM::MMFFOutOfPlaneBendForce *>(&f);
+    const OpenMM::MMFFNonbondedForce *nonbondedForce = dynamic_cast<const OpenMM::MMFFNonbondedForce *>(&f);
+    if (bondForce) {
+      OpenMM::MMFFBondForce *bondForceOther = new OpenMM::MMFFBondForce();
+      bondForceOther->setMMFFGlobalBondCubic(bondForce->getMMFFGlobalBondCubic());
+      bondForceOther->setMMFFGlobalBondQuartic(bondForce->getMMFFGlobalBondQuartic());
+      bondForceOther->setUsesPeriodicBoundaryConditions(bondForce->usesPeriodicBoundaryConditions());
+      for (int j = 0; j < bondForce->getNumBonds(); ++j) {
+        int particle1;
+        int particle2;
+        double length;
+        double quadraticK;
+        bondForce->getBondParameters(j, particle1, particle2, length, quadraticK);
+        bondForceOther->addBond(particle1, particle2, length, quadraticK);
+      }
+      other.addForce(bondForceOther);
+    }
+    else if (angleForce) {
+      OpenMM::MMFFAngleForce *angleForceOther = new OpenMM::MMFFAngleForce();
+      angleForceOther->setMMFFGlobalAngleCubic(angleForce->getMMFFGlobalAngleCubic());
+      angleForceOther->setUsesPeriodicBoundaryConditions(angleForce->usesPeriodicBoundaryConditions());
+      for (int j = 0; j < angleForce->getNumAngles(); ++j) {
+        int particle1;
+        int particle2;
+        int particle3;
+        double length;
+        double quadraticK;
+        bool isLinear;
+        angleForce->getAngleParameters(j, particle1, particle2, particle3, length, quadraticK, isLinear);
+        angleForceOther->addAngle(particle1, particle2, particle3, length, quadraticK, isLinear);
+      }
+      other.addForce(angleForceOther);
+    }
+    else if (stbnForce) {
+      OpenMM::MMFFStretchBendForce *stbnForceOther = new OpenMM::MMFFStretchBendForce();
+      stbnForceOther->setUsesPeriodicBoundaryConditions(stbnForce->usesPeriodicBoundaryConditions());
+      for (int j = 0; j < stbnForce->getNumStretchBends(); ++j) {
+        int particle1;
+        int particle2;
+        int particle3;
+        double lengthAB;
+        double lengthCB;
+        double angle;
+        double k1;
+        double k2;
+        stbnForce->getStretchBendParameters(j, particle1, particle2, particle3, lengthAB, lengthCB, angle, k1, k2);
+        stbnForceOther->addStretchBend(particle1, particle2, particle3, lengthAB, lengthCB, angle, k1, k2);
+      }
+      other.addForce(stbnForceOther);
+    }
+    else if (torsionForce) {
+      OpenMM::MMFFTorsionForce *torsionForceOther = new OpenMM::MMFFTorsionForce();
+      torsionForceOther->setUsesPeriodicBoundaryConditions(torsionForce->usesPeriodicBoundaryConditions());
+      for (int j = 0; j < torsionForce->getNumTorsions(); ++j) {
+        int particle1;
+        int particle2;
+        int particle3;
+        int particle4;
+        double c1;
+        double c2;
+        double c3;
+        torsionForce->getTorsionParameters(j, particle1, particle2, particle3, particle4, c1, c2, c3);
+        torsionForceOther->addTorsion(particle1, particle2, particle3, particle4, c1, c2, c3);
+      }
+      other.addForce(torsionForceOther);
+    }
+    else if (oopForce) {
+      OpenMM::MMFFOutOfPlaneBendForce *oopForceOther = new OpenMM::MMFFOutOfPlaneBendForce();
+      oopForceOther->setUsesPeriodicBoundaryConditions(oopForce->usesPeriodicBoundaryConditions());
+      for (int j = 0; j < oopForce->getNumOutOfPlaneBends(); ++j) {
+        int particle1;
+        int particle2;
+        int particle3;
+        int particle4;
+        double k;
+        oopForce->getOutOfPlaneBendParameters(j, particle1, particle2, particle3, particle4, k);
+        oopForceOther->addOutOfPlaneBend(particle1, particle2, particle3, particle4, k);
+      }
+      other.addForce(oopForceOther);
+    }
+    else if (nonbondedForce) {
+      OpenMM::MMFFNonbondedForce *nonbondedForceOther = new OpenMM::MMFFNonbondedForce();
+      nonbondedForceOther->setNonbondedMethod(nonbondedForce->getNonbondedMethod());
+      nonbondedForceOther->setCutoffDistance(nonbondedForce->getCutoffDistance());
+      nonbondedForceOther->setUseSwitchingFunction(nonbondedForce->getUseSwitchingFunction());
+      nonbondedForceOther->setSwitchingDistance(nonbondedForce->getSwitchingDistance());
+      nonbondedForceOther->setReactionFieldDielectric(nonbondedForce->getReactionFieldDielectric());
+      nonbondedForceOther->setEwaldErrorTolerance(nonbondedForce->getEwaldErrorTolerance());
+      nonbondedForceOther->setUseDispersionCorrection(nonbondedForce->getUseDispersionCorrection());
+      nonbondedForceOther->setReciprocalSpaceForceGroup(nonbondedForce->getReciprocalSpaceForceGroup());
+      double alpha;
+      int nx;
+      int ny;
+      int nz;
+      nonbondedForce->getPMEParameters(alpha, nx, ny, nz);
+      nonbondedForceOther->setPMEParameters(alpha, nx, ny, nz);
+      for (int j = 0; j < nonbondedForce->getNumParticles(); ++j) {
+        double charge;
+        double sigma;
+        double G_t_alpha;
+        double alpha_d_N;
+        char vdwDA;
+        nonbondedForce->getParticleParameters(j, charge, sigma, G_t_alpha, alpha_d_N, vdwDA);
+        nonbondedForceOther->addParticle(charge, sigma, G_t_alpha, alpha_d_N, vdwDA);
+      }
+      for (int j = 0; j < nonbondedForce->getNumExceptions(); ++j) {
+        int particle1;
+        int particle2;
+        double chargeProd;
+        double sigma;
+        double epsilon;
+        nonbondedForce->getExceptionParameters(j, particle1, particle2, chargeProd, sigma, epsilon);
+        nonbondedForceOther->addException(particle1, particle2, chargeProd, sigma, epsilon);
+      }
+      other.addForce(nonbondedForceOther);
+    }
+  }
 }
 
 void OpenMMForceField::addBondStretchContrib(unsigned int idx1,

@@ -81,48 +81,19 @@ class PyOpenMMForceField {
       fieldOMM.reset();
     }
 
-    OpenMM::System *getSystem() const {
-      checkFieldOMM();
-      return fieldOMM->getSystem();
-    }
-
-    OpenMM::Context *getContext(bool throwIfNull = false) const {
-      checkFieldOMM();
-      return fieldOMM->getContext(throwIfNull);
-    }
-
-    OpenMM::Integrator *getIntegrator() const {
-      checkFieldOMM();
-      return fieldOMM->getIntegrator();
-    }
-    
-    void setIntegrator(OpenMM::Integrator *integrator) const {
-      checkFieldOMM();
-      fieldOMM->setIntegrator(integrator);
-    }
-    
     void initialize() {
       checkFieldOMM();
       fieldOMM->initialize();
     }
 
     void initializeContext(std::string platformName = std::string(),
-      python::dict properties = python::dict()) {
-      checkFieldOMM();
-      if (!platformName.size())
-        fieldOMM->initializeContext();
-      else {
-        python::list keys = properties.keys();
-        std::map<std::string, std::string> propertiesMap;
-        for (unsigned int i = 0; i < len(keys); ++i) {
-          python::object value = properties[keys[i]];
-          if (value)
-            propertiesMap[python::extract<std::string>(keys[i])] =
-              python::extract<std::string>(value);
-        }
-        fieldOMM->initializeContext(platformName, propertiesMap);
-      }
-    }
+      python::dict properties = python::dict());
+
+    void cloneSystemTo(PyObject *pySystem);
+
+    void copyPositionsTo(PyObject *pyContext);
+
+    void copyPositionsFrom(PyObject *pyContext);
 
     double calcEnergy() const {
       checkFieldOMM();
@@ -132,31 +103,6 @@ class PyOpenMMForceField {
     int minimize(int maxIts, double forceTol, double energyTol) {
       checkFieldOMM();
       return fieldOMM->minimize(maxIts, forceTol, energyTol);
-    }
-    
-    void dynamics(int numSteps) {
-      checkFieldOMM();
-      fieldOMM->dynamics(numSteps);
-    }
-    
-    void setPeriodicBoxSize(double x, double y, double z) {
-      RDKit::MMFF::OpenMMForceField *f = upcast();
-      f->setPeriodicBoxSize(x, y, z);
-    }
-    
-    void setCutoffDistance(double distance) {
-      RDKit::MMFF::OpenMMForceField *f = upcast();
-      f->setCutoffDistance(distance);
-    }
-    
-    void setNonbondedPeriodic(bool periodic) {
-      RDKit::MMFF::OpenMMForceField *f = upcast();
-      f->setNonbondedPeriodic(periodic);
-    }
-    
-    void setAndersenThermostat(double temperature, double collisionFrequency) {
-      checkFieldOMM();
-      fieldOMM->setAndersenThermostat(temperature, collisionFrequency);
     }
     
     python::list loadedPlugins() {
@@ -180,9 +126,15 @@ class PyOpenMMForceField {
     // private:
     boost::shared_ptr<OpenMMForceField> fieldOMM;
   private:
+    struct PySwigObject {
+      PyObject_HEAD void *cObj;
+    };
+    static void *getCObjFromPySwigObject(PyObject *pySwigObject);
     void checkFieldOMM() const {
       PRECONDITION(fieldOMM.get(), "no force field");
     }
+    PyObject *system;
+    PyObject *integrator;
     RDKit::MMFF::OpenMMForceField *upcast() const {
       PRECONDITION(fieldOMM.get(), "no force field");
       RDKit::MMFF::OpenMMForceField *super = dynamic_cast<RDKit::MMFF::OpenMMForceField *>(fieldOMM.get());

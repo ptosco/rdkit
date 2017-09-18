@@ -123,12 +123,6 @@ void testMMFFBuilder3() {
     MMFF::OpenMMForceField *field = static_cast<MMFF::OpenMMForceField *>(
       MMFF::constructForceField(*mol, mmffMolProperties, ForceFields::USE_OPENMM));
     TEST_ASSERT(field);
-    std::cerr << "1) OpenMM MMFF energy = " << field->calcEnergy() << std::endl;
-    MolToMolFile(*mol, "/tmp/coord1.sdf");
-    field->dynamics(100);
-    std::cerr << "2) OpenMM MMFF energy = " << field->calcEnergy() << std::endl;
-    MolToMolFile(*mol, "/tmp/coord2.sdf");
-      
     delete field;
   }
   delete mol;
