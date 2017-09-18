@@ -1473,6 +1473,13 @@ void OpenMMForceField::cloneSystemTo(OpenMM::System& other) const {
       other.addForce(nonbondedForceOther);
     }
   }
+  for (int i = 0; i < d_openmmSystem->getNumConstraints(); ++i) {
+    int particle1;
+    int particle2;
+    double distance;
+    d_openmmSystem->getConstraintParameters(i, particle1, particle2, distance);
+    other.addConstraint(particle1, particle2, distance);
+  }
 }
 
 void OpenMMForceField::addBondStretchContrib(unsigned int idx1,
