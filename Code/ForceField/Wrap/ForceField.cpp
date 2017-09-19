@@ -389,6 +389,13 @@ BOOST_PYTHON_MODULE(rdForceField) {
            (python::arg("self"), python::arg("idx")),
            "returns the location of an extra point as a tuple");
 #ifdef RDK_BUILD_WITH_OPENMM
+  python::enum_<OpenMMForceField::NonbondedMethod>("NonbondedMethod")
+      .value("NoCutoff", OpenMMForceField::NonbondedMethod::NoCutoff)
+      .value("CutoffNonPeriodic", OpenMMForceField::NonbondedMethod::CutoffNonPeriodic)
+      .value("CutoffPeriodic", OpenMMForceField::NonbondedMethod::CutoffPeriodic)
+      .value("Ewald", OpenMMForceField::NonbondedMethod::Ewald)
+      .value("PME", OpenMMForceField::NonbondedMethod::PME)
+      .export_values();
   python::class_<PyOpenMMForceField>("OpenMMForceField", "An OpenMM force field", python::no_init)
       .def("CalcEnergy",
            (double (PyOpenMMForceField::*)() const) & PyOpenMMForceField::calcEnergy,
@@ -412,7 +419,13 @@ BOOST_PYTHON_MODULE(rdForceField) {
            "Copy coordinates from the current force-field positions to the supplied Context")
       .def("CopyPositionsFrom", &PyOpenMMForceField::copyPositionsFrom,
            (python::arg("context")),
-           "Copy coordinates from the supplied Context to the current force-field positions ")
+           "Copy coordinates from the supplied Context to the current force-field positions")
+      .def("SetCutoffDistance", &PyOpenMMForceField::setCutoffDistance,
+           (python::arg("distance")),
+           "Sets the cutoff distance")
+      .def("SetNonbondedMethod", &PyOpenMMForceField::setNonbondedMethod,
+           (python::arg("nonbondedMethod")),
+           "Sets the nonbonded method")
       .def("LoadedPlugins", &PyOpenMMForceField::loadedPlugins,
            "Get the list of the names of loaded plugins")
       .def("FailedPlugins", &PyOpenMMForceField::failedPlugins,

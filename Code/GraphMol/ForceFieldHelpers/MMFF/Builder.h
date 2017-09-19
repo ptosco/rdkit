@@ -103,7 +103,7 @@ class OpenMMForceField : public ForceFields::OpenMMForceField {
       return d_nonbondedForce;
     }
     void setCutoffDistance(double distance);
-    void setNonbondedPeriodic(bool periodic);
+    void setNonbondedMethod(ForceFields::OpenMMForceField::NonbondedMethod nonbondedMethod);
   private:
     std::vector<std::string> d_loadedPlugins;
     std::vector<std::string> d_failedPlugins;

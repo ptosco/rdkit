@@ -388,6 +388,10 @@ void OpenMMForceField::initializeContext(OpenMM::Platform& platform,
   if (needNewContext) {
     d_storedPos.clear();
     if (d_openmmContext) {
+      if (d_openmmIntegrator) {
+        delete d_openmmIntegrator;
+        d_openmmIntegrator = new OpenMM::VerletIntegrator(d_stepSize * OpenMM::PsPerFs);
+      }
       OpenMM::State state(d_openmmContext->getState(OpenMM::State::Positions));
       d_storedPos = state.getPositions();
       delete d_openmmContext;
@@ -425,6 +429,26 @@ void OpenMMForceField::copyPositionsFrom(const OpenMM::Context& other) {
   const std::vector<OpenMM::Vec3> &posOther = stateOther.getPositions();
   d_openmmContext->setPositions(posOther);
   updatePositions(posOther);
+}
+
+void OpenMMForceField::setCutoffDistance(double distance) {
+  d_cutoffDistance = distance;
+}
+
+void OpenMMForceField::setNonbondedMethod(ForceFields::OpenMMForceField::NonbondedMethod nonbondedMethod) {
+  d_nonbondedMethod = nonbondedMethod;
+}
+
+double OpenMMForceField::getCutoffDistance() const {
+  return d_cutoffDistance;
+}
+
+OpenMMForceField::NonbondedMethod OpenMMForceField::getNonbondedMethod() const {
+  return d_nonbondedMethod;
+}
+
+bool OpenMMForceField::usesPBC() const {
+  return (d_nonbondedMethod >= CutoffPeriodic);
 }
 
 void OpenMMForceField::replacePositions(double *pos) {

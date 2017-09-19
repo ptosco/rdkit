@@ -281,6 +281,13 @@ class ForceField {
 */
 class OpenMMForceField : public ForceField {
   public:
+    enum NonbondedMethod {
+        NoCutoff = 0,
+        CutoffNonPeriodic = 1,
+        CutoffPeriodic = 2,
+        Ewald = 3,
+        PME = 4
+    };
     static const double DEFAULT_STEP_SIZE;
     //! construct with a dimension
     OpenMMForceField();
@@ -314,6 +321,15 @@ class OpenMMForceField : public ForceField {
 
     void copyPositionsFrom(const OpenMM::Context& other);
 
+    virtual void setCutoffDistance(double distance);
+
+    virtual void setNonbondedMethod(OpenMMForceField::NonbondedMethod nonbondedMethod);
+
+    double getCutoffDistance() const;
+
+    bool usesPBC() const;
+
+    OpenMMForceField::NonbondedMethod getNonbondedMethod() const;
     //! calculates and returns the energy (in kcal/mol) based on existing
     //! positions in the forcefield
     /*!
@@ -386,6 +402,8 @@ class OpenMMForceField : public ForceField {
     // private, so noncopyable
     OpenMMForceField(const OpenMMForceField &other);
     double d_stepSize;
+    double d_cutoffDistance;
+    ForceFields::OpenMMForceField::NonbondedMethod d_nonbondedMethod;
     std::string d_platformName;
     std::map<std::string, std::string> d_platformProperties;
     std::vector<OpenMM::Vec3> d_storedPos;

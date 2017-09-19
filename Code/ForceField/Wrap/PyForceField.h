@@ -95,6 +95,14 @@ class PyOpenMMForceField {
 
     void copyPositionsFrom(PyObject *pyContext);
 
+    void setCutoffDistance(double distance) {
+      fieldOMM->setCutoffDistance(distance);
+    }
+
+    void setNonbondedMethod(ForceFields::OpenMMForceField::NonbondedMethod nonbondedMethod) {
+      fieldOMM->setNonbondedMethod(nonbondedMethod);
+    }
+    
     double calcEnergy() const {
       checkFieldOMM();
       return fieldOMM->calcEnergy();

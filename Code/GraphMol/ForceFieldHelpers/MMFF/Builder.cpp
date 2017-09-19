@@ -1627,14 +1627,32 @@ void OpenMMForceField::addNonbondedExclusionsAndExceptions(
 }
 
 void OpenMMForceField::setCutoffDistance(double distance) {
-  const double distanceNm = distance * OpenMM::NmPerAngstrom;
-  d_nonbondedForce->setCutoffDistance(distanceNm);
+  ForceFields::OpenMMForceField::setCutoffDistance(distance);
+  d_nonbondedForce->setCutoffDistance(distance * OpenMM::NmPerAngstrom);
 }
 
-void OpenMMForceField::setNonbondedPeriodic(bool periodic) {
-  OpenMM::MMFFNonbondedForce::NonbondedMethod nonbondedMethod = (periodic
-    ? OpenMM::MMFFNonbondedForce::CutoffPeriodic : OpenMM::MMFFNonbondedForce::NoCutoff);
-  d_nonbondedForce->setNonbondedMethod(nonbondedMethod);
+void OpenMMForceField::setNonbondedMethod(ForceFields::OpenMMForceField::NonbondedMethod nonbondedMethod) {
+  ForceFields::OpenMMForceField::setNonbondedMethod(nonbondedMethod);
+  d_nonbondedForce->setNonbondedMethod(static_cast<OpenMM::MMFFNonbondedForce::NonbondedMethod>(nonbondedMethod));
+  bool usePBC = usesPBC();
+  for (int i = 0; i < d_openmmSystem->getNumForces(); ++i) {
+    OpenMM::Force &f = d_openmmSystem->getForce(i);
+    OpenMM::MMFFBondForce *bondForce = dynamic_cast<OpenMM::MMFFBondForce *>(&f);
+    OpenMM::MMFFAngleForce *angleForce = dynamic_cast<OpenMM::MMFFAngleForce *>(&f);
+    OpenMM::MMFFStretchBendForce *stbnForce = dynamic_cast<OpenMM::MMFFStretchBendForce *>(&f);
+    OpenMM::MMFFTorsionForce *torsionForce = dynamic_cast<OpenMM::MMFFTorsionForce *>(&f);
+    OpenMM::MMFFOutOfPlaneBendForce *oopForce = dynamic_cast<OpenMM::MMFFOutOfPlaneBendForce *>(&f);
+    if (bondForce)
+      bondForce->setUsesPeriodicBoundaryConditions(usePBC);
+    else if (angleForce)
+      angleForce->setUsesPeriodicBoundaryConditions(usePBC);
+    else if (stbnForce)
+      stbnForce->setUsesPeriodicBoundaryConditions(usePBC);
+    else if (torsionForce)
+      torsionForce->setUsesPeriodicBoundaryConditions(usePBC);
+    else if (oopForce)
+      oopForce->setUsesPeriodicBoundaryConditions(usePBC);
+  }
 }
 
 OpenMMForceField *constructOpenMMForceField(ROMol &mol,
