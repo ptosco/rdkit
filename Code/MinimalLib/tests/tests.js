@@ -11,6 +11,9 @@
 
 const assert = require('assert');
 const Module = require("../demo/RDKit_minimal.js");
+const fs       = require('fs');
+const zlib     = require('zlib');
+const readline = require('readline');
 
 // the goal here isn't to be comprehensive (the RDKit has tests for that),
 // just to make sure that the wrappers are working as expected
@@ -92,6 +95,22 @@ function test_abbreviations(){
     assert.equal(bmol.get_cxsmiles(),"*C1CCC1 |$CF3;;;;$|");
 }
 
+function test_substruct_library(){
+    var smiReader = readline.createInterface({
+      input: fs.createReadStream('/home/toscopa1/smi/chembl5000.smi.gz').pipe(zlib.createGunzip())
+    });
+    var sslib = new Module.SubstructLibrary(256);
+    smiReader.on('line', (smi) => {
+      //console.log(smi);
+      sslib.add_trusted_smiles(smi);
+    });
+    smiReader.on('close', () => {
+        var query = Module.get_qmol("N");
+        console.log(sslib.count_matches(query));
+        console.log(sslib.get_matches(query));
+    });
+}
+
 
 Module.onRuntimeInitialized = () => {
     console.log(Module.version());
@@ -99,6 +118,7 @@ Module.onRuntimeInitialized = () => {
     test_sketcher_services();
     test_sketcher_services2();
     test_abbreviations();
+    test_substruct_library();
     console.log("Tests finished successfully");
 };
 

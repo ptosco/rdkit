@@ -277,7 +277,7 @@ int internalGetMatches(
 
 std::vector<unsigned int> SubstructLibrary::getMatches(
     const ROMol &query, bool recursionPossible, bool useChirality,
-    bool useQueryQueryMatches, int numThreads, int maxResults) {
+    bool useQueryQueryMatches, int numThreads, int maxResults) const {
   return getMatches(query, 0, mols->size(), recursionPossible, useChirality,
                     useQueryQueryMatches, numThreads, maxResults);
 }
@@ -285,7 +285,7 @@ std::vector<unsigned int> SubstructLibrary::getMatches(
 std::vector<unsigned int> SubstructLibrary::getMatches(
     const ROMol &query, unsigned int startIdx, unsigned int endIdx,
     bool recursionPossible, bool useChirality, bool useQueryQueryMatches,
-    int numThreads, int maxResults) {
+    int numThreads, int maxResults) const {
   std::vector<unsigned int> idxs;
   internalGetMatches(query, *mols, fps, startIdx, endIdx,
                      recursionPossible, useChirality,
@@ -297,7 +297,7 @@ unsigned int SubstructLibrary::countMatches(const ROMol &query,
                                             bool recursionPossible,
                                             bool useChirality,
                                             bool useQueryQueryMatches,
-                                            int numThreads) {
+                                            int numThreads) const {
   return countMatches(query, 0, mols->size(), recursionPossible, useChirality,
                       useQueryQueryMatches, numThreads);
 }
@@ -305,7 +305,7 @@ unsigned int SubstructLibrary::countMatches(const ROMol &query,
 unsigned int SubstructLibrary::countMatches(
     const ROMol &query, unsigned int startIdx, unsigned int endIdx,
     bool recursionPossible, bool useChirality, bool useQueryQueryMatches,
-    int numThreads) {
+    int numThreads) const {
   return internalGetMatches(query, *mols, fps, startIdx, endIdx,
                             recursionPossible, useChirality,
                             useQueryQueryMatches, numThreads, -1);
@@ -313,7 +313,7 @@ unsigned int SubstructLibrary::countMatches(
 
 bool SubstructLibrary::hasMatch(const ROMol &query, bool recursionPossible,
                                 bool useChirality, bool useQueryQueryMatches,
-                                int numThreads) {
+                                int numThreads) const {
   const int maxResults = 1;
   return getMatches(query, recursionPossible, useChirality,
                     useQueryQueryMatches, numThreads, maxResults)
@@ -323,7 +323,7 @@ bool SubstructLibrary::hasMatch(const ROMol &query, bool recursionPossible,
 bool SubstructLibrary::hasMatch(const ROMol &query, unsigned int startIdx,
                                 unsigned int endIdx, bool recursionPossible,
                                 bool useChirality, bool useQueryQueryMatches,
-                                int numThreads) {
+                                int numThreads) const {
   const int maxResults = 1;
   return getMatches(query, startIdx, endIdx, recursionPossible, useChirality,
                     useQueryQueryMatches, numThreads, maxResults)

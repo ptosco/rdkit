@@ -515,6 +515,37 @@ void testMaxResultsNumThreads() {
   }
 }
 
+void testAddFingerprint() {
+  BOOST_LOG(rdErrorLog) << "-------------------------------------" << std::endl;
+  BOOST_LOG(rdErrorLog) << "   testAddFingerprint" << std::endl;
+
+  std::string fName = getenv("RDBASE");
+  fName += "/Data/NCI/first_5K.smi";
+  SmilesMolSupplier suppl(fName, "\t", 0, 1, false);
+  auto *mols = new CachedTrustedSmilesMolHolder();
+  auto *fps = new PatternHolder();
+  boost::shared_ptr<CachedTrustedSmilesMolHolder> mols_ptr(mols);
+  boost::shared_ptr<PatternHolder> fps_ptr(fps);
+
+  SubstructLibrary ssslib(mols_ptr, fps_ptr);
+  boost::logging::disable_logs("rdApp.error");
+  while (!suppl.atEnd()) {
+    ROMol *mol = nullptr;
+    try {
+      mol = suppl.next();
+    } catch (...) {
+      continue;
+    }
+    if (!mol) {
+      continue;
+    }
+    ExplicitBitVect *bv = PatternFingerprintMol(*mol, 2048);
+    mols->addSmiles(MolToSmiles(*mol));
+    fps->addFingerprint(bv);
+    delete mol;
+  }
+}
+
 int main() {
   RDLog::InitLogs();
 #if 1
@@ -528,6 +559,7 @@ int main() {
 #ifdef RDK_TEST_MULTITHREADED
   testMaxResultsNumThreads();
 #endif
+  testAddFingerprint();
 #endif
   return 0;
 }

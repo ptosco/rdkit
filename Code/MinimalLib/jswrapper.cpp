@@ -136,6 +136,30 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("add_hs", &JSMol::add_hs)
       .function("remove_hs", &JSMol::remove_hs);
 
+  class_<JSSubstructLibrary>("SubstructLibrary")
+      .constructor<>()
+      .constructor<unsigned int>()
+      .function("add_mol", &JSSubstructLibrary::add_mol)
+      .function("add_smiles", &JSSubstructLibrary::add_smiles)
+      .function("add_trusted_smiles", &JSSubstructLibrary::add_trusted_smiles)
+      .function("get_mol", &JSSubstructLibrary::get_mol, allow_raw_pointers())
+      .function(
+          "get_matches",
+          select_overload<std::string(const JSMol &, bool, int, int) const>(
+              &JSSubstructLibrary::get_matches))
+      .function("get_matches",
+                select_overload<std::string(const JSMol &, int) const>(
+                    &JSSubstructLibrary::get_matches))
+      .function("get_matches",
+                select_overload<std::string(const JSMol &) const>(
+                    &JSSubstructLibrary::get_matches))
+      .function("count_matches",
+                select_overload<unsigned int(const JSMol &, bool, int) const>(
+                    &JSSubstructLibrary::count_matches))
+      .function("count_matches",
+                select_overload<unsigned int(const JSMol &) const>(
+                    &JSSubstructLibrary::count_matches));
+
   function("version", &version);
   function("prefer_coordgen", &prefer_coordgen);
   function("get_inchikey_for_inchi", &get_inchikey_for_inchi);
