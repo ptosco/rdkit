@@ -42,27 +42,16 @@ PKG_CHECK_MODULES(PC_CAIRO cairo) # FIXME: After we require CMake 2.8.2 we can p
 
 FIND_PATH(CAIRO_INCLUDE_DIRS
     NAMES cairo.h
-    HINTS ${CAIRO_INCLUDE_DIR}
-          ${PC_CAIRO_INCLUDEDIR}
+    HINTS ${PC_CAIRO_INCLUDEDIR}
           ${PC_CAIRO_INCLUDE_DIRS}
     PATH_SUFFIXES cairo
 )
 
 FIND_LIBRARY(CAIRO_LIBRARIES
     NAMES cairo
-    HINTS ${CAIRO_LIBRARY_DIR}
-          ${PC_CAIRO_LIBDIR}
+    HINTS ${PC_CAIRO_LIBDIR}
           ${PC_CAIRO_LIBRARY_DIRS}
 )
-
-IF (UNIX AND NOT APPLE)
-	PKG_CHECK_MODULES(PC_XAU xau) # FIXME: After we require CMake 2.8.2 we can pass QUIET to this call.
-	FIND_LIBRARY(XAU_LIBRARIES
-		NAMES Xau
-		HINTS ${PC_XAU_LIBDIR}
-			  ${PC_XAU_LIBRARY_DIRS}
-	)
-ENDIF ()
 
 IF (CAIRO_INCLUDE_DIRS)
     IF (EXISTS "${CAIRO_INCLUDE_DIRS}/cairo-version.h")
@@ -102,10 +91,6 @@ find_package_handle_standard_args(Cairo
                                   FOUND_VAR Cairo_FOUND
                                   REQUIRED_VARS CAIRO_INCLUDE_DIRS CAIRO_LIBRARIES VERSION_OK
                                   )
-
-IF (XAU_LIBRARIES)
-	SET (CAIRO_LIBRARIES "${CAIRO_LIBRARIES};${XAU_LIBRARIES}")
-ENDIF ()
 
 if(Cairo_FOUND AND NOT TARGET Cairo::Cairo)
   add_library(Cairo::Cairo INTERFACE IMPORTED)
