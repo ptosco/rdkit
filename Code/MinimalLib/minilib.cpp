@@ -10,6 +10,7 @@
 //
 #include <string>
 #include <iostream>
+#include <cstdio>
 #include "minilib.h"
 
 #include <RDGeneral/versions.h>
@@ -542,6 +543,93 @@ unsigned int JSSubstructLibrary::count_matches(const JSMol &q,
                                                bool useChirality,
                                                int numThreads) const {
   return d_sslib->countMatches(*q.d_mol, true, useChirality, false, 1);
+}
+
+bool JSSubstructLibrary::to_file(const std::string &file) const {
+  FILE *hnd = fopen(file.c_str(), "wb");
+  if (!hnd) {
+    return false;
+  }
+  if (fwrite(&d_num_bits, sizeof(unsigned int), 1, hnd) != 1) {
+    return false;
+  }
+  unsigned int fpSize = d_fpHolder->size();
+  if (fwrite(&fpSize, sizeof(unsigned int), 1, hnd) != 1) {
+    return false;
+  }
+  for (const auto bv : d_fpHolder->getFingerprints()) {
+    std::string bvString = bv->toString();
+    unsigned int bvSize = bvString.size();
+    if (fwrite(&bvSize, sizeof(unsigned int), 1, hnd) != 1) {
+      return false;
+    }
+    if (fwrite(bvString.c_str(), sizeof(char), bvSize, hnd) != bvSize) {
+      return false;
+    }
+  }
+  unsigned int molsSize = d_molHolder->size();
+  if (fwrite(&molsSize, sizeof(unsigned int), 1, hnd) != 1) {
+    return false;
+  }
+  for (const auto &smi : d_molHolder->getMols()) {
+    unsigned int smiSize = smi.size();
+    if (fwrite(&smiSize, sizeof(unsigned int), 1, hnd) != 1) {
+      return false;
+    }
+    if (fwrite(smi.c_str(), sizeof(char), smiSize, hnd) != smiSize) {
+      return false;
+    }
+  }
+  fclose(hnd);
+  return true;
+}
+
+JSSubstructLibrary *JSSubstructLibrary::from_file(const std::string &file) {
+  FILE *hnd = fopen(file.c_str(), "rb");
+  if (!hnd) {
+    return nullptr;
+  }
+  unsigned int num_bits;
+  if (fread(&num_bits, sizeof(unsigned int), 1, hnd) != 1) {
+    return nullptr;
+  }
+  std::unique_ptr<JSSubstructLibrary> sslib(new JSSubstructLibrary(num_bits));
+  unsigned int fpSize;
+  if (fread(&fpSize, sizeof(unsigned int), 1, hnd) != 1) {
+    return nullptr;
+  }
+  auto &fps = sslib->d_fpHolder->getFingerprints();
+  fps.reserve(fpSize);
+  for (unsigned int i = 0; i < fpSize; ++i) {
+    unsigned int bvSize;
+    if (fread(&bvSize, sizeof(unsigned int), 1, hnd) != 1) {
+      return nullptr;
+    }
+    std::vector<char> bvString(bvSize);
+    if (fread(bvString.data(), sizeof(char), bvSize, hnd) != bvSize) {
+      return nullptr;
+    }
+    fps.push_back(new ExplicitBitVect(bvString.data(), bvSize));
+  }
+  unsigned int molsSize;
+  if (fread(&molsSize, sizeof(unsigned int), 1, hnd) != 1) {
+    return nullptr;
+  }
+  auto &mols = sslib->d_molHolder->getMols();
+  mols.reserve(molsSize);
+  for (unsigned int i = 0; i < molsSize; ++i) {
+    unsigned int smiSize;
+    if (fread(&smiSize, sizeof(unsigned int), 1, hnd) != 1) {
+      return nullptr;
+    }
+    std::vector<char> smiString(smiSize);
+    if (fread(smiString.data(), sizeof(char), smiSize, hnd) != smiSize) {
+      return nullptr;
+    }
+    mols.push_back(std::string(smiString.data(), smiSize));
+  }
+  fclose(hnd);
+  return sslib.release();
 }
 
 std::string get_inchikey_for_inchi(const std::string &input) {

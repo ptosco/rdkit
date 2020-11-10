@@ -158,11 +158,14 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
                     &JSSubstructLibrary::count_matches))
       .function("count_matches",
                 select_overload<unsigned int(const JSMol &) const>(
-                    &JSSubstructLibrary::count_matches));
+                    &JSSubstructLibrary::count_matches))
+      .function("to_file", &JSSubstructLibrary::to_file);
 
   function("version", &version);
   function("prefer_coordgen", &prefer_coordgen);
   function("get_inchikey_for_inchi", &get_inchikey_for_inchi);
   function("get_mol", &get_mol, allow_raw_pointers());
   function("get_qmol", &get_qmol, allow_raw_pointers());
+  function("SubstructLibrary_from_file", &JSSubstructLibrary::from_file,
+           allow_raw_pointers());
 }

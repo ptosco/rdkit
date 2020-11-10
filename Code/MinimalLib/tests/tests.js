@@ -99,15 +99,23 @@ function test_substruct_library(){
     var smiReader = readline.createInterface({
       input: fs.createReadStream('/home/toscopa1/smi/chembl5000.smi.gz').pipe(zlib.createGunzip())
     });
-    var sslib = new Module.SubstructLibrary(256);
+    var sslib = new Module.SubstructLibrary();
+    console.log('Started adding trusted SMILES');
     smiReader.on('line', (smi) => {
       //console.log(smi);
       sslib.add_trusted_smiles(smi);
     });
     smiReader.on('close', () => {
+        console.log('Finished adding trusted SMILES');
         var query = Module.get_qmol("N");
         console.log(sslib.count_matches(query));
         console.log(sslib.get_matches(query));
+        console.log('Now writing to file');
+        sslib.to_file('chembl5000_sslib.jspkl');
+        console.log('Now reading from file');
+        var sslib_from_file = new Module.SubstructLibrary_from_file('chembl5000_sslib.jspkl');
+        console.log(sslib_from_file.count_matches(query));
+        console.log(sslib_from_file.get_matches(query));
     });
 }
 
