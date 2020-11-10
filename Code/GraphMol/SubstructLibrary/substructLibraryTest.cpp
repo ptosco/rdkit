@@ -522,17 +522,20 @@ void testAddFingerprint() {
   std::string fName = getenv("RDBASE");
   fName += "/Data/NCI/first_5K.smi";
   SmilesMolSupplier suppl(fName, "\t", 0, 1, false);
-  auto *mols = new CachedTrustedSmilesMolHolder();
-  auto *fps = new PatternHolder();
-  boost::shared_ptr<CachedTrustedSmilesMolHolder> mols_ptr(mols);
-  boost::shared_ptr<PatternHolder> fps_ptr(fps);
+  boost::shared_ptr<CachedTrustedSmilesMolHolder> mols1(
+      new CachedTrustedSmilesMolHolder());
+  boost::shared_ptr<PatternHolder> fps1(new PatternHolder());
+  SubstructLibrary ssslib1(mols1, fps1);
+  boost::shared_ptr<CachedTrustedSmilesMolHolder> mols2(
+      new CachedTrustedSmilesMolHolder());
+  boost::shared_ptr<PatternHolder> fps2(new PatternHolder());
+  SubstructLibrary ssslib2(mols2, fps2);
 
-  SubstructLibrary ssslib(mols_ptr, fps_ptr);
   boost::logging::disable_logs("rdApp.error");
-  while (!suppl.atEnd()) {
+  for (unsigned int i = 0; i < 1000; i += 10) {
     ROMol *mol = nullptr;
     try {
-      mol = suppl.next();
+      mol = suppl[i];
     } catch (...) {
       continue;
     }
@@ -540,9 +543,20 @@ void testAddFingerprint() {
       continue;
     }
     ExplicitBitVect *bv = PatternFingerprintMol(*mol, 2048);
-    mols->addSmiles(MolToSmiles(*mol));
-    fps->addFingerprint(bv);
+    mols1->addSmiles(MolToSmiles(*mol));
+    fps1->addFingerprint(bv);
+    ssslib2.addMol(*mol);
     delete mol;
+  }
+  ROMOL_SPTR query(SmartsToMol("N"));
+  TEST_ASSERT(query);
+  auto matches1 = ssslib1.getMatches(*query);
+  std::sort(matches1.begin(), matches1.end());
+  auto matches2 = ssslib2.getMatches(*query);
+  std::sort(matches2.begin(), matches2.end());
+  TEST_ASSERT(matches1.size() == matches2.size());
+  for (size_t i = 0; i < matches1.size(); ++i) {
+    TEST_ASSERT(matches1.at(i) == matches2.at(i));
   }
 }
 
