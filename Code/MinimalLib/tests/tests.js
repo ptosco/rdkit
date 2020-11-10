@@ -100,13 +100,15 @@ function test_substruct_library(){
       input: fs.createReadStream('/home/toscopa1/smi/chembl5000.smi.gz').pipe(zlib.createGunzip())
     });
     var sslib = new Module.SubstructLibrary();
+    var t0 = performance.now()
     console.log('Started adding trusted SMILES');
     smiReader.on('line', (smi) => {
       //console.log(smi);
       sslib.add_trusted_smiles(smi);
     });
     smiReader.on('close', () => {
-        console.log('Finished adding trusted SMILES');
+        var t1 = performance.now();
+        console.log('Finished adding trusted SMILES took ' + (t1 - t0) / 1000 + ' seconds');
         var query = Module.get_qmol("N");
         console.log(sslib.count_matches(query));
         console.log(sslib.get_matches(query));
