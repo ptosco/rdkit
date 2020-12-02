@@ -10,7 +10,8 @@
 //
 
 const assert = require('assert');
-const Module = require("../demo/RDKit_minimal.js");
+var initRDKitModule = require("../demo/RDKit_minimal.js");
+var RDKitModule;
 const fs       = require('fs');
 const zlib     = require('zlib');
 const readline = require('readline');
@@ -18,18 +19,18 @@ const readline = require('readline');
 // the goal here isn't to be comprehensive (the RDKit has tests for that),
 // just to make sure that the wrappers are working as expected
 function test_basics(){
-    var bmol = Module.get_mol("c1ccccc");
+    var bmol = RDKitModule.get_mol("c1ccccc");
     assert.equal(bmol.is_valid(),0);
     
-    var mol = Module.get_mol("c1ccccc1O");
+    var mol = RDKitModule.get_mol("c1ccccc1O");
     assert.equal(mol.is_valid(),1);
     assert.equal(mol.get_smiles(),"Oc1ccccc1");
     assert.equal(mol.get_inchi(),"InChI=1S/C6H6O/c7-6-4-2-1-3-5-6/h1-5,7H");
-    assert.equal(Module.get_inchikey_for_inchi(mol.get_inchi()),"ISWSIDIOOBJBQZ-UHFFFAOYSA-N");
+    assert.equal(RDKitModule.get_inchikey_for_inchi(mol.get_inchi()),"ISWSIDIOOBJBQZ-UHFFFAOYSA-N");
 
     var mb = mol.get_molblock();
     assert(mb.search("M  END")>0);
-    var mol2 = Module.get_mol(mb);
+    var mol2 = RDKitModule.get_mol(mb);
     assert.equal(mol2.is_valid(),1);
     assert.equal(mol2.get_smiles(),"Oc1ccccc1");
     
@@ -49,7 +50,7 @@ function test_basics(){
     var svg = mol.get_svg();
     assert(svg.search("svg")>0);
 
-    var qmol = Module.get_qmol("Oc(c)c");
+    var qmol = RDKitModule.get_qmol("Oc(c)c");
     assert.equal(qmol.is_valid(),1);
     var match = mol.get_substruct_match(qmol);
     var pmatch = JSON.parse(match);
@@ -62,20 +63,20 @@ function test_basics(){
 }
 
 function test_sketcher_services(){
-    var mol = Module.get_mol("C[C@](F)(Cl)/C=C/C(F)Br");
+    var mol = RDKitModule.get_mol("C[C@](F)(Cl)/C=C/C(F)Br");
     assert.equal(mol.is_valid(),1);
     var tags = mol.get_stereo_tags();
     assert.equal(tags,'{"CIP_atoms":[[1,"(S)"],[6,"(?)"]],"CIP_bonds":[[4,5,"(E)"]]}');
 }
 
 function test_sketcher_services2(){
-    var mol = Module.get_mol("c1ccccc1");
+    var mol = RDKitModule.get_mol("c1ccccc1");
     assert.equal(mol.is_valid(),1);
     var molb = mol.add_hs();
     assert(molb.search(" H ")>0);
     assert.equal((molb.match(/ H /g) || []).length,6);
 
-    var mol2 = Module.get_mol(molb);
+    var mol2 = RDKitModule.get_mol(molb);
     assert.equal(mol2.is_valid(),1);
     var molb2 = mol2.get_molblock();
     assert(molb2.search(" H ")>0); 
@@ -87,7 +88,7 @@ function test_sketcher_services2(){
 
 
 function test_abbreviations(){
-    var bmol = Module.get_mol("C1CCC1C(F)(F)F");
+    var bmol = RDKitModule.get_mol("C1CCC1C(F)(F)F");
     assert.equal(bmol.is_valid(),1);
     bmol.condense_abbreviations();
     assert.equal(bmol.get_cxsmiles(),"FC(F)(F)C1CCC1");
@@ -99,7 +100,7 @@ function test_substruct_library(){
     var smiReader = readline.createInterface({
       input: fs.createReadStream('/home/toscopa1/smi/chembl5000.smi.gz').pipe(zlib.createGunzip())
     });
-    var sslib = new Module.SubstructLibrary();
+    var sslib = new RDKitModule.SubstructLibrary();
     var t0 = performance.now()
     console.log('Started adding trusted SMILES');
     smiReader.on('line', (smi) => {
@@ -109,26 +110,36 @@ function test_substruct_library(){
     smiReader.on('close', () => {
         var t1 = performance.now();
         console.log('Finished adding trusted SMILES took ' + (t1 - t0) / 1000 + ' seconds');
-        var query = Module.get_qmol("N");
+        var query = RDKitModule.get_qmol("N");
         console.log(sslib.count_matches(query));
         console.log(sslib.get_matches(query));
         console.log('Now writing to file');
         sslib.to_file('chembl5000_sslib.jspkl');
         console.log('Now reading from file');
-        var sslib_from_file = new Module.SubstructLibrary_from_file('chembl5000_sslib.jspkl');
+        var sslib_from_file = new RDKitModule.SubstructLibrary_from_file('chembl5000_sslib.jspkl');
         console.log(sslib_from_file.count_matches(query));
         console.log(sslib_from_file.get_matches(query));
     });
 }
 
 
-Module.onRuntimeInitialized = () => {
-    console.log(Module.version());
+function test_generate_aligned_coords(){
+    var smiles = "CCC";
+    var mol = RDKitModule.get_mol(smiles);
+    var template = "CC";
+    var qmol = RDKitModule.get_mol(template);
+    assert.equal(mol.generate_aligned_coords(qmol, true), "");
+}
+
+
+initRDKitModule().then(function(instance) {
+    RDKitModule = instance;
+    console.log(RDKitModule.version());
     test_basics();
     test_sketcher_services();
     test_sketcher_services2();
     test_abbreviations();
     test_substruct_library();
+    test_generate_aligned_coords();
     console.log("Tests finished successfully");
-};
-
+});

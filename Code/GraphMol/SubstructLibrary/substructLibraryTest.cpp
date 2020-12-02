@@ -113,7 +113,7 @@ void test1() {
   std::vector<SubstructLibrary*> libs;
   libs.push_back(&ssslib);
 
-#ifdef RDK_USE_BOOST_SERIALIZATION  
+#ifdef RDK_USE_BOOST_SERIALIZATION
   std::string pickle = ssslib.Serialize();
   SubstructLibrary serialized;
   serialized.initFromString(pickle);
@@ -188,7 +188,7 @@ void test2() {
   std::vector<SubstructLibrary*> libs;
   libs.push_back(&ssslib);
 
-#ifdef RDK_USE_BOOST_SERIALIZATION  
+#ifdef RDK_USE_BOOST_SERIALIZATION
   std::string pickle = ssslib.Serialize();
   SubstructLibrary serialized;
   serialized.initFromString(pickle);
@@ -239,7 +239,7 @@ void test3() {
   std::vector<SubstructLibrary*> libs;
   libs.push_back(&ssslib);
 
-#ifdef RDK_USE_BOOST_SERIALIZATION  
+#ifdef RDK_USE_BOOST_SERIALIZATION
   std::string pickle = ssslib.Serialize();
   SubstructLibrary serialized;
   serialized.initFromString(pickle);
@@ -289,7 +289,7 @@ void test4() {
   std::vector<SubstructLibrary*> libs;
   libs.push_back(&ssslib);
 
-#ifdef RDK_USE_BOOST_SERIALIZATION  
+#ifdef RDK_USE_BOOST_SERIALIZATION
   std::string pickle = ssslib.Serialize();
   SubstructLibrary serialized;
   serialized.initFromString(pickle);
@@ -515,9 +515,58 @@ void testMaxResultsNumThreads() {
   }
 }
 
-void testAddFingerprint() {
+void testMaxResultsAllSameNumThreads() {
   BOOST_LOG(rdErrorLog) << "-------------------------------------" << std::endl;
-  BOOST_LOG(rdErrorLog) << "   testAddFingerprint" << std::endl;
+  BOOST_LOG(rdErrorLog) << "   Results do not depend on numThreads (all same) "
+                        << std::endl;
+
+  auto *mols = new MolHolder();
+  auto *fps = new PatternHolder();
+  boost::shared_ptr<MolHolder> mols_ptr(mols);
+  boost::shared_ptr<PatternHolder> fps_ptr(fps);
+
+  SubstructLibrary ssslib(mols_ptr, fps_ptr);
+  boost::logging::disable_logs("rdApp.error");
+  auto mol = "N"_smiles;
+  for (int i = 0; i < 999; ++i) {
+    ssslib.addMol(*mol);
+  }
+
+  boost::logging::enable_logs("rdApp.error");
+  std::vector<std::vector<unsigned int>> resVect;
+  ROMOL_SPTR query(SmartsToMol("N"));
+  TEST_ASSERT(query);
+  for (auto numThreads : {1, 2, 4, 8}) {
+    resVect.emplace_back(
+        ssslib.getMatches(*query, true, false, false, numThreads));
+    TEST_ASSERT(resVect.back().size() == 999);
+  }
+  for (auto it = resVect.begin() + 1; it != resVect.end(); ++it) {
+    TEST_ASSERT(resVect.front().size() == it->size());
+    for (size_t i = 0; i < resVect.front().size(); ++i) {
+      TEST_ASSERT(resVect.front().at(i) == it->at(i));
+    }
+  }
+  size_t results60 = resVect.front().size() * 0.6;
+  size_t results99 = resVect.front().size() * 0.99;
+  for (auto maxRes : {results60, results99}) {
+    std::vector<std::vector<unsigned int>> resVectPartial;
+    for (auto numThreads : {1, 2, 4, 8}) {
+      resVectPartial.emplace_back(
+          ssslib.getMatches(*query, true, false, false, numThreads, maxRes));
+    }
+    for (auto it = resVectPartial.begin(); it != resVectPartial.end(); ++it) {
+      TEST_ASSERT(it->size() == maxRes);
+      for (size_t i = 0; i < maxRes; ++i) {
+        TEST_ASSERT(resVect.front().at(i) == it->at(i));
+      }
+    }
+  }
+}
+
+void testPatternHolder() {
+  BOOST_LOG(rdErrorLog) << "-------------------------------------" << std::endl;
+  BOOST_LOG(rdErrorLog) << "   testPatternHolder" << std::endl;
 
   std::string fName = getenv("RDBASE");
   fName += "/Data/NCI/first_5K.smi";
@@ -542,22 +591,64 @@ void testAddFingerprint() {
     if (!mol) {
       continue;
     }
-    ExplicitBitVect *bv = PatternFingerprintMol(*mol, 2048);
     mols1->addSmiles(MolToSmiles(*mol));
-    fps1->addFingerprint(bv);
+    fps1->addFingerprint(fps1->makeFingerprint(*mol));
     ssslib2.addMol(*mol);
     delete mol;
   }
+  boost::logging::enable_logs("rdApp.error");
   ROMOL_SPTR query(SmartsToMol("N"));
   TEST_ASSERT(query);
-  auto matches1 = ssslib1.getMatches(*query);
-  std::sort(matches1.begin(), matches1.end());
-  auto matches2 = ssslib2.getMatches(*query);
-  std::sort(matches2.begin(), matches2.end());
-  TEST_ASSERT(matches1.size() == matches2.size());
-  for (size_t i = 0; i < matches1.size(); ++i) {
-    TEST_ASSERT(matches1.at(i) == matches2.at(i));
+  {
+    auto matches1 = ssslib1.getMatches(*query);
+    std::sort(matches1.begin(), matches1.end());
+    auto matches2 = ssslib2.getMatches(*query);
+    std::sort(matches2.begin(), matches2.end());
+    TEST_ASSERT(matches1.size() == matches2.size());
+    for (size_t i = 0; i < matches1.size(); ++i) {
+      TEST_ASSERT(matches1.at(i) == matches2.at(i));
+    }
   }
+#ifdef RDK_USE_BOOST_SERIALIZATION
+  std::string pickle = ssslib1.Serialize();
+  SubstructLibrary serializedV2;
+  serializedV2.initFromString(pickle);
+  TEST_ASSERT(serializedV2.size() == ssslib1.size());
+  SubstructLibrary serializedV1;
+  std::string pklName = getenv("RDBASE");
+  TEST_ASSERT(!pklName.empty());
+  pklName += "/Code/GraphMol/test_data/substructLibV1.pkl";
+  std::ifstream pickle_istream(pklName.c_str(), std::ios_base::binary);
+  serializedV1.initFromStream(pickle_istream);
+  pickle_istream.close();
+  TEST_ASSERT(serializedV1.size() == serializedV2.size());
+  {
+    auto matches1 = serializedV1.getMatches(*query);
+    std::sort(matches1.begin(), matches1.end());
+    auto matches2 = serializedV2.getMatches(*query);
+    std::sort(matches2.begin(), matches2.end());
+    TEST_ASSERT(matches1.size() == matches2.size());
+    for (size_t i = 0; i < matches1.size(); ++i) {
+      TEST_ASSERT(matches1.at(i) == matches2.at(i));
+    }
+  }
+  for (size_t i = 0; i < 2; ++i) {
+    auto serialized_pattern_holder =
+        dynamic_cast<PatternHolder *>(serializedV1.getFpHolder().get());
+    TEST_ASSERT(serialized_pattern_holder);
+    auto orig_pattern_holder =
+        dynamic_cast<PatternHolder *>(ssslib1.getFpHolder().get());
+    TEST_ASSERT(orig_pattern_holder);
+    TEST_ASSERT(serialized_pattern_holder->getNumBits() ==
+                orig_pattern_holder->getNumBits());
+    if (i) {
+      break;
+    }
+    orig_pattern_holder->getNumBits() = 1024;
+    pickle = ssslib1.Serialize();
+    serializedV1.initFromString(pickle);
+  }
+#endif
 }
 
 int main() {
@@ -570,10 +661,11 @@ int main() {
   docTest();
   ringTest();
   testAddPatterns();
+  testPatternHolder();
 #ifdef RDK_TEST_MULTITHREADED
   testMaxResultsNumThreads();
+  testMaxResultsAllSameNumThreads();
 #endif
-  testAddFingerprint();
 #endif
   return 0;
 }
