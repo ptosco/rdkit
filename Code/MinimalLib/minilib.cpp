@@ -113,11 +113,15 @@ RWMol *mol_from_input(const std::string &input) {
   RWMol *res = nullptr;
   if (input.find("M  END") != std::string::npos) {
     bool sanitize = false;
-    res = MolBlockToMol(input, sanitize);
+    try {
+      res = MolBlockToMol(input, sanitize);
+    } catch (...) {}
   } else {
     SmilesParserParams ps;
     ps.sanitize = false;
-    res = SmilesToMol(input, ps);
+    try {
+      res = SmilesToMol(input, ps);
+    } catch (...) {}
   }
   if (res) {
     try {

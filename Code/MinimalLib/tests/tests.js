@@ -10,6 +10,9 @@
 //
 
 const assert = require('assert');
+const {
+    performance
+  } = require('perf_hooks');
 var initRDKitModule = require("../demo/RDKit_minimal.js");
 var RDKitModule;
 const fs       = require('fs');
@@ -132,6 +135,23 @@ function test_generate_aligned_coords(){
 }
 
 
+function test_invalid_sap() {
+    var molblock = `
+     RDKit          2D
+
+  2  1  0  0  0  0  0  0  0  0999 V2000
+    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.2990    0.7500    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0
+M  STY  1   1 SUP
+M  SAP   1  1   1
+M  END
+`;
+    var mol = RDKitModule.get_mol(molblock);
+    assert.equal(mol.is_valid(), false);
+}
+
+
 initRDKitModule().then(function(instance) {
     RDKitModule = instance;
     console.log(RDKitModule.version());
@@ -139,7 +159,8 @@ initRDKitModule().then(function(instance) {
     test_sketcher_services();
     test_sketcher_services2();
     test_abbreviations();
-    test_substruct_library();
+    //test_substruct_library();
     test_generate_aligned_coords();
+    test_invalid_sap();
     console.log("Tests finished successfully");
 });
