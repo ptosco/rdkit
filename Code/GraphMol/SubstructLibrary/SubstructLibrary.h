@@ -291,11 +291,7 @@ class RDKIT_SUBSTRUCTLIBRARY_EXPORT FPHolderBase {
 class RDKIT_SUBSTRUCTLIBRARY_EXPORT PatternHolder : public FPHolderBase {
   unsigned int numBits;
  public:
-<<<<<<< HEAD
-  PatternHolder() : numBits(2048) {}
-=======
   PatternHolder() : numBits(defaultNumBits()) {}
->>>>>>> upstream/master
   PatternHolder(unsigned int numBits) : numBits(numBits) {}
   //! Caller owns the vector!
   virtual ExplicitBitVect *makeFingerprint(const ROMol &m) const {
@@ -303,13 +299,10 @@ class RDKIT_SUBSTRUCTLIBRARY_EXPORT PatternHolder : public FPHolderBase {
   }
   const unsigned int &getNumBits() const { return numBits; };
   unsigned int &getNumBits() { return numBits; };
-<<<<<<< HEAD
-=======
   static unsigned int defaultNumBits() {
     static const unsigned int DEFAULT_NUM_BITS = 2048;
     return DEFAULT_NUM_BITS;
   };
->>>>>>> upstream/master
 };
 
 //! Substructure Search a library of molecules
