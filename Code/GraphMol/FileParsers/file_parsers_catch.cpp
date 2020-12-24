@@ -17,6 +17,8 @@
 #include <GraphMol/SmilesParse/SmilesWrite.h>
 #include <GraphMol/SmilesParse/SmilesParse.h>
 #include <GraphMol/SmilesParse/SmartsWrite.h>
+#include <GraphMol/FileParsers/SequenceParsers.h>
+#include <GraphMol/FileParsers/SequenceWriters.h>
 #include <GraphMol/FileParsers/PNGParser.h>
 #include <RDGeneral/FileParseException.h>
 #include <boost/algorithm/string.hpp>
@@ -2089,7 +2091,181 @@ M  END
     m->getConformer().getAtomPos(0).z = 1e-17;
     m->getConformer().getAtomPos(1).z = 1e-4;
     auto mb = MolToV3KMolBlock(*m);
-    //std::cerr<<mb<<std::endl;
-    CHECK(mb.find("M  V30 1 C -2.812500 1.919600 0.000000 0") != std::string::npos);
+    // std::cerr<<mb<<std::endl;
+    CHECK(mb.find("M  V30 1 C -2.812500 1.919600 0.000000 0") !=
+          std::string::npos);
   }
+}
+
+TEST_CASE("github #3620: V3K mol block parser not saving the chiral flag",
+          "[bug]") {
+  SECTION("basics") {
+    auto m = R"CTAB(
+  Mrv2014 12082009582D          
+
+  0  0  0     0  0            999 V3000
+M  V30 BEGIN CTAB
+M  V30 COUNTS 4 3 0 0 1
+M  V30 BEGIN ATOM
+M  V30 1 C -1.875 6.0417 0 0 CFG=2
+M  V30 2 C -0.5413 6.8117 0 0
+M  V30 3 F -3.2087 6.8117 0 0
+M  V30 4 Cl -1.875 4.5017 0 0
+M  V30 END ATOM
+M  V30 BEGIN BOND
+M  V30 1 1 1 3
+M  V30 2 1 1 4
+M  V30 3 1 1 2 CFG=1
+M  V30 END BOND
+M  V30 END CTAB
+M  END
+)CTAB"_ctab;
+    REQUIRE(m);
+    unsigned int chiralFlag = 0;
+    CHECK(
+        m->getPropIfPresent(common_properties::_MolFileChiralFlag, chiralFlag));
+    CHECK(chiralFlag == 1);
+    auto mb = MolToV3KMolBlock(*m);
+    CHECK(mb.find("4 3 0 0 1") != std::string::npos);
   }
+}
+
+TEST_CASE("test bond flavors when writing PDBs", "[bug]") {
+  SECTION("basics") {
+    std::unique_ptr<RWMol> m{SequenceToMol("G")};
+    REQUIRE(m);
+    int confId = -1;
+    {
+      int flavor = 0;
+      auto pdb = MolToPDBBlock(*m, confId, flavor);
+      CHECK(pdb.find("CONECT    1    2\n") != std::string::npos);
+      CHECK(pdb.find("CONECT    3    4    4    5\n") != std::string::npos);
+    }
+    {
+      int flavor = 2;
+      auto pdb = MolToPDBBlock(*m, confId, flavor);
+      CHECK(pdb.find("CONECT    1    2\n") == std::string::npos);
+      CHECK(pdb.find("CONECT    3    4    4\n") != std::string::npos);
+    }
+    {
+      int flavor = 8;
+      auto pdb = MolToPDBBlock(*m, confId, flavor);
+      CHECK(pdb.find("CONECT    1    2\n") != std::string::npos);
+      CHECK(pdb.find("CONECT    3    4    5\n") != std::string::npos);
+    }
+    {
+      int flavor = 2 | 8;
+      auto pdb = MolToPDBBlock(*m, confId, flavor);
+      CHECK(pdb.find("CONECT") == std::string::npos);
+    }
+  }
+}
+
+TEST_CASE(
+    "github #3599: Add explicit support for remaining CTAB query bond types",
+    "[feature]") {
+  SECTION("basics V3K") {
+    auto m = R"CTAB(
+  Mrv2014 11302009242D          
+
+  0  0  0     0  0            999 V3000
+M  V30 BEGIN CTAB
+M  V30 COUNTS 6 6 0 0 0
+M  V30 BEGIN ATOM
+M  V30 1 N 3.7917 -2.96 0 0
+M  V30 2 C 2.458 -3.73 0 0
+M  V30 3 O 2.458 -5.27 0 0
+M  V30 4 C 3.7917 -6.04 0 0
+M  V30 5 C 5.1253 -5.27 0 0
+M  V30 6 C 5.1253 -3.73 0 0
+M  V30 END ATOM
+M  V30 BEGIN BOND
+M  V30 1 1 2 3
+M  V30 2 1 4 5
+M  V30 3 1 1 6
+M  V30 4 5 1 2
+M  V30 5 6 5 6
+M  V30 6 7 3 4
+M  V30 END BOND
+M  V30 END CTAB
+M  END
+)CTAB"_ctab;
+    REQUIRE(m);
+    REQUIRE(m->getBondWithIdx(3)->hasQuery());
+    CHECK(m->getBondWithIdx(3)->getQuery()->getDescription() ==
+          "SingleOrDoubleBond");
+    REQUIRE(m->getBondWithIdx(4)->hasQuery());
+    CHECK(m->getBondWithIdx(4)->getQuery()->getDescription() ==
+          "SingleOrAromaticBond");
+    REQUIRE(m->getBondWithIdx(5)->hasQuery());
+    CHECK(m->getBondWithIdx(5)->getQuery()->getDescription() ==
+          "DoubleOrAromaticBond");
+    auto mb = MolToV3KMolBlock(*m);
+    CHECK(mb.find("M  V30 4 5 1 2") != std::string::npos);
+    CHECK(mb.find("M  V30 5 6 5 6") != std::string::npos);
+    CHECK(mb.find("M  V30 6 7 3 4") != std::string::npos);
+    std::string pkl;
+    MolPickler::pickleMol(*m, pkl);
+    m.reset(new RWMol(pkl));
+    REQUIRE(m);
+    REQUIRE(m->getBondWithIdx(3)->hasQuery());
+    CHECK(m->getBondWithIdx(3)->getQuery()->getDescription() ==
+          "SingleOrDoubleBond");
+    REQUIRE(m->getBondWithIdx(4)->hasQuery());
+    CHECK(m->getBondWithIdx(4)->getQuery()->getDescription() ==
+          "SingleOrAromaticBond");
+    REQUIRE(m->getBondWithIdx(5)->hasQuery());
+    CHECK(m->getBondWithIdx(5)->getQuery()->getDescription() ==
+          "DoubleOrAromaticBond");
+
+    auto smarts = MolToSmarts(*m);
+    CHECK(smarts == "[#7]1-,=[#6]-[#8]=,:[#6]-[#6][#6]-1");
+  }
+  SECTION("basics V2K") {
+    auto m = R"CTAB(
+  Mrv2014 11302009442D          
+
+  6  6  0  0  0  0            999 V2000
+    2.0313   -1.5857    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+    1.3168   -1.9982    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.3168   -2.8232    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+    2.0313   -3.2357    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    2.7457   -2.8232    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    2.7457   -1.9982    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  2  3  1  0  0  0  0
+  4  5  1  0  0  0  0
+  1  6  1  0  0  0  0
+  1  2  5  0  0  0  0
+  5  6  6  0  0  0  0
+  3  4  7  0  0  0  0
+M  END
+)CTAB"_ctab;
+    REQUIRE(m);
+    REQUIRE(m->getBondWithIdx(3)->hasQuery());
+    CHECK(m->getBondWithIdx(3)->getQuery()->getDescription() ==
+          "SingleOrDoubleBond");
+    REQUIRE(m->getBondWithIdx(4)->hasQuery());
+    CHECK(m->getBondWithIdx(4)->getQuery()->getDescription() ==
+          "SingleOrAromaticBond");
+    REQUIRE(m->getBondWithIdx(5)->hasQuery());
+    CHECK(m->getBondWithIdx(5)->getQuery()->getDescription() ==
+          "DoubleOrAromaticBond");
+    auto mb = MolToMolBlock(*m);
+    CHECK(mb.find("  1  2  5") != std::string::npos);
+    CHECK(mb.find("  5  6  6") != std::string::npos);
+    CHECK(mb.find("  3  4  7") != std::string::npos);
+    std::string pkl;
+    MolPickler::pickleMol(*m, pkl);
+    m.reset(new RWMol(pkl));
+    REQUIRE(m);
+    REQUIRE(m->getBondWithIdx(3)->hasQuery());
+    CHECK(m->getBondWithIdx(3)->getQuery()->getDescription() ==
+          "SingleOrDoubleBond");
+    REQUIRE(m->getBondWithIdx(4)->hasQuery());
+    CHECK(m->getBondWithIdx(4)->getQuery()->getDescription() ==
+          "SingleOrAromaticBond");
+    REQUIRE(m->getBondWithIdx(5)->hasQuery());
+    CHECK(m->getBondWithIdx(5)->getQuery()->getDescription() ==
+          "DoubleOrAromaticBond");
+  }
+}
