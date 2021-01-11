@@ -112,9 +112,11 @@ namespace {
 RWMol *mol_from_input(const std::string &input) {
   RWMol *res = nullptr;
   if (input.find("M  END") != std::string::npos) {
-    bool sanitize = false;
+    const bool sanitize = false;
+    const bool removeHs = true;
+    const bool strictParsing = false;
     try {
-      res = MolBlockToMol(input, sanitize);
+      res = MolBlockToMol(input, sanitize, removeHs, strictParsing);
     } catch (...) {}
   } else {
     SmilesParserParams ps;
