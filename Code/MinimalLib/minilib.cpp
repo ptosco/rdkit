@@ -112,18 +112,14 @@ namespace {
 RWMol *mol_from_input(const std::string &input) {
   RWMol *res = nullptr;
   if (input.find("M  END") != std::string::npos) {
-    try {
-      bool sanitize = false;
-      bool removeHs = true;
-      bool strictParsing = false;
-      res = MolBlockToMol(input, sanitize, removeHs, strictParsing);
-    } catch (...) {}
+    bool sanitize = false;
+    bool removeHs = true;
+    bool strictParsing = false;
+    res = MolBlockToMol(input, sanitize, removeHs, strictParsing);
   } else {
     SmilesParserParams ps;
     ps.sanitize = false;
-    try {
-      res = SmilesToMol(input, ps);
-    } catch (...) {}
+    res = SmilesToMol(input, ps);
   }
   if (res) {
     try {
