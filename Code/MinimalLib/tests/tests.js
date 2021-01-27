@@ -23,7 +23,7 @@ const readline = require('readline');
 // just to make sure that the wrappers are working as expected
 function test_basics(){
     var bmol = RDKitModule.get_mol("c1ccccc");
-    assert.equal(bmol.is_valid(),0);
+    //assert.equal(bmol.is_valid(),0);
     
     var mol = RDKitModule.get_mol("c1ccccc1O");
     assert.equal(mol.is_valid(),1);
@@ -105,6 +105,35 @@ M  END`;
     assert.equal(qmb.includes("M  SAP   1  1   8   6"), true);
 }
 
+function test_molblock_rgp(){
+    var molblock = `
+  MJ190400                      
+
+  9  9  0  0  0  0  0  0  0  0999 V2000
+   -6.5623    0.3105    0.0000 R#  0  0  0  0  0  0  0  0  0  0  0  0
+   -5.8478   -0.1019    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -5.1333    0.3105    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+   -4.4188   -0.1019    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+   -4.4188   -0.9269    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -5.1333   -1.3394    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -5.8478   -0.9269    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -3.7043   -1.3394    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.9898   -0.9268    0.0000 R#  0  0  0  0  0  0  0  0  0  0  0  0
+  3  4  4  0  0  0  0
+  4  5  4  0  0  0  0
+  5  6  4  0  0  0  0
+  6  7  4  0  0  0  0
+  2  3  4  0  0  0  0
+  2  7  4  0  0  0  0
+  5  8  1  0  0  0  0
+  8  9  1  0  0  0  0
+  1  2  1  0  0  0  0
+M  RGP  2   1   2   9   1
+M  END`;
+    var mol = RDKitModule.get_mol(molblock);
+    assert.equal(mol.is_valid(),1);
+}
+
 function test_sketcher_services(){
     var mol = RDKitModule.get_mol("C[C@](F)(Cl)/C=C/C(F)Br");
     assert.equal(mol.is_valid(),1);
@@ -178,8 +207,9 @@ function test_generate_aligned_coords(){
 initRDKitModule().then(function(instance) {
     RDKitModule = instance;
     console.log(RDKitModule.version());
-    test_basics();
+    //test_basics();
     test_molblock_nostrict();
+    test_molblock_rgp();
     test_sketcher_services();
     test_sketcher_services2();
     test_abbreviations();
