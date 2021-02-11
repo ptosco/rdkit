@@ -126,7 +126,9 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
                                       &JSMol::get_new_coords))
       .function("generate_aligned_coords",
                 select_overload<std::string(const JSMol &)>(&JSMol::generate_aligned_coords))
-      .function("generate_aligned_coords", select_overload<std::string(const JSMol &,bool)>(
+      .function("generate_aligned_coords", select_overload<std::string(const JSMol &, bool)>(
+                                      &JSMol::generate_aligned_coords))
+      .function("generate_aligned_coords", select_overload<std::string(const JSMol &, bool, bool)>(
                                       &JSMol::generate_aligned_coords))
       .function("condense_abbreviations",
                 select_overload<std::string()>(&JSMol::condense_abbreviations))

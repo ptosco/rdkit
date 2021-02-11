@@ -143,6 +143,62 @@ function test_generate_aligned_coords(){
 }
 
 
+function test_generate_aligned_coords_allow_rgroups(){
+    var template_molblock = `
+     RDKit          2D
+
+  9  9  0  0  0  0  0  0  0  0999 V2000
+   -0.4911    0.6018    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.2055    0.1893    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.2055   -0.6357    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.4911   -1.0482    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.2233   -0.6357    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.2233    0.1893    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.9200    0.6018    0.0000 R1  0  0  0  0  0  0  0  0  0  0  0  0
+    0.9378    0.6018    0.0000 R2  0  0  0  0  0  0  0  0  0  0  0  0
+   -1.9200   -1.0482    0.0000 R3  0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  2  0
+  2  3  1  0
+  3  4  2  0
+  4  5  1  0
+  5  6  2  0
+  6  1  1  0
+  6  8  1  0
+  3  9  1  0
+  2  7  1  0
+M  RGP  3   7   1   8   2   9   3
+M  END`;
+    var ortho_meta_smiles = 'c1ccc(-c2ccc(-c3ccccc3)c(-c3ccccc3)c2)cc1';
+    var ortho_smiles = 'c1ccc(-c2ccccc2-c2ccccc2)cc1';
+    var meta_smiles = 'c1ccc(-c2cccc(-c3ccccc3)c2)cc1';
+    var biphenyl_smiles = 'c1ccccc1-c1ccccc1';
+    var phenyl_smiles = 'c1ccccc1';
+    var template = RDKitModule.get_mol(template_molblock);
+    var ortho_meta = RDKitModule.get_mol(ortho_meta_smiles);
+    var ortho = RDKitModule.get_mol(ortho_smiles);
+    var meta = RDKitModule.get_mol(meta_smiles);
+    var biphenyl = RDKitModule.get_mol(biphenyl_smiles);
+    var phenyl = RDKitModule.get_mol(phenyl_smiles);
+    console.log('template');
+    console.log(template.get_molblock());
+    ortho_meta.generate_aligned_coords(template, false, true);
+    console.log('ortho_meta');
+    console.log(ortho_meta.get_molblock());
+    ortho.generate_aligned_coords(template, false, true);
+    console.log('ortho');
+    console.log(ortho.get_molblock());
+    meta.generate_aligned_coords(template, false, true);
+    console.log('meta');
+    console.log(meta.get_molblock());
+    biphenyl.generate_aligned_coords(template, false, true);
+    console.log('biphenyl');
+    console.log(biphenyl.get_molblock());
+    phenyl.generate_aligned_coords(template, false, true);
+    console.log('phenyl');
+    console.log(phenyl.get_molblock());
+}
+
+
 initRDKitModule().then(function(instance) {
     RDKitModule = instance;
     console.log(RDKitModule.version());
@@ -152,5 +208,6 @@ initRDKitModule().then(function(instance) {
     test_sketcher_services2();
     test_abbreviations();
     test_generate_aligned_coords();
+    test_generate_aligned_coords_allow_rgroups();
     console.log("Tests finished successfully");
 });
