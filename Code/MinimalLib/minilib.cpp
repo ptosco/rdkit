@@ -462,7 +462,8 @@ std::string JSMol::condense_abbreviations_from_defs(
 
 class MatchScorer {
  public:
-  MatchScorer(const ROMol &mol, const ROMol &query) : d_mol(mol), d_query(query), d_sumIndices(0) {
+  MatchScorer(const ROMol &mol, const ROMol &query)
+      : d_mol(mol), d_query(query), d_sumIndices(0) {
     for (auto i = 0; i < d_mol.getNumAtoms(); ++i) {
       d_sumIndices += static_cast<double>(i);
     }
@@ -477,10 +478,13 @@ class MatchScorer {
   bool doesQueryRGroupMatchHydrogen(const std::pair<int, int> &pair) {
     const auto queryAtom = d_query.getAtomWithIdx(pair.first);
     const auto molAtom = d_mol.getAtomWithIdx(pair.second);
-    return (queryAtom->hasQuery() && queryAtom->getDegree() == 1 && molAtom->getAtomicNum() == 1);
+    return (queryAtom->hasQuery() && queryAtom->getDegree() == 1 &&
+            molAtom->getAtomicNum() == 1);
   }
+
  private:
-  std::unordered_map<const MatchVectType *, double>::iterator computeAndCacheScore(const MatchVectType &match) {
+  std::unordered_map<const MatchVectType *, double>::iterator
+  computeAndCacheScore(const MatchVectType &match) {
     double penalty = 0.0;
     double i = 0.0;
     for (const auto &pair : match) {
@@ -498,25 +502,31 @@ class MatchScorer {
   double d_sumIndices;
 };
 
-std::string JSMol::generate_aligned_coords(const JSMol &templateMol, bool useCoordGen, bool allowRGroups){
-  if (!d_mol || !templateMol.d_mol || !templateMol.d_mol->getNumConformers()) return "";
+std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
+                                           bool useCoordGen,
+                                           bool allowRGroups) {
+  if (!d_mol || !templateMol.d_mol || !templateMol.d_mol->getNumConformers())
+    return "";
 
 #ifdef RDK_BUILD_COORDGEN_SUPPORT
   bool oprefer = RDDepict::preferCoordGen;
   RDDepict::preferCoordGen = useCoordGen;
-#endif 
+#endif
   RDKit::ROMol *refPattern = nullptr;
   std::unique_ptr<RDKit::RWMol> templateCopy;
   RDKit::RWMol *templateRWMol = templateMol.d_mol.get();
   if (allowRGroups) {
-    std::unique_ptr<RDKit::ROMol> molHs(RDKit::MolOps::addHs(*static_cast<ROMol *>(d_mol.get())));
+    std::unique_ptr<RDKit::ROMol> molHs(
+        RDKit::MolOps::addHs(*static_cast<ROMol *>(d_mol.get())));
     if (molHs) {
       MatchScorer matchScorer(*molHs, *templateRWMol);
       auto matches = SubstructMatch(*molHs, *templateRWMol);
-      auto bestMatch = *std::min_element(matches.begin(), matches.end(),
-        [&matchScorer](const MatchVectType &aMatch, const MatchVectType &bMatch) {
-          return (matchScorer.score(aMatch) < matchScorer.score(bMatch));
-        });
+      auto bestMatch = *std::min_element(
+          matches.begin(), matches.end(),
+          [&matchScorer](const MatchVectType &aMatch,
+                         const MatchVectType &bMatch) {
+            return (matchScorer.score(aMatch) < matchScorer.score(bMatch));
+          });
       if (matchScorer.score(bestMatch) > 1.0) {
         templateCopy.reset(new RDKit::RWMol(*templateRWMol));
         templateRWMol = templateCopy.get();
@@ -534,13 +544,12 @@ std::string JSMol::generate_aligned_coords(const JSMol &templateMol, bool useCoo
   bool acceptFailure = true;
   int confId = -1;
   RDDepict::generateDepictionMatching2DStructure(*d_mol, *templateRWMol, confId,
-     refPattern, acceptFailure);
+                                                 refPattern, acceptFailure);
 #ifdef RDK_BUILD_COORDGEN_SUPPORT
   RDDepict::preferCoordGen = oprefer;
 #endif
   return "";
 }
-
 
 std::string get_inchikey_for_inchi(const std::string &input) {
   return InchiToInchiKey(input);
