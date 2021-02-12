@@ -453,8 +453,7 @@ unsigned int compute2DCoordsMimicDistMat(
 void generateDepictionMatching2DStructureInternal(
     RDKit::ROMol &mol, const RDKit::ROMol &reference,
     const RDKit::MatchVectType &matchVect, const std::vector<int> &refMatch,
-    int confId,
-    bool acceptFailure, bool forceRDKit) {
+    int confId, bool acceptFailure, bool forceRDKit) {
   RDGeom::INT_POINT2D_MAP coordMap;
   if (matchVect.empty()) {
     if (!acceptFailure) {
@@ -483,9 +482,8 @@ void generateDepictionMatching2DStructureInternal(
 //   are governed by refMatchVect
 void generateDepictionMatching2DStructure(
     RDKit::ROMol &mol, const RDKit::ROMol &reference,
-    const RDKit::MatchVectType &refMatchVect,
-    int confId,
-    bool acceptFailure, bool forceRDKit) {
+    const RDKit::MatchVectType &refMatchVect, int confId, bool acceptFailure,
+    bool forceRDKit) {
   std::vector<int> refMatch(reference.getNumAtoms(), -1);
   if (refMatchVect.size() > reference.getNumAtoms(true)) {
     throw RDDepict::DepictException(
@@ -495,9 +493,9 @@ void generateDepictionMatching2DStructure(
   for (auto &i : refMatchVect) {
     refMatch[i.first] = i.first;
   }
-  generateDepictionMatching2DStructureInternal(
-    mol, reference, refMatchVect,
-    refMatch, confId, acceptFailure, forceRDKit);
+  generateDepictionMatching2DStructureInternal(mol, reference, refMatchVect,
+                                               refMatch, confId, acceptFailure,
+                                               forceRDKit);
 }
 
 //! \brief Compute 2D coordinates where a piece of the molecule is
@@ -532,8 +530,7 @@ void generateDepictionMatching2DStructure(RDKit::ROMol &mol,
     RDKit::SubstructMatch(mol, reference, matchVect);
   }
   generateDepictionMatching2DStructureInternal(
-    mol, reference, matchVect,
-    refMatch, confId, acceptFailure, forceRDKit);
+      mol, reference, matchVect, refMatch, confId, acceptFailure, forceRDKit);
 }
 
 //! \brief Generate a 2D depiction for a molecule where all or part of

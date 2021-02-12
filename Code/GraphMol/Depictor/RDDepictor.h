@@ -193,8 +193,7 @@ RDKIT_DEPICTOR_EXPORT void generateDepictionMatching2DStructure(
 */
 RDKIT_DEPICTOR_EXPORT void generateDepictionMatching2DStructure(
     RDKit::ROMol &mol, const RDKit::ROMol &reference,
-    const RDKit::MatchVectType &refMatchVect,
-    int confId = -1,
+    const RDKit::MatchVectType &refMatchVect, int confId = -1,
     bool acceptFailure = false, bool forceRDKit = false);
 
 //! \brief Generate a 2D depiction for a molecule where all or part of

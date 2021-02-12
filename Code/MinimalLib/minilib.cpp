@@ -537,12 +537,12 @@ std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
         }
         bestMatch = bestMatchFiltered;
       }
-      RDDepict::generateDepictionMatching2DStructure(*d_mol, *(templateMol.d_mol), bestMatch, confId,
-                                                    acceptFailure);
+      RDDepict::generateDepictionMatching2DStructure(
+          *d_mol, *(templateMol.d_mol), bestMatch, confId, acceptFailure);
     }
   } else {
-    RDDepict::generateDepictionMatching2DStructure(*d_mol, *(templateMol.d_mol), confId,
-                                                  refPattern, acceptFailure);
+    RDDepict::generateDepictionMatching2DStructure(
+        *d_mol, *(templateMol.d_mol), confId, refPattern, acceptFailure);
   }
 #ifdef RDK_BUILD_COORDGEN_SUPPORT
   RDDepict::preferCoordGen = oprefer;
