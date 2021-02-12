@@ -25,7 +25,6 @@
 #include <Geometry/Transform2D.h>
 #include <Geometry/Transform3D.h>
 #include <GraphMol/MolTransforms/MolTransforms.h>
-#include <GraphMol/Substruct/SubstructMatch.h>
 #include "EmbeddedFrag.h"
 #include "DepictUtils.h"
 #include <iostream>
@@ -451,6 +450,56 @@ unsigned int compute2DCoordsMimicDistMat(
   return cid;
 }
 
+void generateDepictionMatching2DStructureInternal(
+    RDKit::ROMol &mol, const RDKit::ROMol &reference,
+    const RDKit::MatchVectType &matchVect, const std::vector<int> &refMatch,
+    int confId,
+    bool acceptFailure, bool forceRDKit) {
+  RDGeom::INT_POINT2D_MAP coordMap;
+  if (matchVect.empty()) {
+    if (!acceptFailure) {
+      throw RDDepict::DepictException(
+          "Substructure match with reference not found.");
+    }
+  } else {
+    const RDKit::Conformer &conf = reference.getConformer(confId);
+    for (const auto &mv : matchVect) {
+      if (refMatch[mv.first] < 0) {
+        throw RDDepict::DepictException(
+            "Found unexpected -1 in refMatch vector");
+      }
+      RDGeom::Point3D pt3 = conf.getAtomPos(refMatch[mv.first]);
+      RDGeom::Point2D pt2(pt3.x, pt3.y);
+      coordMap[mv.second] = pt2;
+    }
+  }
+  RDDepict::compute2DCoords(mol, &coordMap, false /* canonOrient */,
+                            true /* clearConfs */, 0, 0, 0, false, forceRDKit);
+}
+
+//! \brief Compute 2D coordinates where a piece of the molecule is
+//   constrained to have the same coordinates as a reference;
+//   corresepondences between reference and molecule atom indices
+//   are governed by refMatchVect
+void generateDepictionMatching2DStructure(
+    RDKit::ROMol &mol, const RDKit::ROMol &reference,
+    const RDKit::MatchVectType &refMatchVect,
+    int confId,
+    bool acceptFailure, bool forceRDKit) {
+  std::vector<int> refMatch(reference.getNumAtoms(), -1);
+  if (refMatchVect.size() > reference.getNumAtoms(true)) {
+    throw RDDepict::DepictException(
+        "When a refMatchVect is provided, it must have size "
+        "<= number of atoms in the reference");
+  }
+  for (auto &i : refMatchVect) {
+    refMatch[i.first] = i.first;
+  }
+  generateDepictionMatching2DStructureInternal(
+    mol, reference, refMatchVect,
+    refMatch, confId, acceptFailure, forceRDKit);
+}
+
 //! \brief Compute 2D coordinates where a piece of the molecule is
 //   constrained to have the same coordinates as a reference.
 void generateDepictionMatching2DStructure(RDKit::ROMol &mol,
@@ -461,10 +510,10 @@ void generateDepictionMatching2DStructure(RDKit::ROMol &mol,
   std::vector<int> refMatch;
   RDKit::MatchVectType matchVect;
   if (referencePattern) {
-    if (reference.getNumAtoms(true) != referencePattern->getNumAtoms(true)) {
+    if (referencePattern->getNumAtoms(true) > reference.getNumAtoms(true)) {
       throw RDDepict::DepictException(
-          "When a pattern is provided, it must have the same number of atoms "
-          "as the reference");
+          "When a pattern is provided, its number of atoms must be "
+          "<= reference");
     }
     RDKit::MatchVectType refMatchVect;
     RDKit::SubstructMatch(reference, *referencePattern, refMatchVect);
@@ -472,36 +521,19 @@ void generateDepictionMatching2DStructure(RDKit::ROMol &mol,
       throw RDDepict::DepictException(
           "Reference pattern does not map to reference.");
     }
-    refMatch.reserve(refMatchVect.size());
+    refMatch.resize(reference.getNumAtoms(true), -1);
     for (auto &i : refMatchVect) {
-      refMatch.push_back(i.second);
+      refMatch[i.first] = i.second;
     }
     RDKit::SubstructMatch(mol, *referencePattern, matchVect);
   } else {
-    refMatch.reserve(reference.getNumAtoms(true));
-    for (unsigned int i = 0; i < reference.getNumAtoms(true); ++i) {
-      refMatch.push_back(i);
-    }
+    refMatch.resize(reference.getNumAtoms(true));
+    std::iota(refMatch.begin(), refMatch.end(), 0);
     RDKit::SubstructMatch(mol, reference, matchVect);
   }
-
-  RDGeom::INT_POINT2D_MAP coordMap;
-  if (matchVect.empty()) {
-    if (!acceptFailure) {
-      throw RDDepict::DepictException(
-          "Substructure match with reference not found.");
-    }
-  } else {
-    const RDKit::Conformer &conf = reference.getConformer(confId);
-    for (RDKit::MatchVectType::const_iterator mv = matchVect.begin();
-         mv != matchVect.end(); ++mv) {
-      RDGeom::Point3D pt3 = conf.getAtomPos(refMatch[mv->first]);
-      RDGeom::Point2D pt2(pt3.x, pt3.y);
-      coordMap[mv->second] = pt2;
-    }
-  }
-  RDDepict::compute2DCoords(mol, &coordMap, false /* canonOrient */,
-                            true /* clearConfs */, 0, 0, 0, false, forceRDKit);
+  generateDepictionMatching2DStructureInternal(
+    mol, reference, matchVect,
+    refMatch, confId, acceptFailure, forceRDKit);
 }
 
 //! \brief Generate a 2D depiction for a molecule where all or part of

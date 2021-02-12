@@ -513,38 +513,37 @@ std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
   RDDepict::preferCoordGen = useCoordGen;
 #endif
   RDKit::ROMol *refPattern = nullptr;
-  std::unique_ptr<RDKit::RWMol> templateCopy;
-  RDKit::RWMol *templateRWMol = templateMol.d_mol.get();
+  bool acceptFailure = true;
+  int confId = -1;
   if (allowRGroups) {
     std::unique_ptr<RDKit::ROMol> molHs(
         RDKit::MolOps::addHs(*static_cast<ROMol *>(d_mol.get())));
     if (molHs) {
-      MatchScorer matchScorer(*molHs, *templateRWMol);
-      auto matches = SubstructMatch(*molHs, *templateRWMol);
-      auto bestMatch = *std::min_element(
+      MatchScorer matchScorer(*molHs, *(templateMol.d_mol));
+      auto matches = SubstructMatch(*molHs, *(templateMol.d_mol));
+      auto bestMatchOrig = *std::min_element(
           matches.begin(), matches.end(),
           [&matchScorer](const MatchVectType &aMatch,
                          const MatchVectType &bMatch) {
             return (matchScorer.score(aMatch) < matchScorer.score(bMatch));
           });
+      auto &bestMatch = bestMatchOrig;
       if (matchScorer.score(bestMatch) > 1.0) {
-        templateCopy.reset(new RDKit::RWMol(*templateRWMol));
-        templateRWMol = templateCopy.get();
+        MatchVectType bestMatchFiltered;
         for (const auto &pair : bestMatch) {
-          if (matchScorer.doesQueryRGroupMatchHydrogen(pair)) {
-            Atom *dummyAtom = templateRWMol->getAtomWithIdx(pair.first);
-            dummyAtom->setAtomicNum(1);
-            dummyAtom->setIsotope(0);
+          if (molHs->getAtomWithIdx(pair.second)->getAtomicNum() != 1) {
+            bestMatchFiltered.push_back(pair);
           }
         }
-        RDKit::MolOps::removeAllHs(*templateRWMol);
+        bestMatch = bestMatchFiltered;
       }
+      RDDepict::generateDepictionMatching2DStructure(*d_mol, *(templateMol.d_mol), bestMatch, confId,
+                                                    acceptFailure);
     }
+  } else {
+    RDDepict::generateDepictionMatching2DStructure(*d_mol, *(templateMol.d_mol), confId,
+                                                  refPattern, acceptFailure);
   }
-  bool acceptFailure = true;
-  int confId = -1;
-  RDDepict::generateDepictionMatching2DStructure(*d_mol, *templateRWMol, confId,
-                                                 refPattern, acceptFailure);
 #ifdef RDK_BUILD_COORDGEN_SUPPORT
   RDDepict::preferCoordGen = oprefer;
 #endif
