@@ -180,7 +180,9 @@ BOOST_PYTHON_MODULE(rdDepictor) {
      sampleSeed - seed for the random sampling process.\n\
      permuteDeg4Nodes - allow permutation of bonds at a degree 4\n\
                  node during the sampling process \n\
-     bondLength - change the default bond length for depiction \n\n\
+     bondLength - change the default bond length for depiction \n\
+     forceRDKit - use RDKit to generate coordinates even if \n\
+                  preferCoordGen is set to true\n\n\
   RETURNS: \n\n\
      ID of the conformation added to the molecule\n";
   python::def(
@@ -216,7 +218,9 @@ BOOST_PYTHON_MODULE(rdDepictor) {
      sampleSeed - seed for the random sampling process.\n\
      permuteDeg4Nodes - allow permutation of bonds at a degree 4\n\
                  node during the sampling process \n\
-     bondLength - change the default bond length for depiction \n\n\
+     bondLength - change the default bond length for depiction \n\
+     forceRDKit - use RDKit to generate coordinates even if \n\
+                  preferCoordGen is set to true\n\n\
   RETURNS: \n\n\
      ID of the conformation added to the molecule\n";
   python::def(
@@ -245,6 +249,8 @@ BOOST_PYTHON_MODULE(rdDepictor) {
   acceptFailure - (optional) if True, standard depictions will be generated \n\
                   for molecules that don't have a substructure match to the \n\
                   reference; if False, throws a DepictException.\n\
+  forceRDKit -    (optional) use RDKit to generate coordinates even if \n\
+                  preferCoordGen is set to true\n\
   allowRGroups -  (optional) if True, terminal dummy atoms in the \n\
                   reference are ignored if they match an implicit \n\
                   hydrogen in the molecule, and a constrained \n\
@@ -271,7 +277,9 @@ BOOST_PYTHON_MODULE(rdDepictor) {
   atomMap -      a sequence of (queryAtomIdx, molAtomIdx) pairs that will \n\
                  be used to generate the atom mapping between the molecule \n\
                  and the reference. \n\
-  confId -       (optional) the id of the reference conformation to use \n";
+  confId -       (optional) the id of the reference conformation to use \n\
+  forceRDKit -   (optional) use RDKit to generate coordinates even if \n\
+                 preferCoordGen is set to true\n";
   python::def(
       "GenerateDepictionMatching2DStructure",
       RDDepict::GenerateDepictionMatching2DStructureAtomMap,
@@ -295,7 +303,9 @@ BOOST_PYTHON_MODULE(rdDepictor) {
                       atoms are aligned. \n\
   acceptFailure - (optional) if True, standard depictions will be generated \n\
                   for molecules that don't match the reference or the\n\
-                  referencePattern; if False, throws a DepictException.\n";
+                  referencePattern; if False, throws a DepictException.\n\
+  forceRDKit -    (optional) use RDKit to generate coordinates even if \n\
+                  preferCoordGen is set to true";
 
   python::def(
       "GenerateDepictionMatching3DStructure",
