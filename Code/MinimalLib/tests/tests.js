@@ -240,11 +240,16 @@ M  END`;
     var meta = RDKitModule.get_mol(meta_smiles);
     var biphenyl = RDKitModule.get_mol(biphenyl_smiles);
     var phenyl = RDKitModule.get_mol(phenyl_smiles);
-    ortho_meta.generate_aligned_coords(template_ref, false, true);
-    ortho.generate_aligned_coords(template_ref, false, true);
-    meta.generate_aligned_coords(template_ref, false, true);
-    biphenyl.generate_aligned_coords(template_ref, false, true);
-    phenyl.generate_aligned_coords(template_ref, false, true);
+    console.log('1');
+    console.log(ortho_meta.generate_aligned_coords(template_ref, false, true));
+    console.log('2');
+    console.log(ortho.generate_aligned_coords(template_ref, false, true));
+    console.log('3');
+    console.log(meta.generate_aligned_coords(template_ref, false, true));
+    console.log('4');
+    console.log(biphenyl.generate_aligned_coords(template_ref, false, true));
+    console.log('5');
+    console.log(phenyl.generate_aligned_coords(template_ref, false, true));
 }
 
 
