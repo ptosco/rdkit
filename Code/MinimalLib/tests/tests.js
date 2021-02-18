@@ -253,6 +253,63 @@ M  END`;
 }
 
 
+function test_failure_does_not_overwrite_coords(){
+    var template_molblock = `
+     RDKit          2D
+
+  9  9  0  0  0  0  0  0  0  0999 V2000
+   -0.8929    1.0942    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.1919    0.3442    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.1919   -1.1558    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.8929   -1.9059    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.4060   -1.1558    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.4060    0.3442    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -3.4910    1.0942    0.0000 R1  0  0  0  0  0  0  0  0  0  0  0  0
+    1.7051    1.0942    0.0000 R2  0  0  0  0  0  0  0  0  0  0  0  0
+   -3.4910   -1.9059    0.0000 R3  0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  2  0
+  2  3  1  0
+  3  4  2  0
+  4  5  1  0
+  5  6  2  0
+  6  1  1  0
+  6  8  1  0
+  3  9  1  0
+  2  7  1  0
+M  RGP  3   7   1   8   2   9   3
+M  END
+`;
+    var mol_molblock = `
+     RDKit          2D
+
+  9  9  0  0  0  0  0  0  0  0999 V2000
+   -0.8929    1.0942    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.1919    0.3442    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.1919   -1.1558    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.8929   -1.9059    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.4060   -1.1558    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.4060    0.3442    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -3.4910    1.0942    0.0000 F   0  0  0  0  0  0  0  0  0  0  0  0
+    1.7051    1.0942    0.0000 Cl  0  0  0  0  0  0  0  0  0  0  0  0
+   -3.4910   -1.9059    0.0000 Br  0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  2  0
+  2  3  1  0
+  3  4  2  0
+  4  5  1  0
+  5  6  2  0
+  6  1  1  0
+  6  8  1  0
+  3  9  1  0
+  2  7  1  0
+M  END
+`;
+    var template_ref = RDKitModule.get_mol(template_molblock);
+    var mol = RDKitModule.get_mol(mol_molblock);
+    assert.equal(mol.generate_aligned_coords(template_ref, false, true), "{}");
+    assert.equal(mol.get_molblock(), mol_molblock);
+}
+
+
 initRDKitModule().then(function(instance) {
     RDKitModule = instance;
     console.log(RDKitModule.version());
@@ -265,5 +322,6 @@ initRDKitModule().then(function(instance) {
     test_substruct_library();
     test_generate_aligned_coords();
     test_generate_aligned_coords_allow_rgroups();
+    test_failure_does_not_overwrite_coords();
     console.log("Tests finished successfully");
 });

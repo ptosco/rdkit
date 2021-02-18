@@ -480,7 +480,7 @@ std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
   RDDepict::preferCoordGen = useCoordGen;
 #endif
   RDKit::ROMol *refPattern = nullptr;
-  bool acceptFailure = true;
+  bool acceptFailure = (d_mol->getNumConformers() == 0);
   int confId = -1;
   RDKit::MatchVectType match = RDDepict::generateDepictionMatching2DStructure(
       *d_mol, *(templateMol.d_mol), confId, refPattern, acceptFailure, false,
@@ -493,6 +493,8 @@ std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
     rj::Writer<rj::StringBuffer> writer(buffer);
     doc.Accept(writer);
     res = buffer.GetString();
+  } else {
+    res = "{}";
   }
 #ifdef RDK_BUILD_COORDGEN_SUPPORT
   RDDepict::preferCoordGen = oprefer;

@@ -557,15 +557,17 @@ RDKit::MatchVectType generateDepictionMatching2DStructure(
   if (!allowOptionalAttachments) {
     RDKit::SubstructMatch(mol, query, matchVect);
   }
-  if (matchVect.empty() && !acceptFailure) {
-    throw RDDepict::DepictException(
-        "Substructure match with reference not found.");
+  if (!matchVect.empty() || acceptFailure) {
+    for (auto &pair : matchVect) {
+      pair.first = refMatch.at(pair.first);
+    }
+    generateDepictionMatching2DStructure(mol, reference, matchVect, confId,
+                                        forceRDKit);
+  } else {
+    BOOST_LOG(rdWarningLog)
+        << "WARNING: Substructure match with reference not found.";
   }
-  for (auto &pair : matchVect) {
-    pair.first = refMatch.at(pair.first);
-  }
-  generateDepictionMatching2DStructure(mol, reference, matchVect, confId,
-                                       forceRDKit);
+
   return matchVect;
 }
 
