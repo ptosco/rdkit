@@ -39,13 +39,17 @@ class JSMol {
                                                double maxCoverage,
                                                bool areLinkers);
   std::string generate_aligned_coords(const JSMol &templateMol,
-                                      bool useCoordGen, bool allowRGroups);
+                                      bool useCoordGen, bool allowOptionalAttachments, bool acceptFailure);
+  std::string generate_aligned_coords(const JSMol &templateMol,
+                                      bool useCoordGen, bool allowOptionalAttachments) {
+    return generate_aligned_coords(templateMol, useCoordGen, allowOptionalAttachments, true);
+  };
   std::string generate_aligned_coords(const JSMol &templateMol,
                                       bool useCoordGen) {
-    return generate_aligned_coords(templateMol, useCoordGen, false);
+    return generate_aligned_coords(templateMol, useCoordGen, false, true);
   };
   std::string generate_aligned_coords(const JSMol &templateMol) {
-    return generate_aligned_coords(templateMol, false, false);
+    return generate_aligned_coords(templateMol, false, false, true);
   };
 
   bool is_valid() const { return d_mol.get() != nullptr; };

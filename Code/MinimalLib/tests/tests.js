@@ -297,7 +297,7 @@ M  END`;
 }
 
 
-function test_failure_does_not_overwrite_coords(){
+function test_accept_failure(){
     var template_molblock = `
      RDKit          2D
 
@@ -349,7 +349,7 @@ M  END
 `;
     var template_ref = RDKitModule.get_mol(template_molblock);
     var mol = RDKitModule.get_mol(mol_molblock);
-    assert.equal(mol.generate_aligned_coords(template_ref, false, true), "{}");
+    assert.equal(mol.generate_aligned_coords(template_ref, false, true, false), "{}");
     assert.equal(mol.get_molblock(), mol_molblock);
 }
 
@@ -367,7 +367,7 @@ initRDKitModule().then(function(instance) {
     test_generate_aligned_coords();
     test_isotope_labels();
     test_generate_aligned_coords_allow_rgroups();
-    test_failure_does_not_overwrite_coords();
+    test_accept_failure();
     test_isotope_labels();
     console.log("Tests finished successfully");
 });

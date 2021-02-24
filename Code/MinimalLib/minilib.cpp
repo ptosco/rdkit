@@ -470,7 +470,8 @@ std::string JSMol::condense_abbreviations_from_defs(
 
 std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
                                            bool useCoordGen,
-                                           bool allowRGroups) {
+                                           bool allowOptionalAttachments,
+                                           bool acceptFailure) {
   std::string res;
   if (!d_mol || !templateMol.d_mol || !templateMol.d_mol->getNumConformers())
     return res;
@@ -480,11 +481,10 @@ std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
   RDDepict::preferCoordGen = useCoordGen;
 #endif
   RDKit::ROMol *refPattern = nullptr;
-  bool acceptFailure = (d_mol->getNumConformers() == 0);
   int confId = -1;
   RDKit::MatchVectType match = RDDepict::generateDepictionMatching2DStructure(
       *d_mol, *(templateMol.d_mol), confId, refPattern, acceptFailure, false,
-      allowRGroups);
+      allowOptionalAttachments);
   if (!match.empty()) {
     rj::Document doc;
     doc.SetObject();

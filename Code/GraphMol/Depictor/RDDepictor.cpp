@@ -558,8 +558,12 @@ RDKit::MatchVectType generateDepictionMatching2DStructure(
     RDKit::SubstructMatch(mol, query, matchVect);
   }
   if (matchVect.empty() && !acceptFailure) {
+#ifdef __EMSCRIPTEN__
+    return matchVect;
+#else
     throw RDDepict::DepictException(
         "Substructure match with reference not found.");
+#endif
   }
   for (auto &pair : matchVect) {
     pair.first = refMatch.at(pair.first);
