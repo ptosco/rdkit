@@ -74,7 +74,105 @@ TEST_CASE("tag atoms in SVG", "[drawing][SVG]") {
     CHECK(text.find("atom-selector") != std::string::npos);
     CHECK(text.find("bond-selector") != std::string::npos);
   }
+  SECTION("inject prop to class") {
+    auto m1 = "C1N[C@@H]2OCC12"_smiles;
+    REQUIRE(m1);
+
+    for (auto atom : m1->atoms()) {
+      auto prop = boost::format("__prop_class_atom_%d") % atom->getIdx();
+	  atom->setProp("_tagClass", prop.str());
+    }
+    for (auto bond : m1->bonds()) {
+      auto prop = boost::format("__prop_class_bond_%d") % bond->getIdx();
+      bond->setProp("_tagClass", prop.str());
+    }
+
+    MolDraw2DSVG drawer(200, 200, -1, -1, NO_FREETYPE);
+    MolDraw2DUtils::prepareMolForDrawing(*m1);
+    drawer.drawMolecule(*m1);
+    drawer.tagAtoms(*m1);
+    drawer.finishDrawing();
+    std::string text = drawer.getDrawingText();
+    std::ofstream outs("testAtomTags_2.svg");
+    outs << text;
+    outs.flush();
+
+    size_t i = 0;
+    size_t c = 0;
+    while (true) {
+      auto i2 = text.find("__prop_class_atom_", i);
+	  if (i2==std::string::npos) {
+		  break;
+	  }
+      i = i2+1;
+      c++;
+    }
+    CHECK(c == 6);
+
+    i = 0;
+    c = 0;
+    while (true) {
+      auto i2 = text.find("__prop_class_bond_", i);
+	  if (i2==std::string::npos) {
+		  break;
+	  }
+      i = i2+1;
+      c++;
+    }
+    CHECK(c == 7);
+  }
 }
+
+TEST_CASE("metadata in SVG", "[drawing][SVG]") {
+  SECTION("inject prop to metada") {
+    auto m1 = "C1N[C@@H]2OCC12"_smiles;
+    REQUIRE(m1);
+
+    for (auto atom : m1->atoms()) {
+      auto prop = boost::format("__prop_metadata_atom_%d") % atom->getIdx();
+      atom->setProp("_metaData-atom-inject-prop", prop.str());
+    }
+    for (auto bond : m1->bonds()) {
+      auto prop = boost::format("__prop_metadata_bond_%d") % bond->getIdx();
+      bond->setProp("_metaData-bond-inject-prop", prop.str());
+    }
+
+    MolDraw2DSVG drawer(200, 200, -1, -1, NO_FREETYPE);
+    MolDraw2DUtils::prepareMolForDrawing(*m1);
+    drawer.drawMolecule(*m1);
+    drawer.addMoleculeMetadata(*m1);
+    drawer.finishDrawing();
+    std::string text = drawer.getDrawingText();
+    std::ofstream outs("testAtomTags_2.svg");
+    outs << text;
+    outs.flush();
+
+    size_t i = 0;
+    size_t c = 0;
+    while (true) {
+      auto i2 = text.find("atom-inject-prop=\"__prop_metadata_atom_", i);
+      if (i2 == std::string::npos) {
+        break;
+      }
+      i = i2 + 1;
+      c++;
+    }
+    CHECK(c == 6);
+
+    i = 0;
+    c = 0;
+    while (true) {
+      auto i2 = text.find("bond-inject-prop=\"__prop_metadata_bond_", i);
+      if (i2 == std::string::npos) {
+        break;
+      }
+      i = i2 + 1;
+      c++;
+    }
+    CHECK(c == 7);
+  }
+}
+
 TEST_CASE("contour data", "[drawing][conrec]") {
   auto m1 = "C1N[C@@H]2OCC12"_smiles;
   REQUIRE(m1);
@@ -247,7 +345,7 @@ TEST_CASE("dative bonds", "[drawing][organometallics]") {
     outs << text;
     outs.flush();
 
-    CHECK(text.find("<path class='bond-0' d='M 126.052,100 L 85.9675,100'"
+    CHECK(text.find("<path class='bond-0 atom-0 atom-1' d='M 126.052,100 L 85.9675,100'"
                     " style='fill:none;fill-rule:evenodd;"
                     "stroke:#0000FF;") != std::string::npos);
   }
@@ -263,7 +361,7 @@ TEST_CASE("dative bonds", "[drawing][organometallics]") {
     outs << text;
     outs.flush();
 
-    CHECK(text.find("<path class='bond-7' d='M 101.307,79.424 "
+    CHECK(text.find("<path class='bond-7 atom-7 atom-8' d='M 101.307,79.424 "
                     "L 95.669,87.1848' style='fill:none;"
                     "fill-rule:evenodd;stroke:#0000FF;") != std::string::npos);
   }
@@ -281,7 +379,7 @@ TEST_CASE("dative bonds", "[drawing][organometallics]") {
     outs << text;
     outs.flush();
 
-    CHECK(text.find("<path class='bond-2' d='M 53.289,140.668"
+    CHECK(text.find("<path class='bond-2 atom-3 atom-4' d='M 53.289,140.668"
                     " L 81.0244,149.68' style='fill:none;"
                     "fill-rule:evenodd;stroke:#0000FF;") != std::string::npos);
   }
@@ -842,7 +940,7 @@ TEST_CASE("including legend in drawing results in offset drawing later",
     outs.flush();
 
     // make sure the polygon starts at a bond
-    CHECK(text.find("<path class='bond-0' d='M 321.962,140") !=
+    CHECK(text.find("<path class='bond-0 atom-0 atom-1' d='M 321.962,140") !=
           std::string::npos);
     CHECK(text.find("<path d='M 321.962,140") != std::string::npos);
   }
@@ -1856,8 +1954,8 @@ TEST_CASE("disable atom labels", "[feature]") {
     std::ofstream outs("testNoAtomLabels-1.svg");
     outs << text;
     outs.flush();
-    CHECK(text.find("atom-0") == std::string::npos);
-    CHECK(text.find("atom-3") == std::string::npos);
+    CHECK(text.find("class='atom-0") == std::string::npos);
+    CHECK(text.find("class='atom-3") == std::string::npos);
   }
 }
 
@@ -2449,5 +2547,97 @@ M  END
     std::ofstream outs("testAtomLists-2.svg");
     outs << text;
     outs.flush();
+  }
+}
+
+TEST_CASE("test the options that toggle isotope labels", "[drawing]") {
+  SECTION("test all permutations") {
+    auto m = "[1*]c1cc([2*])c([3*])c[14c]1"_smiles;
+    REQUIRE(m);
+    std::regex regex(R"regex(<text\s+.*>\d</text>)regex");
+    std::smatch match;
+    std::string line;
+    {
+      MolDraw2DSVG drawer(300, 300, -1, -1, true);
+      drawer.drawMolecule(*m);
+      drawer.finishDrawing();
+      std::string textIsoDummyIso = drawer.getDrawingText();
+      std::ofstream outs("testIsoDummyIso.svg");
+      outs << textIsoDummyIso;
+      outs.flush();
+      size_t nIsoDummyIso = std::distance(
+          std::sregex_token_iterator(textIsoDummyIso.begin(),
+                                     textIsoDummyIso.end(), regex),
+          std::sregex_token_iterator());
+      CHECK(nIsoDummyIso == 5);
+    }
+    {
+      MolDraw2DSVG drawer(300, 300, -1, -1, true);
+      drawer.drawOptions().isotopeLabels = false;
+      drawer.drawMolecule(*m);
+      drawer.finishDrawing();
+      std::string textNoIsoDummyIso = drawer.getDrawingText();
+      std::ofstream outs("testNoIsoDummyIso.svg");
+      outs << textNoIsoDummyIso;
+      outs.flush();
+      size_t nNoIsoDummyIso = std::distance(
+          std::sregex_token_iterator(textNoIsoDummyIso.begin(),
+                                     textNoIsoDummyIso.end(), regex, 1),
+          std::sregex_token_iterator());
+      CHECK(nNoIsoDummyIso == 3);
+    }
+    {
+      MolDraw2DSVG drawer(300, 300, -1, -1, true);
+      drawer.drawOptions().dummyIsotopeLabels = false;
+      drawer.drawMolecule(*m);
+      drawer.finishDrawing();
+      std::string textIsoNoDummyIso = drawer.getDrawingText();
+      std::ofstream outs("testIsoNoDummyIso.svg");
+      outs << textIsoNoDummyIso;
+      outs.flush();
+      size_t nIsoNoDummyIso = std::distance(
+          std::sregex_token_iterator(textIsoNoDummyIso.begin(),
+                                     textIsoNoDummyIso.end(), regex, 1),
+          std::sregex_token_iterator());
+      CHECK(nIsoNoDummyIso == 2);
+    }
+    {
+      MolDraw2DSVG drawer(300, 300, -1, -1, true);
+      drawer.drawOptions().isotopeLabels = false;
+      drawer.drawOptions().dummyIsotopeLabels = false;
+      drawer.drawMolecule(*m);
+      drawer.finishDrawing();
+      std::string textNoIsoNoDummyIso = drawer.getDrawingText();
+      std::ofstream outs("testNoIsoNoDummyIso.svg");
+      outs << textNoIsoNoDummyIso;
+      outs.flush();
+      size_t nNoIsoNoDummyIso = std::distance(
+          std::sregex_token_iterator(textNoIsoNoDummyIso.begin(),
+                                     textNoIsoNoDummyIso.end(), regex, 1),
+          std::sregex_token_iterator());
+      CHECK(nNoIsoNoDummyIso == 0);
+    }
+  }
+  SECTION("test that D/T show up even if isotope labels are hidden") {
+    auto m = "C([1H])([2H])([3H])[H]"_smiles;
+    std::regex regex(R"regex(<text\s+.*>[DT]</text>)regex");
+    std::smatch match;
+    REQUIRE(m);
+    std::string line;
+    MolDraw2DSVG drawer(300, 300, -1, -1, true);
+    drawer.drawOptions().isotopeLabels = false;
+    drawer.drawOptions().dummyIsotopeLabels = false;
+    drawer.drawOptions().atomLabelDeuteriumTritium = true;
+    drawer.drawMolecule(*m);
+    drawer.finishDrawing();
+    std::string textDeuteriumTritium = drawer.getDrawingText();
+    std::ofstream outs("testDeuteriumTritium.svg");
+    outs << textDeuteriumTritium;
+    outs.flush();
+    size_t nDeuteriumTritium = std::distance(
+        std::sregex_token_iterator(textDeuteriumTritium.begin(),
+                                   textDeuteriumTritium.end(), regex, 1),
+        std::sregex_token_iterator());
+    CHECK(nDeuteriumTritium == 2);
   }
 }

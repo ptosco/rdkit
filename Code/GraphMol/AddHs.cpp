@@ -1,5 +1,5 @@
 //
-//  Copyright (C) 2003-2019 Greg Landrum and Rational Discovery LLC
+//  Copyright (C) 2003-2021 Greg Landrum and Rational Discovery LLC
 //
 //   @@ All Rights Reserved @@
 //  This file is part of the RDKit.
@@ -19,6 +19,7 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/dynamic_bitset.hpp>
+#include <boost/range/iterator_range.hpp>
 
 namespace RDKit {
 
@@ -435,16 +436,31 @@ void setHydrogenCoords(ROMol *mol, unsigned int hydIdx, unsigned int heavyIdx) {
           // we're in flatland
           // this was github #908
           // We're in a 2D conformation, put the H between the two neighbors
-          // that have the widest angle between them:
+          // that have the widest angle between them. Unless the two are
+          // opposite ends of a straight line through the heavy atom,
+          // which would make the H overlap with the heavy atom.
+          // In such case, set it on the opposite direction to the 3rd neighbor.
           double minDot = nbr1Vect.dotProduct(nbr2Vect);
-          dirVect = nbr1Vect + nbr2Vect;
+          if (fabs(minDot + 1) < 1e-4) {
+            dirVect = -nbr3Vect;
+          } else {
+            dirVect = nbr1Vect + nbr2Vect;
+          }
           if (nbr2Vect.dotProduct(nbr3Vect) < minDot) {
             minDot = nbr2Vect.dotProduct(nbr3Vect);
-            dirVect = nbr2Vect + nbr3Vect;
+            if (fabs(minDot + 1) < 1e-4) {
+              dirVect = -nbr1Vect;
+            } else {
+              dirVect = nbr2Vect + nbr3Vect;
+            }
           }
           if (nbr1Vect.dotProduct(nbr3Vect) < minDot) {
             minDot = nbr1Vect.dotProduct(nbr3Vect);
-            dirVect = nbr1Vect + nbr3Vect;
+            if (fabs(minDot + 1) < 1e-4) {
+              dirVect = -nbr2Vect;
+            } else {
+              dirVect = nbr1Vect + nbr3Vect;
+            }
           }
           dirVect *= -1;
         }
@@ -1138,5 +1154,23 @@ ROMol *mergeQueryHs(const ROMol &mol, bool mergeUnmappedOnly) {
   return static_cast<ROMol *>(res);
 };
 
-};  // end of namespace MolOps
-};  // namespace RDKit
+bool needsHs(const ROMol &mol) {
+  for (const auto atom : mol.atoms()) {
+    unsigned int nHNbrs = 0;
+    for (const auto nbri :
+         boost::make_iterator_range(mol.getAtomNeighbors(atom))) {
+      const auto nbr = mol[nbri];
+      if (nbr->getAtomicNum() == 1) {
+        ++nHNbrs;
+      }
+    }
+    bool noNeighbors = false;
+    if (atom->getTotalNumHs(noNeighbors) > nHNbrs) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // end of namespace MolOps
+}  // namespace RDKit
