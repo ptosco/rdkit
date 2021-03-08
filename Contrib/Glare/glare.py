@@ -1,20 +1,17 @@
+
+import random, operator, itertools, math
+
 """
 Glare Algorithm
 
 Some nomenclature:
-
- GLARE: A New Approach for Filtering Large Reagent Lists in 
-           Combinatorial Library Design Using Product Properties
-    Jean-Francois Truchon* and Christopher I. Bayly
-
-    http://pubs.acs.org/doi/pdf/10.1021/ci0504871
 
  A Libary is made of RGroups
  RGroups are a collection of sidechains (the paper uses Fragments)
   that can populate the rgroup position.
 
  We desire to optimize the Library so that we have a good chance
-  of making the products in the desired property range.
+  of making the desired products.
 
  Example From the testing code, using Fake data:
 
@@ -31,14 +28,7 @@ Some nomenclature:
     glare = Glare()
     # optimize the library...
     glare.optimize(lib, props)
-    for reactant_idx, rgroup in enumerate(lib.rgroups):
-        print(f"Reactants for reactant {reactant_idx}")
-        for reactant in rgroup.sidechhains:
-            print(reactant.name)
 """
-import random, operator, itertools, math
-from functools import reduce
-
 
 class Property:
     def __init__(self, name, propIdx, minValue, maxValue, scaffoldoffset=0.0):
@@ -74,7 +64,7 @@ class Sidechain:
     """Holds the name (identifier) and property list for the
     given sidechain/fragment.  Properties are assumed to
     be numerical values"""
-    def __init__(self, name, props, goodCount=0, **extra_data):
+    def __init__(self, name, props, goodCount=0):
         """name, props, goodCount=0 -> initialize a Sidechain
         initialize a sidechain.
         name: the unique name for the sidechain
@@ -87,16 +77,12 @@ class Sidechain:
         self.props = props
         self.good_count = goodCount # shared variable
         self.dropped = False        # shared variable
-        self.extra_data = extra_data
-
-    def data(self):
-        return self.extra_data
-    
+        
     def __str__(self):
-        return "Sidechain %s(%s, goodCount=%s, **%r)"%(self.name,
-                                                       self.props, self.good_count, self.extra_data)
+        return "Sidechain %s(%s, goodCount=%s)"%(self.name,
+                                                 self.props, self.good_count)
     def __repr__(self):
-        return "Sidechain(%r, %r, %s, **%r)"%(self.name, self.props, self.good_count, self.extra_data)
+        return "Sidechain(%r, %r, %s)"%(self.name, self.props, self.good_count)
     
 class RGroups:
     """Holds a collection of sidechains for the given RGroup"""
@@ -146,7 +132,7 @@ class RGroups:
         fractionToKeep percentage"""
         assert 0 < fractionToKeep <= 1.0, "fractionToKeep: %s"%fractionToKeep
 
-        self.sidechains.sort(key=lambda x: x.good_count, reverse=True)
+        self.sidechains.sort(lambda x,y: -cmp(x.good_count, y.good_count))
         fragment_index = int(len(self.sidechains) * fractionToKeep + 0.5)
 
         # update rejected set
@@ -180,13 +166,13 @@ class Library:
         return the number of sidechains in a partition
         for each rgroup"""
 
-        sizes = [ (libIdx, max(rg.count()//total_num_partitions_per_rgroup, 1))
+        sizes = [ (libIdx, max(rg.count()/total_num_partitions_per_rgroup, 1))
                   for libIdx, rg in enumerate(self.rgroups) ]
 
-        # "optimally" apportion the partitions according the
+        # "optimially" apportion the partitions according the
         #  the glare paper see Appendix eq (8) and (9)
         # sort by size
-        sizes.sort(key=lambda sz: sz[1])
+        sizes.sort(lambda x,y: cmp(x[1], y[1]))
         last_size = 1
         opt_sizes = []
         for libIdx, current_size in sizes[:-1]:
@@ -217,6 +203,7 @@ class Library:
         """
         partitions = self.getSidechainsPerPartition(num_partitions)
         max_subsets = max(partitions)
+
         enumeration_indices = []
         for i in range(max_subsets):
             combinations = []
@@ -449,13 +436,9 @@ def testGlare():
     
     glare = Glare()
     glare.optimize(lib, props)
-    # print out the selected reactants
-    for reactant_idx, rgroup in enumerate(lib.rgroups):
-        print(f"Reactants for reactant {reactant_idx}")
-        for reactant in rgroup.sidechains:
-            print(reactant.name)
 
 if __name__ == "__main__":
     testGlare()
+
             
         
