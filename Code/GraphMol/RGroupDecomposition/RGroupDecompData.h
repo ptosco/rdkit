@@ -159,8 +159,14 @@ struct RGroupDecompData {
       //  at label 1
       std::map<int, std::set<int>> labelCores;  // map from label->cores
       std::set<int> coresVisited;
-      for (auto &position : results) {
+  #ifdef PT_DEBUG
+      std::cerr << "1) GetCurrentBestPermutation results.size() " << results.size() << std::endl;
+  #endif
+      for (const auto &position : results) {
         int core_idx = position.core_idx;
+  #ifdef PT_DEBUG
+        std::cerr << "1) GetCurrentBestPermutation core_idx " << core_idx << std::endl;
+  #endif
         if (coresVisited.find(core_idx) == coresVisited.end()) {
           coresVisited.insert(core_idx);
           auto core = cores.find(core_idx);
@@ -172,21 +178,45 @@ struct RGroupDecompData {
           }
         }
       }
+#ifdef PT_DEBUG
+        for (const auto &pair : labelCores) {
+        std::cerr << "2) GetCurrentBestPermutation labelCores[" << pair.first << "] = ";
+        for (const auto &s : pair.second) {
+          std::cerr << s << ",";
+        }
+        std::cerr << std::endl;
+      }
+#endif
 
       for (int label : labels) {
+#ifdef PT_DEBUG
+        std::cerr << "3) GetCurrentBestPermutation label " << label << std::endl;
+#endif
         bool allH = true;
-        for (auto &position : results) {
+        for (const auto &position : results) {
           R_DECOMP::const_iterator rgroup = position.rgroups.find(label);
           bool labelHasCore = labelCores[label].find(position.core_idx) !=
                               labelCores[label].end();
-          if (labelHasCore && (rgroup == position.rgroups.end() ||
-                               !rgroup->second->is_hydrogen)) {
+          bool rgroupIsNonExisting = rgroup == position.rgroups.end();
+          bool rgroupIsHydrogen = (rgroupIsNonExisting ? false : rgroup->second->is_hydrogen);
+          std::string rgroupSmiles = (rgroupIsNonExisting ? "" : rgroup->second->smiles);
+#ifdef PT_DEBUG
+          std::cerr << "3) GetCurrentBestPermutation core_idx " << position.core_idx << ", labelHasCore " << labelHasCore << ", rgroupSmiles " << rgroupSmiles << ", rgroupIsNonExisting " << rgroupIsNonExisting << ", rgroupIsHydrogen " << rgroupIsHydrogen << std::endl;
+#endif
+          if (labelHasCore && rgroup != position.rgroups.end() &&
+                               !rgroup->second->is_hydrogen) {
             allH = false;
+#ifdef PT_DEBUG
+            std::cerr << "*** Keep label " << label << ", allH false" << std::endl;
+#endif
             break;
           }
         }
 
         if (allH) {
+#ifdef PT_DEBUG
+          std::cerr << "*** Erase label " << label << ", allH true" << std::endl;
+#endif
           for (auto &position : results) {
             position.rgroups.erase(label);
           }
