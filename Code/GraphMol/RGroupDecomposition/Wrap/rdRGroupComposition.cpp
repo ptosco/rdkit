@@ -306,7 +306,10 @@ struct rgroupdecomp_wrapper {
                        &RDKit::RGroupDecompositionParameters::gaParallelRuns)
         .def_readwrite(
             "allowNonTerminalRGroups",
-            &RDKit::RGroupDecompositionParameters::allowNonTerminalRGroups);
+            &RDKit::RGroupDecompositionParameters::allowNonTerminalRGroups)
+        .def_readwrite(
+            "removeUnusedUserLabels",
+            &RDKit::RGroupDecompositionParameters::removeUnusedUserLabels);
 
     python::class_<RDKit::RGroupDecompositionHelper, boost::noncopyable>(
         "RGroupDecomposition", docString.c_str(),

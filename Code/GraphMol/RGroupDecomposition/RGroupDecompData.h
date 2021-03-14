@@ -175,6 +175,9 @@ struct RGroupDecompData {
       }
 
       for (int label : labels) {
+        if (label >= 0 && !params.removeUnusedUserLabels) {
+          continue;
+        }
         bool allH = true;
         for (auto &position : results) {
           R_DECOMP::const_iterator rgroup = position.rgroups.find(label);
