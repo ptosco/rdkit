@@ -1069,9 +1069,9 @@ void testSymmetryIssues() {
   BOOST_LOG(rdInfoLog) << "Testing R-Group symmetry issues\n";
 
   auto m1 = "c1c(F)cccn1"_smiles;
-  auto m2 = "c1c(Cl)c(C)ccn1"_smiles;
+  auto m2 = "c1c(Cl)c(C)c(Br)cn1"_smiles;
   auto m3 = "c1c(O)cccn1"_smiles;
-  auto m4 = "c1cc(C)c(F)cn1"_smiles;
+  auto m4 = "c1c(Br)c(C)c(F)cn1"_smiles;
   auto core = "c1c([*:1])c([*:2])ccn1"_smiles;
   {
     RGroupDecomposition decomp(*core);
@@ -1090,16 +1090,16 @@ void testSymmetryIssues() {
         ss << MolToSmiles(*rgroup) << std::endl;
       }
     }
-    // We only want two groups added
+    // We want three groups added, fluorine as R1 and bromine as R3
 
-    TEST_ASSERT(r_labels == std::set<std::string>({"Core", "R1", "R2"}));
-    TEST_ASSERT(groups.size() == 3);
+    TEST_ASSERT(r_labels == std::set<std::string>({"Core", "R1", "R2", "R3"}));
+    TEST_ASSERT(groups.size() == 4);
 
     TEST_ASSERT(ss.str() == R"RES(Rgroup===Core
-c1cc([*:2])c([*:1])cn1
-c1cc([*:2])c([*:1])cn1
-c1cc([*:2])c([*:1])cn1
-c1cc([*:2])c([*:1])cn1
+c1ncc([*:3])c([*:2])c1[*:1]
+c1ncc([*:3])c([*:2])c1[*:1]
+c1ncc([*:3])c([*:2])c1[*:1]
+c1ncc([*:3])c([*:2])c1[*:1]
 Rgroup===R1
 F[*:1]
 Cl[*:1]
@@ -1110,9 +1110,16 @@ Rgroup===R2
 C[*:2]
 [H][*:2]
 C[*:2]
+Rgroup===R3
+[H][*:3]
+Br[*:3]
+[H][*:3]
+Br[*:3]
 )RES");
   }
   {  // repeat that without symmetrization (testing #3224)
+     // Still three groups added, but bromine and fluorine
+     // are not aligned between R1 and R3
     RGroupDecompositionParameters ps;
     ps.matchingStrategy = RDKit::NoSymmetrization;
     RGroupDecomposition decomp(*core, ps);
@@ -1143,7 +1150,7 @@ Rgroup===R1
 F[*:1]
 Cl[*:1]
 O[*:1]
-[H][*:1]
+Br[*:1]
 Rgroup===R2
 [H][*:2]
 C[*:2]
@@ -1151,7 +1158,7 @@ C[*:2]
 C[*:2]
 Rgroup===R3
 [H][*:3]
-[H][*:3]
+Br[*:3]
 [H][*:3]
 F[*:3]
 )RES");
@@ -2307,6 +2314,99 @@ void testNoTempLabels() {
   }
 }
 
+void testDoNotAddUnnecessaryRLabels() {
+  BOOST_LOG(rdInfoLog)
+      << "********************************************************\n";
+  BOOST_LOG(rdInfoLog) << "Test that R labels are not added if not necessary"
+                       << std::endl;
+  {
+    auto m1 = "c1c(F)cccn1"_smiles;
+    auto m2 = "c1c(Cl)c(C)ccn1"_smiles;
+    auto m3 = "c1c(O)cccn1"_smiles;
+    auto m4 = "c1cc(C)c(F)cn1"_smiles;
+    auto core = "c1c([*:1])c([*:2])ccn1"_smiles;
+    // the test runs twice, with and without symmetrization
+    // results should be the same as do not depend on permutations
+    for (unsigned int i = 0; i < 2; ++i ) {
+      RGroupDecompositionParameters ps;
+      if (i) {
+        ps.matchingStrategy = RDKit::NoSymmetrization;
+      }
+      RGroupDecomposition decomp(*core, ps);
+      TEST_ASSERT(decomp.add(*m1) == 0);
+      TEST_ASSERT(decomp.add(*m2) == 1);
+      TEST_ASSERT(decomp.add(*m3) == 2);
+      TEST_ASSERT(decomp.add(*m4) == 3);
+      decomp.process();
+      std::stringstream ss;
+      auto groups = decomp.getRGroupsAsColumns();
+      std::set<std::string> r_labels;
+      for (auto &column : groups) {
+        r_labels.insert(column.first);
+        ss << "Rgroup===" << column.first << std::endl;
+        for (auto &rgroup : column.second) {
+          ss << MolToSmiles(*rgroup) << std::endl;
+        }
+      }
+      // We only want two groups added
+
+      TEST_ASSERT(r_labels == std::set<std::string>({"Core", "R1", "R2"}));
+      TEST_ASSERT(groups.size() == 3);
+
+      TEST_ASSERT(ss.str() == R"RES(Rgroup===Core
+c1cc([*:2])c([*:1])cn1
+c1cc([*:2])c([*:1])cn1
+c1cc([*:2])c([*:1])cn1
+c1cc([*:2])c([*:1])cn1
+Rgroup===R1
+F[*:1]
+Cl[*:1]
+O[*:1]
+F[*:1]
+Rgroup===R2
+[H][*:2]
+C[*:2]
+[H][*:2]
+C[*:2]
+)RES");
+    }
+  }
+  {
+    auto cores = std::vector<ROMOL_SPTR>{
+      "[*:1]c1ccccc1"_smiles,
+      "[*:1]c1c([*:2])ccc(F)c1"_smiles
+    };
+    auto m1 = "Cc1c(Cl)ccc(F)c1"_smiles;
+    auto m2 = "Cc1c(Br)cccc1"_smiles;
+    size_t i;
+    RGroupRows rows;
+    RGroupDecomposition decomp(cores);
+    TEST_ASSERT(decomp.add(*m1) == 0);
+    decomp.process();
+    rows = decomp.getRGroupsAsRows();
+    TEST_ASSERT(rows.size() == 1);
+    std::vector<std::string> expected1{
+        "Core:Fc1ccc([*:2])c([*:1])c1 R1:C[*:1] R2:Cl[*:2]"
+    };
+    i = 0;
+    for (RGroupRows::const_iterator it = rows.begin(); it != rows.end(); ++it) {
+      CHECK_RGROUP(it, expected1.at(i++));
+    }
+    TEST_ASSERT(decomp.add(*m2) == 1);
+    decomp.process();
+    rows = decomp.getRGroupsAsRows();
+    TEST_ASSERT(rows.size() == 2);
+    std::vector<std::string> expected2{
+      "Core:Fc1ccc([*:2])c([*:1])c1 R1:C[*:1] R2:Cl[*:2]",
+      "Core:c1ccc([*:3])c([*:1])c1 R1:C[*:1] R3:Br[*:3]"
+    };
+    i = 0;
+    for (RGroupRows::const_iterator it = rows.begin(); it != rows.end(); ++it) {
+      CHECK_RGROUP(it, expected2.at(i++));
+    }
+  }
+}
+
 int main() {
   RDLog::InitLogs();
   boost::logging::disable_logs("rdApp.debug");
@@ -2352,6 +2452,7 @@ int main() {
   testUnlabelledRGroupsOnAromaticNitrogen();
   testAddHsDoesNotFail();
   testNoTempLabels();
+  testDoNotAddUnnecessaryRLabels();
 
   BOOST_LOG(rdInfoLog)
       << "********************************************************\n";
