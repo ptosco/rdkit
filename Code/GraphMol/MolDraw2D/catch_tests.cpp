@@ -74,7 +74,105 @@ TEST_CASE("tag atoms in SVG", "[drawing][SVG]") {
     CHECK(text.find("atom-selector") != std::string::npos);
     CHECK(text.find("bond-selector") != std::string::npos);
   }
+  SECTION("inject prop to class") {
+    auto m1 = "C1N[C@@H]2OCC12"_smiles;
+    REQUIRE(m1);
+
+    for (auto atom : m1->atoms()) {
+      auto prop = boost::format("__prop_class_atom_%d") % atom->getIdx();
+      atom->setProp("_tagClass", prop.str());
+    }
+    for (auto bond : m1->bonds()) {
+      auto prop = boost::format("__prop_class_bond_%d") % bond->getIdx();
+      bond->setProp("_tagClass", prop.str());
+    }
+
+    MolDraw2DSVG drawer(200, 200, -1, -1, NO_FREETYPE);
+    MolDraw2DUtils::prepareMolForDrawing(*m1);
+    drawer.drawMolecule(*m1);
+    drawer.tagAtoms(*m1);
+    drawer.finishDrawing();
+    std::string text = drawer.getDrawingText();
+    std::ofstream outs("testAtomTags_2.svg");
+    outs << text;
+    outs.flush();
+
+    size_t i = 0;
+    size_t c = 0;
+    while (true) {
+      auto i2 = text.find("__prop_class_atom_", i);
+      if (i2 == std::string::npos) {
+        break;
+      }
+      i = i2 + 1;
+      c++;
+    }
+    CHECK(c == 6);
+
+    i = 0;
+    c = 0;
+    while (true) {
+      auto i2 = text.find("__prop_class_bond_", i);
+      if (i2 == std::string::npos) {
+        break;
+      }
+      i = i2 + 1;
+      c++;
+    }
+    CHECK(c == 7);
+  }
 }
+
+TEST_CASE("metadata in SVG", "[drawing][SVG]") {
+  SECTION("inject prop to metada") {
+    auto m1 = "C1N[C@@H]2OCC12"_smiles;
+    REQUIRE(m1);
+
+    for (auto atom : m1->atoms()) {
+      auto prop = boost::format("__prop_metadata_atom_%d") % atom->getIdx();
+      atom->setProp("_metaData-atom-inject-prop", prop.str());
+    }
+    for (auto bond : m1->bonds()) {
+      auto prop = boost::format("__prop_metadata_bond_%d") % bond->getIdx();
+      bond->setProp("_metaData-bond-inject-prop", prop.str());
+    }
+
+    MolDraw2DSVG drawer(200, 200, -1, -1, NO_FREETYPE);
+    MolDraw2DUtils::prepareMolForDrawing(*m1);
+    drawer.drawMolecule(*m1);
+    drawer.addMoleculeMetadata(*m1);
+    drawer.finishDrawing();
+    std::string text = drawer.getDrawingText();
+    std::ofstream outs("testAtomTags_2.svg");
+    outs << text;
+    outs.flush();
+
+    size_t i = 0;
+    size_t c = 0;
+    while (true) {
+      auto i2 = text.find("atom-inject-prop=\"__prop_metadata_atom_", i);
+      if (i2 == std::string::npos) {
+        break;
+      }
+      i = i2 + 1;
+      c++;
+    }
+    CHECK(c == 6);
+
+    i = 0;
+    c = 0;
+    while (true) {
+      auto i2 = text.find("bond-inject-prop=\"__prop_metadata_bond_", i);
+      if (i2 == std::string::npos) {
+        break;
+      }
+      i = i2 + 1;
+      c++;
+    }
+    CHECK(c == 7);
+  }
+}
+
 TEST_CASE("contour data", "[drawing][conrec]") {
   auto m1 = "C1N[C@@H]2OCC12"_smiles;
   REQUIRE(m1);
@@ -247,9 +345,11 @@ TEST_CASE("dative bonds", "[drawing][organometallics]") {
     outs << text;
     outs.flush();
 
-    CHECK(text.find("<path class='bond-0 atom-0 atom-1' d='M 126.052,100 L 85.9675,100'"
-                    " style='fill:none;fill-rule:evenodd;"
-                    "stroke:#0000FF;") != std::string::npos);
+    CHECK(
+        text.find(
+            "<path class='bond-0 atom-0 atom-1' d='M 126.052,100 L 85.9675,100'"
+            " style='fill:none;fill-rule:evenodd;"
+            "stroke:#0000FF;") != std::string::npos);
   }
   SECTION("more complex") {
     auto m1 = "N->1[C@@H]2CCCC[C@H]2N->[Pt]11OC(=O)C(=O)O1"_smiles;
@@ -2049,16 +2149,17 @@ M  V30 LINKNODE 1 3 2 1 2 1 5
 M  V30 LINKNODE 1 4 2 4 3 4 5
 M  V30 END CTAB
 M  END)CTAB"_ctab;
-    std::vector<int> rotns={0,30,60,90,120,150,180};
-    for(auto rotn : rotns){
-    MolDraw2DSVG drawer(350, 300);
-    drawer.drawOptions().rotate = (double)rotn;
-    drawer.drawMolecule(*m);
-    drawer.finishDrawing();
-    auto text = drawer.getDrawingText();
-    std::ofstream outs((boost::format("testLinkNodes-2-%d.svg")%rotn).str());
-    outs << text;
-    outs.flush();
+    std::vector<int> rotns = {0, 30, 60, 90, 120, 150, 180};
+    for (auto rotn : rotns) {
+      MolDraw2DSVG drawer(350, 300);
+      drawer.drawOptions().rotate = (double)rotn;
+      drawer.drawMolecule(*m);
+      drawer.finishDrawing();
+      auto text = drawer.getDrawingText();
+      std::ofstream outs(
+          (boost::format("testLinkNodes-2-%d.svg") % rotn).str());
+      outs << text;
+      outs.flush();
     }
   }
 }
@@ -2541,5 +2642,223 @@ TEST_CASE("test the options that toggle isotope labels", "[drawing]") {
                                    textDeuteriumTritium.end(), regex, 1),
         std::sregex_token_iterator());
     CHECK(nDeuteriumTritium == 2);
+  }
+}
+
+TEST_CASE("draw hydrogen bonds", "[drawing]") {
+  SECTION("basics") {
+    auto m = R"CTAB(
+  Mrv2014 03022114422D          
+
+  0  0  0     0  0            999 V3000
+M  V30 BEGIN CTAB
+M  V30 COUNTS 8 8 0 0 0
+M  V30 BEGIN ATOM
+M  V30 1 C -5.4583 -0.125 0 0
+M  V30 2 C -4.1247 0.645 0 0
+M  V30 3 C -2.791 -0.125 0 0
+M  V30 4 C -1.4573 0.645 0 0
+M  V30 5 O -2.791 -1.665 0 0
+M  V30 6 C -6.792 0.645 0 0
+M  V30 7 O -5.4583 -1.665 0 0
+M  V30 8 H -4.1247 -2.435 0 0
+M  V30 END ATOM
+M  V30 BEGIN BOND
+M  V30 1 1 1 2
+M  V30 2 1 2 3
+M  V30 3 1 3 4
+M  V30 4 2 3 5
+M  V30 5 1 1 6
+M  V30 6 1 1 7
+M  V30 7 1 7 8
+M  V30 8 10 5 8
+M  V30 END BOND
+M  V30 END CTAB
+M  END
+)CTAB"_ctab;
+    REQUIRE(m);
+
+    MolDraw2DSVG drawer(300, 300);
+    drawer.drawMolecule(*m);
+    drawer.finishDrawing();
+    std::ofstream outs("testHydrogenBonds1.svg");
+    outs << drawer.getDrawingText();
+    outs.flush();
+  }
+  SECTION("from CXSMILES") {
+    auto m = "CC1O[H]O=C(C)C1 |H:4.3|"_smiles;
+    REQUIRE(m);
+
+    MolDraw2DSVG drawer(300, 300);
+    drawer.drawMolecule(*m);
+    drawer.finishDrawing();
+    std::ofstream outs("testHydrogenBonds2.svg");
+    outs << drawer.getDrawingText();
+    outs.flush();
+  }
+}
+
+TEST_CASE("github #3912: cannot draw atom lists from SMARTS", "[query][bug]") {
+  SECTION("original") {
+    auto m = "C-[N,O]"_smarts;
+    REQUIRE(m);
+    int panelWidth = -1;
+    int panelHeight = -1;
+    bool noFreeType = true;
+    MolDraw2DSVG drawer(300, 300, panelWidth, panelHeight, noFreeType);
+    drawer.drawMolecule(*m);
+    drawer.finishDrawing();
+    std::ofstream outs("testGithub3912.1.svg");
+    auto txt = drawer.getDrawingText();
+    outs << txt;
+    outs.flush();
+    CHECK(txt.find(">N<") != std::string::npos);
+    CHECK(txt.find(">O<") != std::string::npos);
+    CHECK(txt.find(">!<") == std::string::npos);
+  }
+  SECTION("negated") {
+    auto m = "C-[N,O]"_smarts;
+    REQUIRE(m);
+    REQUIRE(m->getAtomWithIdx(1)->hasQuery());
+    m->getAtomWithIdx(1)->getQuery()->setNegation(true);
+    int panelWidth = -1;
+    int panelHeight = -1;
+    bool noFreeType = true;
+    MolDraw2DSVG drawer(300, 300, panelWidth, panelHeight, noFreeType);
+    drawer.drawMolecule(*m);
+    drawer.finishDrawing();
+    std::ofstream outs("testGithub3912.2.svg");
+    auto txt = drawer.getDrawingText();
+    outs << txt;
+    outs.flush();
+    CHECK(txt.find(">N<") != std::string::npos);
+    CHECK(txt.find(">O<") != std::string::npos);
+    CHECK(txt.find(">!<") != std::string::npos);
+  }
+}
+
+TEST_CASE("github #2976: kekulizing reactions when drawing", "[reactions]") {
+  SECTION("basics") {
+    bool asSmiles = true;
+    std::unique_ptr<ChemicalReaction> rxn{
+        RxnSmartsToChemicalReaction("c1ccccc1>>c1ncccc1", nullptr, asSmiles)};
+    MolDraw2DSVG drawer(450, 200);
+    drawer.drawReaction(*rxn);
+    drawer.finishDrawing();
+    std::ofstream outs("testGithub2976.svg");
+    auto txt = drawer.getDrawingText();
+    outs << txt;
+    outs.flush();
+  }
+}
+
+TEST_CASE("preserve Reaction coordinates", "[reactions]") {
+  SECTION("basics") {
+    std::string data = R"RXN($RXN
+
+  Mrv16822    031301211645
+
+  2  2  1
+$MOL
+
+  Mrv1682203132116452D          
+
+  3  2  0  0  0  0            999 V2000
+   -4.3304    2.5893    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+   -4.3304    1.7643    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -3.5054    1.7643    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0  0  0  0
+  2  3  1  0  0  0  0
+M  END
+$MOL
+
+  Mrv1682203132116452D          
+
+  2  1  0  0  0  0            999 V2000
+   -2.1652    2.6339    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.1652    1.8089    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0  0  0  0
+M  END
+$MOL
+
+  Mrv1682203132116452D          
+
+  3  2  0  0  0  0            999 V2000
+    3.6109    1.9512    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    2.7859    1.9512    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    2.7859    2.7762    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+  2  1  1  0  0  0  0
+  3  2  1  0  0  0  0
+M  END
+$MOL
+
+  Mrv1682203132116452D          
+
+  2  1  0  0  0  0            999 V2000
+    4.9511    1.9959    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    4.9511    2.8209    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+  2  1  1  0  0  0  0
+M  END
+$MOL
+
+  Mrv1682203132116452D          
+
+  2  1  0  0  0  0            999 V2000
+   -0.3571    2.7232    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.4003    3.5471    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0  0  0  0
+M  END
+)RXN";
+    std::unique_ptr<ChemicalReaction> rxn{RxnBlockToChemicalReaction(data)};
+    MolDraw2DSVG drawer(450, 200);
+    drawer.drawReaction(*rxn);
+    drawer.finishDrawing();
+    std::ofstream outs("testReactionCoords.svg");
+    auto txt = drawer.getDrawingText();
+    outs << txt;
+    outs.flush();
+
+    // the reaction is drawn with some bonds vertical, make sure they remain
+    // vertical
+    {
+      std::regex regex("class='bond-0.*? d='M (\\d+\\.\\d+).* L (\\d+\\.\\d+)");
+      std::smatch bondMatch;
+      REQUIRE(std::regex_search(txt, bondMatch, regex));
+      REQUIRE(bondMatch.size() == 3);  // match both halves of the bond
+      CHECK(bondMatch[1].str() == bondMatch[2].str());
+    }
+    {
+      std::regex regex("class='bond-2.*? d='M (\\d+\\.\\d+).* L (\\d+\\.\\d+)");
+      std::smatch bondMatch;
+      REQUIRE(std::regex_search(txt, bondMatch, regex));
+      REQUIRE(bondMatch.size() == 3);  // match both halves of the bond
+      CHECK(bondMatch[1].str() == bondMatch[2].str());
+    }
+    {
+      std::regex regex("class='bond-4.*? d='M (\\d+\\.\\d+).* L (\\d+\\.\\d+)");
+      std::smatch bondMatch;
+      REQUIRE(std::regex_search(txt, bondMatch, regex));
+      REQUIRE(bondMatch.size() == 3);  // match both halves of the bond
+      CHECK(bondMatch[1].str() == bondMatch[2].str());
+    }
+  }
+}
+TEST_CASE("support annotation colors", "[drawing]") {
+  SECTION("basics") {
+    auto m = "CCCO"_smiles;
+    REQUIRE(m);
+    int panelWidth = -1;
+    int panelHeight = -1;
+    bool noFreeType = true;
+    MolDraw2DSVG drawer(300, 300, panelWidth, panelHeight, noFreeType);
+    drawer.drawOptions().annotationColour = DrawColour{0, 0, 1, 1};
+    drawer.drawOptions().addAtomIndices = true;
+    drawer.drawMolecule(*m, "blue annotations");
+    drawer.finishDrawing();
+    std::ofstream outs("testAnnotationColors.svg");
+    auto txt = drawer.getDrawingText();
+    outs << txt;
+    outs.flush();
+    CHECK(txt.find("fill:#0000FF' >2<") != std::string::npos);
   }
 }

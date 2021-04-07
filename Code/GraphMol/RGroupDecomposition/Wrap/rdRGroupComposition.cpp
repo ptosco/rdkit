@@ -215,7 +215,6 @@ struct rgroupdecomp_wrapper {
 
     python::enum_<RDKit::RGroupScore>("RGroupScore")
         .value("Match", RDKit::Match)
-        .value("FingerprintDistance", RDKit::FingerprintDistance)
         .value("FingerprintVariance", RDKit::FingerprintVariance)
         .export_values();
 
@@ -257,12 +256,17 @@ struct rgroupdecomp_wrapper {
         "                        RGroupLabels.MDLRGroup - store rgroups as mdl "
         "rgroups (for molblocks)\n"
         "                       default: AtomMap | MDLRGroup\n"
-        "    - matchOnlyAtRGroups: only allow rgroup decomposition at the "
+        "    - onlyMatchAtRGroups: only allow rgroup decomposition at the "
         "specified rgroups\n"
-        "    - setRemoveRGroupsThatAreAllHydrogen: remove all rgroups that "
+        "    - removeAllHydrogenRGroups: remove all user-defined rgroups that "
         "only have hydrogens\n"
+        "    - removeAllHydrogenRGroupsAndLabels: remove all user-defined "
+        "rgroups that only have hydrogens, and also remove the corresponding "
+        "labels from the core\n"
         "    - removeHydrogensPostMatch: remove all hydrogens from the output "
-        "molecules\n";
+        "molecules\n"
+        "    - allowNonTerminalRGroups: allow labelled Rgroups of degree 2 or "
+        "more\n";
     python::class_<RDKit::RGroupDecompositionParameters>(
         "RGroupDecompositionParameters", docString.c_str(),
         python::init<>("Constructor, takes no arguments"))
@@ -302,7 +306,13 @@ struct rgroupdecomp_wrapper {
         .def_readwrite("gaNumberRuns",
                        &RDKit::RGroupDecompositionParameters::gaNumberRuns)
         .def_readwrite("gaParallelRuns",
-                       &RDKit::RGroupDecompositionParameters::gaParallelRuns);
+                       &RDKit::RGroupDecompositionParameters::gaParallelRuns)
+        .def_readwrite(
+            "allowNonTerminalRGroups",
+            &RDKit::RGroupDecompositionParameters::allowNonTerminalRGroups)
+        .def_readwrite("removeAllHydrogenRGroupsAndLabels",
+                       &RDKit::RGroupDecompositionParameters::
+                           removeAllHydrogenRGroupsAndLabels);
 
     python::class_<RDKit::RGroupDecompositionHelper, boost::noncopyable>(
         "RGroupDecomposition", docString.c_str(),
