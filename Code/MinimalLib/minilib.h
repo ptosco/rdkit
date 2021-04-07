@@ -108,7 +108,7 @@ class JSSubstructLibrary {
 };
 
 std::string get_inchikey_for_inchi(const std::string &input);
-JSMol *get_mol(const std::string &input);
+JSMol *get_mol(const std::string &input, bool kekulize);
 JSMol *get_qmol(const std::string &input);
 std::string version();
 void prefer_coordgen(bool prefer);

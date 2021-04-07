@@ -83,6 +83,10 @@ std::string draw_to_canvas_with_highlights(JSMol &self, emscripten::val canvas,
   return "";
 }
 
+JSMol *get_mol_kekulize(const std::string &input) {
+  return get_mol(input, true);
+}
+
 }  // namespace
 
 using namespace emscripten;
@@ -173,6 +177,7 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
   function("prefer_coordgen", &prefer_coordgen);
   function("get_inchikey_for_inchi", &get_inchikey_for_inchi);
   function("get_mol", &get_mol, allow_raw_pointers());
+  function("get_mol", &get_mol_kekulize, allow_raw_pointers());
   function("get_qmol", &get_qmol, allow_raw_pointers());
   function("SubstructLibrary_from_file", &JSSubstructLibrary::from_file,
            allow_raw_pointers());

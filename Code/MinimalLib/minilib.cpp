@@ -111,7 +111,7 @@ std::string process_details(const std::string &details, unsigned int &width,
 }
 
 namespace {
-RWMol *mol_from_input(const std::string &input) {
+RWMol *mol_from_input(const std::string &input, bool kekulize) {
   RWMol *res = nullptr;
   if (input.find("M  END") != std::string::npos) {
     bool sanitize = false;
@@ -125,7 +125,12 @@ RWMol *mol_from_input(const std::string &input) {
   }
   if (res) {
     try {
-      MolOps::sanitizeMol(*res);
+      unsigned int failedOp;
+      unsigned int sanitizeOps = MolOps::SANITIZE_ALL;
+      if (!kekulize) {
+        sanitizeOps ^= MolOps::SANITIZE_KEKULIZE;
+      }
+      MolOps::sanitizeMol(*res, failedOp, sanitizeOps);
       MolOps::assignStereochemistry(*res, true, true, true);
     } catch (...) {
       delete res;
@@ -663,8 +668,8 @@ std::string get_inchikey_for_inchi(const std::string &input) {
   return InchiToInchiKey(input);
 }
 
-JSMol *get_mol(const std::string &input) {
-  RWMol *mol = mol_from_input(input);
+JSMol *get_mol(const std::string &input, bool kekulize) {
+  RWMol *mol = mol_from_input(input, kekulize);
   return new JSMol(mol);
 }
 
