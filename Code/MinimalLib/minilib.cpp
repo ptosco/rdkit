@@ -441,6 +441,12 @@ std::string JSMol::add_hs() const {
   return MolToMolBlock(molCopy, includeStereo, confId, kekulize);
 }
 
+bool JSMol::merge_hs_as_queries() {
+  if (!d_mol) return false;
+  MolOps::mergeQueryHs(*d_mol);
+  return true;
+}
+
 std::string JSMol::condense_abbreviations(double maxCoverage, bool useLinkers) {
   if (!d_mol) return "";
   if (!useLinkers) {

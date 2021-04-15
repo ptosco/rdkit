@@ -170,14 +170,14 @@ function test_abbreviations(){
 
 function test_substruct_library(){
     var smiReader = readline.createInterface({
-      input: fs.createReadStream('/home/toscopa1/smi/chembl5000.smi.gz').pipe(zlib.createGunzip())
+        input: fs.createReadStream('/home/toscopa1/smi/chembl5000.smi.gz').pipe(zlib.createGunzip())
     });
     var sslib = new RDKitModule.SubstructLibrary();
     var t0 = performance.now()
     console.log('Started adding trusted SMILES');
     smiReader.on('line', (smi) => {
-      //console.log(smi);
-      sslib.add_trusted_smiles(smi);
+        //console.log(smi);
+        sslib.add_trusted_smiles(smi);
     });
     smiReader.on('close', () => {
         var t1 = performance.now();
@@ -194,6 +194,35 @@ function test_substruct_library(){
     });
 }
 
+function test_substruct_library_merge_hs() {
+    var sslib = new RDKitModule.SubstructLibrary();
+    var mol1 = RDKitModule.get_mol("c1ccccc1");
+    var mol2 = RDKitModule.get_mol("Cc1ccccc1");
+    sslib.add_trusted_smiles(mol1.get_smiles());
+    sslib.add_trusted_smiles(mol2.get_smiles());
+    var query = RDKitModule.get_mol(`
+  MJ201100          2D          
+
+  6  6  0  0  0  0  0  0  0  0999 V2000
+   -1.0491    0.7134    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.7635    0.3009    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.7635   -0.5241    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.0491   -0.9366    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.3346   -0.5241    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.3346    0.3009    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  2  3  1  0  0  0  0
+  5  6  2  0  0  0  0
+  1  2  2  0  0  0  0
+  6  1  1  0  0  0  0
+  3  4  2  0  0  0  0
+  4  5  1  0  0  0  0
+M  END`);
+    assert.equal(sslib.get_matches(query), JSON.stringify([0, 1]));
+    var query_hs = RDKitModule.get_mol(query.add_hs());
+    assert.equal(sslib.get_matches(query_hs), JSON.stringify([]));
+    query_hs.merge_hs_as_queries();
+    assert.equal(sslib.get_matches(query_hs), JSON.stringify([0]));
+}
 
 function test_generate_aligned_coords(){
     var smiles = "CCC";
@@ -336,13 +365,14 @@ M  END
 initRDKitModule().then(function(instance) {
     RDKitModule = instance;
     console.log(RDKitModule.version());
-    //test_basics();
+    // test_basics();
     test_molblock_nostrict();
     test_molblock_rgp();
     test_sketcher_services();
     test_sketcher_services2();
     test_abbreviations();
     test_substruct_library();
+    test_substruct_library_merge_hs();
     test_generate_aligned_coords();
     test_isotope_labels();
     test_generate_aligned_coords_allow_rgroups();
