@@ -562,6 +562,9 @@ JSMol *JSSubstructLibrary::get_mol(unsigned int i) {
 std::string JSSubstructLibrary::get_matches(const JSMol &q, bool useChirality,
                                             int numThreads,
                                             int maxResults) const {
+  if (!d_sslib->size()) {
+    return "[]";
+  }
   std::vector<unsigned int> indices = d_sslib->getMatches(
       *q.d_mol, true, useChirality, false, numThreads, maxResults);
   rj::Document doc;

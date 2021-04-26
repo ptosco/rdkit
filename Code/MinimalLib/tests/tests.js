@@ -224,6 +224,36 @@ M  END`);
     assert.equal(sslib.get_matches(query_hs), JSON.stringify([0]));
 }
 
+function test_substruct_library_empty_mols() {
+    var sslib = new RDKitModule.SubstructLibrary();
+    var mol1 = RDKitModule.get_mol("");
+    var mol2 = RDKitModule.get_mol("");
+    sslib.add_trusted_smiles(mol1.get_smiles());
+    sslib.add_trusted_smiles(mol2.get_smiles());
+    var query = RDKitModule.get_mol("C");
+    assert.equal(sslib.get_matches(query), JSON.stringify([]));
+    var empty_query = RDKitModule.get_mol("");
+    assert.equal(sslib.get_matches(empty_query), JSON.stringify([]));
+}
+
+function test_substruct_library_empty_query() {
+    var sslib = new RDKitModule.SubstructLibrary();
+    var mol1 = RDKitModule.get_mol("C");
+    var mol2 = RDKitModule.get_mol("CC");
+    sslib.add_trusted_smiles(mol1.get_smiles());
+    sslib.add_trusted_smiles(mol2.get_smiles());
+    var query = RDKitModule.get_mol("");
+    assert.equal(sslib.get_matches(query), JSON.stringify([]));
+}
+
+function test_substruct_library_empty_lib() {
+    var sslib = new RDKitModule.SubstructLibrary();
+    var query = RDKitModule.get_mol("C");
+    assert.equal(sslib.get_matches(query), JSON.stringify([]));
+    var empty_query = RDKitModule.get_mol("");
+    assert.equal(sslib.get_matches(empty_query), JSON.stringify([]));
+}
+
 function test_generate_aligned_coords(){
     var smiles = "CCC";
     var mol = RDKitModule.get_mol(smiles);
@@ -373,6 +403,9 @@ initRDKitModule().then(function(instance) {
     test_abbreviations();
     test_substruct_library();
     test_substruct_library_merge_hs();
+    test_substruct_library_empty_mols();
+    test_substruct_library_empty_lib();
+    test_substruct_library_empty_query();
     test_generate_aligned_coords();
     test_isotope_labels();
     test_generate_aligned_coords_allow_rgroups();
