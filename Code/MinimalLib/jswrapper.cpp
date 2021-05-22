@@ -18,12 +18,17 @@
 
 using namespace RDKit;
 
-extern std::string process_details(const std::string &details,
-                                   unsigned int &width, unsigned int &height,
-                                   int &offsetx, int &offsety,
-                                   std::string &legend,
-                                   std::vector<int> &atomIds,
-                                   std::vector<int> &bondIds);
+
+
+
+namespace RDKit {
+namespace MinimalLib{
+extern std::string process_details(const std::string &details, unsigned int &width,
+                            unsigned int &height, int &offsetx, int &offsety,
+                            std::string &legend, std::vector<int> &atomIds,
+                            std::vector<int> &bondIds);
+}
+}
 
 namespace {
 std::string draw_to_canvas_with_offset(JSMol &self, emscripten::val canvas,
@@ -65,7 +70,7 @@ std::string draw_to_canvas_with_highlights(JSMol &self, emscripten::val canvas,
   int offsetx = 0;
   int offsety = 0;
   std::string legend = "";
-  auto problems = process_details(details, w, h, offsetx, offsety, legend,
+  auto problems = MinimalLib::process_details(details, w, h, offsetx, offsety, legend,
                                   atomIds, bondIds);
   if (!problems.empty()) {
     return problems;
@@ -83,8 +88,8 @@ std::string draw_to_canvas_with_highlights(JSMol &self, emscripten::val canvas,
   return "";
 }
 
-JSMol *get_mol_kekulize(const std::string &input) {
-  return get_mol(input, true);
+JSMol *get_mol_no_details(const std::string &input) {
+  return get_mol(input, std::string());
 }
 
 }  // namespace
@@ -178,8 +183,6 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
   function("prefer_coordgen", &prefer_coordgen);
   function("get_inchikey_for_inchi", &get_inchikey_for_inchi);
   function("get_mol", &get_mol, allow_raw_pointers());
-  function("get_mol", &get_mol_kekulize, allow_raw_pointers());
+  function("get_mol", &get_mol_no_details, allow_raw_pointers());
   function("get_qmol", &get_qmol, allow_raw_pointers());
-  function("SubstructLibrary_from_file", &JSSubstructLibrary::from_file,
-           allow_raw_pointers());
 }

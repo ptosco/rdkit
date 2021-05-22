@@ -1,5 +1,5 @@
 //
-//  Copyright (C) 2003-2015 Greg Landrum and Rational Discovery LLC
+//  Copyright (C) 2003-2021 Greg Landrum and other RDKit contributors
 //
 //   @@ All Rights Reserved @@
 //  This file is part of the RDKit.
@@ -59,6 +59,14 @@ ROMol::ROMol(const std::string &pickle) : RDProps() {
   initMol();
   numBonds = 0;
   MolPickler::molFromPickle(pickle, *this);
+  numBonds = rdcast<unsigned int>(boost::num_edges(d_graph));
+}
+
+ROMol::ROMol(const std::string &pickle, unsigned int propertyFlags)
+    : RDProps() {
+  initMol();
+  numBonds = 0;
+  MolPickler::molFromPickle(pickle, *this, propertyFlags);
   numBonds = rdcast<unsigned int>(boost::num_edges(d_graph));
 }
 
@@ -165,6 +173,10 @@ void ROMol::initMol() {
 }
 
 unsigned int ROMol::getAtomDegree(const Atom *at) const {
+  PRECONDITION(at, "no atom");
+  PRECONDITION(at->hasOwningMol(), "atom not associated with a molecule");
+  PRECONDITION(&at->getOwningMol() == this,
+               "atom not associated with this molecule");
   return rdcast<unsigned int>(boost::out_degree(at->getIdx(), d_graph));
 };
 
@@ -360,10 +372,18 @@ const Bond *ROMol::getBondBetweenAtoms(unsigned int idx1,
 }
 
 ROMol::ADJ_ITER_PAIR ROMol::getAtomNeighbors(Atom const *at) const {
+  PRECONDITION(at, "no atom");
+  PRECONDITION(at->hasOwningMol(), "atom not associated with a molecule");
+  PRECONDITION(&at->getOwningMol() == this,
+               "atom not associated with this molecule");
   return boost::adjacent_vertices(at->getIdx(), d_graph);
 };
 
 ROMol::OBOND_ITER_PAIR ROMol::getAtomBonds(Atom const *at) const {
+  PRECONDITION(at, "no atom");
+  PRECONDITION(at->hasOwningMol(), "atom not associated with a molecule");
+  PRECONDITION(&at->getOwningMol() == this,
+               "atom not associated with this molecule");
   return boost::out_edges(at->getIdx(), d_graph);
 }
 
@@ -377,6 +397,9 @@ ROMol::BOND_ITER_PAIR ROMol::getEdges() const { return boost::edges(d_graph); }
 unsigned int ROMol::addAtom(Atom *atom_pin, bool updateLabel,
                             bool takeOwnership) {
   PRECONDITION(atom_pin, "null atom passed in");
+  PRECONDITION(!takeOwnership || !atom_pin->hasOwningMol() ||
+                   &atom_pin->getOwningMol() == this,
+               "cannot take ownership of an atom which already has an owner");
   Atom *atom_p;
   if (!takeOwnership) {
     atom_p = atom_pin->copy();
@@ -400,6 +423,9 @@ unsigned int ROMol::addAtom(Atom *atom_pin, bool updateLabel,
 
 unsigned int ROMol::addBond(Bond *bond_pin, bool takeOwnership) {
   PRECONDITION(bond_pin, "null bond passed in");
+  PRECONDITION(!takeOwnership || !bond_pin->hasOwningMol() ||
+                   &bond_pin->getOwningMol() == this,
+               "cannot take ownership of an bond which already has an owner");
   URANGE_CHECK(bond_pin->getBeginAtomIdx(), getNumAtoms());
   URANGE_CHECK(bond_pin->getEndAtomIdx(), getNumAtoms());
   PRECONDITION(bond_pin->getBeginAtomIdx() != bond_pin->getEndAtomIdx(),
@@ -624,6 +650,7 @@ void ROMol::removeConformer(unsigned int id) {
 }
 
 unsigned int ROMol::addConformer(Conformer *conf, bool assignId) {
+  PRECONDITION(conf, "bad conformer");
   PRECONDITION(conf->getNumAtoms() == this->getNumAtoms(),
                "Number of atom mismatch");
   if (assignId) {

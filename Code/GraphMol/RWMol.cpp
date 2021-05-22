@@ -1,5 +1,5 @@
 //
-//  Copyright (C) 2003-2016 Greg Landrum and Rational Discovery LLC
+//  Copyright (C) 2003-2021 Greg Landrum and other RDKit contributors
 //
 //   @@ All Rights Reserved @@
 //  This file is part of the RDKit.
@@ -146,10 +146,19 @@ void RWMol::replaceAtom(unsigned int idx, Atom *atom_pin, bool updateLabel,
     atom_p->updateProps(*d_graph[vd], replaceExistingData);
   }
   removeSubstanceGroupsReferencingAtom(*this, idx);
-  delete d_graph[vd];
+
+  const auto orig_p = d_graph[vd];
+  delete orig_p;
   d_graph[vd] = atom_p;
 
-  // FIX: do something about bookmarks
+  // handle bookmarks
+  for (auto &ab : d_atomBookmarks) {
+    for (auto &elem : ab.second) {
+      if (elem == orig_p) {
+        elem = atom_p;
+      }
+    }
+  }
 };
 
 void RWMol::replaceBond(unsigned int idx, Bond *bond_pin, bool preserveProps) {
@@ -170,11 +179,19 @@ void RWMol::replaceBond(unsigned int idx, Bond *bond_pin, bool preserveProps) {
     bond_p->updateProps(*d_graph[*(bIter.first)], replaceExistingData);
   }
 
-  delete d_graph[*(bIter.first)];
+  const auto orig_p = d_graph[*(bIter.first)];
+  delete orig_p;
   d_graph[*(bIter.first)] = bond_p;
-  // FIX: do something about bookmarks
-
   removeSubstanceGroupsReferencingBond(*this, idx);
+
+  // handle bookmarks
+  for (auto &ab : d_bondBookmarks) {
+    for (auto &elem : ab.second) {
+      if (elem == orig_p) {
+        elem = bond_p;
+      }
+    }
+  }
 };
 
 Atom *RWMol::getActiveAtom() {
@@ -186,6 +203,7 @@ Atom *RWMol::getActiveAtom() {
 };
 
 void RWMol::setActiveAtom(Atom *at) {
+  PRECONDITION(at, "NULL atom provided");
   clearAtomBookmark(ci_RIGHTMOST_ATOM);
   setAtomBookmark(at, ci_RIGHTMOST_ATOM);
 };
@@ -482,7 +500,7 @@ void RWMol::commitBatchEdit() {
   }
   auto delBonds = *dp_delBonds;
   dp_delBonds.reset();
-  for (unsigned int i = getNumBonds(); i > 0; --i) {
+  for (unsigned int i = delBonds.size(); i > 0; --i) {
     if (delBonds[i - 1]) {
       const auto bnd = getBondWithIdx(i - 1);
       CHECK_INVARIANT(bnd, "bond not found");
@@ -491,7 +509,7 @@ void RWMol::commitBatchEdit() {
   }
   auto delAtoms = *dp_delAtoms;
   dp_delAtoms.reset();
-  for (unsigned int i = getNumAtoms(); i > 0; --i) {
+  for (unsigned int i = delAtoms.size(); i > 0; --i) {
     if (delAtoms[i - 1]) {
       removeAtom(i - 1);
     }
