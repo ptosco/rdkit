@@ -176,8 +176,7 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
                     &JSSubstructLibrary::count_matches))
       .function("count_matches",
                 select_overload<unsigned int(const JSMol &) const>(
-                    &JSSubstructLibrary::count_matches))
-      .function("to_file", &JSSubstructLibrary::to_file);
+                    &JSSubstructLibrary::count_matches));
 
   function("version", &version);
   function("prefer_coordgen", &prefer_coordgen);

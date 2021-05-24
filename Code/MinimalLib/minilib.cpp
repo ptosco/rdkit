@@ -10,7 +10,6 @@
 //
 #include <string>
 #include <iostream>
-#include <cstdio>
 #include "minilib.h"
 #include "common.h"
 
@@ -39,8 +38,6 @@
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
-
-#include <boost/dynamic_bitset.hpp>
 
 namespace rj = rapidjson;
 
@@ -401,45 +398,6 @@ unsigned int JSSubstructLibrary::count_matches(const JSMol &q,
                                                bool useChirality,
                                                int numThreads) const {
   return d_sslib->countMatches(*q.d_mol, true, useChirality, false, 1);
-}
-
-bool JSSubstructLibrary::to_file(const std::string &file) const {
-  FILE *hnd = fopen(file.c_str(), "wb");
-  if (!hnd) {
-    return false;
-  }
-  if (fwrite(&d_num_bits, sizeof(unsigned int), 1, hnd) != 1) {
-    return false;
-  }
-  unsigned int fpSize = d_fpHolder->size();
-  if (fwrite(&fpSize, sizeof(unsigned int), 1, hnd) != 1) {
-    return false;
-  }
-  for (const auto bv : d_fpHolder->getFingerprints()) {
-    std::string bvString = bv->toString();
-    unsigned int bvSize = bvString.size();
-    if (fwrite(&bvSize, sizeof(unsigned int), 1, hnd) != 1) {
-      return false;
-    }
-    if (fwrite(bvString.c_str(), sizeof(char), bvSize, hnd) != bvSize) {
-      return false;
-    }
-  }
-  unsigned int molsSize = d_molHolder->size();
-  if (fwrite(&molsSize, sizeof(unsigned int), 1, hnd) != 1) {
-    return false;
-  }
-  for (const auto &smi : d_molHolder->getMols()) {
-    unsigned int smiSize = smi.size();
-    if (fwrite(&smiSize, sizeof(unsigned int), 1, hnd) != 1) {
-      return false;
-    }
-    if (fwrite(smi.c_str(), sizeof(char), smiSize, hnd) != smiSize) {
-      return false;
-    }
-  }
-  fclose(hnd);
-  return true;
 }
 
 std::string get_inchikey_for_inchi(const std::string &input) {

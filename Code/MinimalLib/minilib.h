@@ -92,8 +92,6 @@ class JSSubstructLibrary {
   unsigned int count_matches(const JSMol &q) const {
     return count_matches(q, d_defaultUseChirality, d_defaultNumThreads);
   }
-  bool to_file(const std::string &file) const;
-  static JSSubstructLibrary *from_file(const std::string &file);
 
   std::unique_ptr<RDKit::SubstructLibrary> d_sslib;
   RDKit::CachedTrustedSmilesMolHolder *d_molHolder;
@@ -109,7 +107,7 @@ class JSSubstructLibrary {
 };
 
 std::string get_inchikey_for_inchi(const std::string &input);
-JSMol *get_mol(const std::string &input, bool kekulize);
+JSMol *get_mol(const std::string &input, const std::string &details_json);
 JSMol *get_qmol(const std::string &input);
 std::string version();
 void prefer_coordgen(bool prefer);

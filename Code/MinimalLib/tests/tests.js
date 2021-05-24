@@ -21,9 +21,9 @@ const readline = require('readline');
 
 // the goal here isn't to be comprehensive (the RDKit has tests for that),
 // just to make sure that the wrappers are working as expected
-function test_basics(){
+function test_basics() {
     var bmol = RDKitModule.get_mol("c1ccccc");
-    //assert.equal(bmol.is_valid(),0);
+    assert.equal(bmol.is_valid(),0);
     
     var mol = RDKitModule.get_mol("c1ccccc1O");
     assert.equal(mol.is_valid(),1);
@@ -64,7 +64,7 @@ function test_basics(){
     assert(svg2.search("#FF7F7F")>0);
 }
 
-function test_molblock_nostrict(){
+function test_molblock_nostrict() {
     var molblock = `
   MJ201100                      
 
@@ -105,7 +105,7 @@ M  END`;
     assert.equal(qmb.includes("M  SAP   1  1   8   6"), true);
 }
 
-function test_molblock_rgp(){
+function test_molblock_rgp() {
     var molblock = `
   MJ190400                      
 
@@ -134,14 +134,14 @@ M  END`;
     assert.equal(mol.is_valid(),1);
 }
 
-function test_sketcher_services(){
+function test_sketcher_services() {
     var mol = RDKitModule.get_mol("C[C@](F)(Cl)/C=C/C(F)Br");
     assert.equal(mol.is_valid(),1);
     var tags = mol.get_stereo_tags();
     assert.equal(tags,'{"CIP_atoms":[[1,"(S)"],[6,"(?)"]],"CIP_bonds":[[4,5,"(E)"]]}');
 }
 
-function test_sketcher_services2(){
+function test_sketcher_services2() {
     var mol = RDKitModule.get_mol("c1ccccc1");
     assert.equal(mol.is_valid(),1);
     var molb = mol.add_hs();
@@ -159,7 +159,7 @@ function test_sketcher_services2(){
 }
 
 
-function test_abbreviations(){
+function test_abbreviations() {
     var bmol = RDKitModule.get_mol("C1CCC1C(F)(F)F");
     assert.equal(bmol.is_valid(),1);
     bmol.condense_abbreviations();
@@ -168,29 +168,27 @@ function test_abbreviations(){
     assert.equal(bmol.get_cxsmiles(),"*C1CCC1 |$CF3;;;;$|");
 }
 
-function test_substruct_library(){
+function test_substruct_library(done){
     var smiReader = readline.createInterface({
-        input: fs.createReadStream('/home/toscopa1/smi/chembl5000.smi.gz').pipe(zlib.createGunzip())
+        input: fs.createReadStream(__dirname + '/../../GraphMol/test_data/compounds.smi')
     });
     var sslib = new RDKitModule.SubstructLibrary();
     var t0 = performance.now()
     console.log('Started adding trusted SMILES');
     smiReader.on('line', (smi) => {
-        //console.log(smi);
         sslib.add_trusted_smiles(smi);
     });
     smiReader.on('close', () => {
         var t1 = performance.now();
-        console.log('Finished adding trusted SMILES took ' + (t1 - t0) / 1000 + ' seconds');
         var query = RDKitModule.get_qmol("N");
-        console.log(sslib.count_matches(query));
-        console.log(sslib.get_matches(query));
-        console.log('Now writing to file');
-        sslib.to_file('chembl5000_sslib.jspkl');
-        console.log('Now reading from file');
-        var sslib_from_file = new RDKitModule.SubstructLibrary_from_file('chembl5000_sslib.jspkl');
-        console.log(sslib_from_file.count_matches(query));
-        console.log(sslib_from_file.get_matches(query));
+        console.log('Finished adding trusted SMILES took ' + (t1 - t0) / 1000 + ' seconds');
+        assert.equal(sslib.count_matches(query), 52);
+        assert.equal(sslib.get_matches(query), JSON.stringify([
+            12,13,19,22,24,30,31,32,35,36,39,41,43,44,55,56,58,64,72,80,
+            85,95,96,101,105,113,124,127,128,131,143,150,151,185,201,202,
+            203,214,215,223,232,234,238,240,241,246,258,261,263,265,266,284
+        ]));
+        done.test_substruct_library = true;
     });
 }
 
@@ -254,7 +252,7 @@ function test_substruct_library_empty_lib() {
     assert.equal(sslib.get_matches(empty_query), JSON.stringify([]));
 }
 
-function test_generate_aligned_coords(){
+function test_generate_aligned_coords() {
     var smiles = "CCC";
     var mol = RDKitModule.get_mol(smiles);
     var template = "CC";
@@ -263,7 +261,7 @@ function test_generate_aligned_coords(){
 }
 
 
-function test_isotope_labels(){
+function test_isotope_labels() {
     var mol = RDKitModule.get_mol("[1*]c1cc([2*])c([3*])c[14c]1");
     assert.equal(mol.is_valid(), 1);
 
@@ -286,7 +284,7 @@ function test_isotope_labels(){
 }
 
 
-function test_generate_aligned_coords_allow_rgroups(){
+function test_generate_aligned_coords_allow_rgroups() {
     var template_molblock = `
      RDKit          2D
 
@@ -335,7 +333,7 @@ M  END`;
 }
 
 
-function test_accept_failure(){
+function test_accept_failure() {
     var template_molblock = `
      RDKit          2D
 
@@ -391,17 +389,37 @@ M  END
     assert.equal(mol.get_molblock(), mol_molblock);
 }
 
+function test_get_mol_no_kekulize() {
+    var mol = RDKitModule.get_mol("c");
+    assert(!mol.is_valid());
+    mol = RDKitModule.get_mol("c", JSON.stringify({kekulize: false}));
+    assert(mol.is_valid());
+}
+
 
 initRDKitModule().then(function(instance) {
+    var done = {
+        test_substruct_library: false,
+    };
+    const waitAllTestsFinished = () => {
+        const poll = resolve => {
+            if (Object.values(done).every(v => v)) {
+                resolve();
+            } else {
+                setTimeout(() => poll(resolve), 100);
+            }
+        }
+        return new Promise(poll);
+    }
     RDKitModule = instance;
     console.log(RDKitModule.version());
-    // test_basics();
+    test_basics();
     test_molblock_nostrict();
     test_molblock_rgp();
     test_sketcher_services();
     test_sketcher_services2();
     test_abbreviations();
-    test_substruct_library();
+    test_substruct_library(done);
     test_substruct_library_merge_hs();
     test_substruct_library_empty_mols();
     test_substruct_library_empty_lib();
@@ -410,5 +428,8 @@ initRDKitModule().then(function(instance) {
     test_isotope_labels();
     test_generate_aligned_coords_allow_rgroups();
     test_accept_failure();
-    console.log("Tests finished successfully");
+    test_get_mol_no_kekulize();
+    waitAllTestsFinished().then(() =>
+        console.log("Tests finished successfully")
+    );
 });
