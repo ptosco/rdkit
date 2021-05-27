@@ -11,6 +11,8 @@
 #include <GraphMol/RDKitBase.h>
 #include <GraphMol/Descriptors/MolDescriptors.h>
 #include <GraphMol/PartialCharges/GasteigerCharges.h>
+#include <GraphMol/ForceFieldHelpers/MMFF/AtomTyper.h>
+#include <ForceField/MMFF/Params.h>
 #include <vector>
 #include <algorithm>
 
@@ -24,6 +26,12 @@ namespace Descriptors {
 double getLabuteAtomContribs(const ROMol &mol, std::vector<double> &Vi,
                              double &hContrib, bool includeHs, bool force) {
   TEST_ASSERT(Vi.size() == mol.getNumAtoms());
+  ROMol molCopy(mol);
+  MMFF::MMFFMolProperties mmffMolProperties(molCopy);
+  TEST_ASSERT(mmffMolProperties.isValid());
+  static const double Rh = PeriodicTable::getTable()->getRvdw(1);
+  static const double Rh2 = Rh * Rh;
+  static const double bh = PeriodicTable::getTable()->getRb0(1);
   if (!force && mol.hasProp(common_properties::_labuteAtomContribs)) {
     mol.getProp(common_properties::_labuteAtomContribs, Vi);
     mol.getProp(common_properties::_labuteAtomHContrib, hContrib);
@@ -32,19 +40,29 @@ double getLabuteAtomContribs(const ROMol &mol, std::vector<double> &Vi,
     return res;
   }
   unsigned int nAtoms = mol.getNumAtoms();
-  std::vector<double> rads(nAtoms);
+  std::vector<double> bondRadii(nAtoms);
+  std::vector<double> vdwRadii(nAtoms);
   for (unsigned int i = 0; i < nAtoms; ++i) {
-    rads[i] = PeriodicTable::getTable()->getRb0(
-        mol.getAtomWithIdx(i)->getAtomicNum());
+    int atomicNum = mol.getAtomWithIdx(i)->getAtomicNum();
+    bondRadii[i] = PeriodicTable::getTable()->getRb0(atomicNum);
+    vdwRadii[i] = PeriodicTable::getTable()->getRvdw(atomicNum);
     Vi[i] = 0.0;
   }
 
   for (ROMol::ConstBondIterator bondIt = mol.beginBonds();
        bondIt != mol.endBonds(); ++bondIt) {
+    unsigned int i = (*bondIt)->getBeginAtomIdx();
+    unsigned int j = (*bondIt)->getEndAtomIdx();
     const double bondScaleFacts[4] = {.1, 0, .2, .3};
-    double Ri = rads[(*bondIt)->getBeginAtomIdx()];
-    double Rj = rads[(*bondIt)->getEndAtomIdx()];
-    double bij = Ri + Rj;
+    //double bi = bondRadii.at(i);
+    //double bj = bondRadii.at(j);
+    double Ri = vdwRadii.at(i);
+    double Rj = vdwRadii.at(j);
+    //double bij = bi + bj;
+    unsigned int bondType;
+    ForceFields::MMFF::MMFFBond mmffBondStretchParams;
+    mmffMolProperties.getMMFFBondStretchParams(molCopy, i, j, bondType, mmffBondStretchParams);
+    double bij = mmffBondStretchParams.r0;
     if (!(*bondIt)->getIsAromatic()) {
       if ((*bondIt)->getBondType() < 4) {
         bij -= bondScaleFacts[(*bondIt)->getBondType()];
@@ -53,30 +71,30 @@ double getLabuteAtomContribs(const ROMol &mol, std::vector<double> &Vi,
       bij -= bondScaleFacts[0];
     }
     double dij = std::min(std::max(fabs(Ri - Rj), bij), Ri + Rj);
-    Vi[(*bondIt)->getBeginAtomIdx()] += Rj * Rj - (Ri - dij) * (Ri - dij) / dij;
-    Vi[(*bondIt)->getEndAtomIdx()] += Ri * Ri - (Rj - dij) * (Rj - dij) / dij;
+    std::cerr << "bij " << bij << ", dij " << dij << std::endl;
+    Vi[i] += Rj * Rj - (Ri - dij) * (Ri - dij) / dij;
+    Vi[j] += Ri * Ri - (Rj - dij) * (Rj - dij) / dij;
   }
   hContrib = 0.0;
   if (includeHs) {
-    double Rj = PeriodicTable::getTable()->getRb0(1);
     for (unsigned int i = 0; i < nAtoms; ++i) {
-      double Ri = rads[i];
-      double bij = Ri + Rj;
-      double dij = std::min(std::max(fabs(Ri - Rj), bij), Ri + Rj);
-      Vi[i] += Rj * Rj - (Ri - dij) * (Ri - dij) / dij;
-      hContrib += Ri * Ri - (Rj - dij) * (Rj - dij) / dij;
+      double bi = bondRadii.at(i);
+      double Ri = vdwRadii.at(i);
+      double bih = bi + bh;
+      double dih = std::min(std::max(fabs(Ri - Rh), bih), Ri + Rh);
+      Vi[i] += Rh2 - (Ri - dih) * (Ri - dih) / dih;
+      hContrib += Ri * Ri - (Rh - dih) * (Rh - dih) / dih;
     }
   }
 
   double res = 0.0;
   for (unsigned int i = 0; i < nAtoms; ++i) {
-    double Ri = rads[i];
-    Vi[i] = M_PI * Ri * (4. * Ri - Vi[i]);
-    res += Vi[i];
+    double Ri = vdwRadii.at(i);
+    Vi[i] = M_PI * Ri * (4. * Ri - Vi.at(i));
+    res += Vi.at(i);
   }
   if (includeHs && fabs(hContrib) > 1e-4) {
-    double Rj = PeriodicTable::getTable()->getRb0(1);
-    hContrib = M_PI * Rj * (4. * Rj - hContrib);
+    hContrib = M_PI * Rh * (4. * Rh - hContrib);
     res += hContrib;
   }
   mol.setProp(common_properties::_labuteAtomContribs, Vi, true);
@@ -85,6 +103,7 @@ double getLabuteAtomContribs(const ROMol &mol, std::vector<double> &Vi,
 
   return res;
 }
+
 double calcLabuteASA(const ROMol &mol, bool includeHs, bool force) {
   if (!force && mol.hasProp(common_properties::_labuteASA)) {
     double res;

@@ -14,7 +14,7 @@ rdkit_library(Descriptors
               USRDescriptor.cpp AtomFeat.cpp
               ${DESC3D_SOURCES}
               LINK_LIBRARIES PartialCharges SmilesParse FileParsers Subgraphs SubstructMatch MolTransforms GraphMol
-                 EigenSolvers RDGeneral)
+                 EigenSolvers RDGeneral ForceFieldHelpers)
 target_compile_definitions(Descriptors PRIVATE RDKIT_DESCRIPTORS_BUILD)
 
 rdkit_headers(Crippen.h BCUT.h Lipinski.h
