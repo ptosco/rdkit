@@ -250,7 +250,7 @@ void ParseOldAtomList(RWMol *mol, const std::string &text, unsigned int line) {
     default:
       delete q;
       std::ostringstream errout;
-      errout << "Unrecognized atom-list query modifier: '" << text[14]
+      errout << "Unrecognized atom-list query modifier: '" << text[4]
              << "' on line " << line;
       throw FileParseException(errout.str());
   }
@@ -1446,9 +1446,23 @@ Atom *ParseMolFileAtomLine(const std::string text, RDGeom::Point3D &pos,
     res->setFormalCharge(4 - chg);
   }
 
-  // FIX: this does not appear to be correct
-  if (hCount == 1) {
+  if (hCount >= 1) {
+    if (!res->hasQuery()) {
+      auto qatom = new QueryAtom(*res);
+      delete res;
+      res = qatom;
+    }
     res->setNoImplicit(true);
+    if (hCount > 1) {
+      ATOM_EQUALS_QUERY *oq = makeAtomImplicitHCountQuery(hCount - 1);
+      auto nq = makeAtomSimpleQuery<ATOM_LESSEQUAL_QUERY>(
+          hCount - 1, oq->getDataFunc(),
+          std::string("less_") + oq->getDescription());
+      res->expandQuery(nq);
+      delete oq;
+    } else {
+      res->expandQuery(makeAtomImplicitHCountQuery(0));
+    }
   }
 
   if (massDiff != 0) {
@@ -2205,7 +2219,16 @@ void ParseV3000AtomProps(RWMol *mol, Atom *&atom, typename T::iterator &token,
         if (hcount == -1) {
           hcount = 0;
         }
-        atom->expandQuery(makeAtomHCountQuery(hcount));
+        if (hcount > 0) {
+          ATOM_EQUALS_QUERY *oq = makeAtomImplicitHCountQuery(hcount);
+          auto nq = makeAtomSimpleQuery<ATOM_LESSEQUAL_QUERY>(
+              hcount, oq->getDataFunc(),
+              std::string("less_") + oq->getDescription());
+          atom->expandQuery(nq);
+          delete oq;
+        } else {
+          atom->expandQuery(makeAtomImplicitHCountQuery(0));
+        }
       }
     } else if (prop == "UNSAT") {
       if (val == "1") {
@@ -2802,20 +2825,48 @@ bool ParseV3000CTAB(std::istream *inStream, unsigned int &line, RWMol *mol,
     ParseV3000BondBlock(inStream, line, nBonds, mol, chiralityPossible);
   }
 
+  tempStr = getV3000Line(inStream, line);
   if (nSgroups) {
-    ParseV3000SGroupsBlock(inStream, line, nSgroups, mol, strictParsing);
+    boost::to_upper(tempStr);
+    if (tempStr.length() < 12 || tempStr.substr(0, 12) != "BEGIN SGROUP") {
+      std::ostringstream errout;
+      errout << "BEGIN SGROUP line not found on line " << line;
+      if (strictParsing) {
+        throw FileParseException(errout.str());
+      } else {
+        BOOST_LOG(rdWarningLog) << errout.str() << std::endl;
+      }
+    } else {
+      tempStr =
+          ParseV3000SGroupsBlock(inStream, line, nSgroups, mol, strictParsing);
+      boost::to_upper(tempStr);
+      if (tempStr.length() < 10 || tempStr.substr(0, 10) != "END SGROUP") {
+        std::ostringstream errout;
+        errout << "END SGROUP line not found on line " << line;
+        if (strictParsing) {
+          throw FileParseException(errout.str());
+        } else {
+          BOOST_LOG(rdWarningLog) << errout.str() << std::endl;
+        }
+      } else {
+        tempStr = getV3000Line(inStream, line);
+      }
+    }
   }
 
   if (n3DConstraints) {
     BOOST_LOG(rdWarningLog)
         << "3D constraint information in mol block ignored at line " << line
         << std::endl;
-    tempStr = getV3000Line(inStream, line);
     boost::to_upper(tempStr);
     if (tempStr.length() < 11 || tempStr.substr(0, 11) != "BEGIN OBJ3D") {
       std::ostringstream errout;
       errout << "BEGIN OBJ3D line not found on line " << line;
-      throw FileParseException(errout.str());
+      if (strictParsing) {
+        throw FileParseException(errout.str());
+      } else {
+        BOOST_LOG(rdWarningLog) << errout.str() << std::endl;
+      }
     }
     for (unsigned int i = 0; i < n3DConstraints; ++i) {
       tempStr = getV3000Line(inStream, line);
@@ -2825,11 +2876,16 @@ bool ParseV3000CTAB(std::istream *inStream, unsigned int &line, RWMol *mol,
     if (tempStr.length() < 9 || tempStr.substr(0, 9) != "END OBJ3D") {
       std::ostringstream errout;
       errout << "END OBJ3D line not found on line " << line;
-      throw FileParseException(errout.str());
+      if (strictParsing) {
+        throw FileParseException(errout.str());
+      } else {
+        BOOST_LOG(rdWarningLog) << errout.str() << std::endl;
+      }
+    } else {
+      tempStr = getV3000Line(inStream, line);
     }
   }
 
-  tempStr = getV3000Line(inStream, line);
   // do link nodes:
   boost::to_upper(tempStr);
   while (tempStr.length() > 8 && tempStr.substr(0, 8) == "LINKNODE") {
@@ -2863,7 +2919,11 @@ bool ParseV3000CTAB(std::istream *inStream, unsigned int &line, RWMol *mol,
 
   boost::to_upper(tempStr);
   if (tempStr.length() < 8 || tempStr.substr(0, 8) != "END CTAB") {
-    throw FileParseException("END CTAB line not found");
+    if (strictParsing) {
+      throw FileParseException("END CTAB line not found");
+    } else {
+      BOOST_LOG(rdWarningLog) << "END CTAB line not found." << std::endl;
+    }
   }
 
   if (expectMEND) {

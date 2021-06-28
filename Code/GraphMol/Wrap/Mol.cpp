@@ -33,6 +33,10 @@ namespace python = boost::python;
 
 namespace RDKit {
 
+void MolClearComputedPropsHelper(const ROMol &mol, bool includeRings) {
+  mol.clearComputedProps(includeRings);
+}
+
 python::object MolToBinary(const ROMol &self) {
   std::string res;
   {
@@ -290,6 +294,7 @@ struct mol_wrapper {
         .value("ComputedProps", RDKit::PicklerOps::ComputedProps)
         .value("AllProps", RDKit::PicklerOps::AllProps)
         .value("CoordsAsDouble", RDKit::PicklerOps::CoordsAsDouble)
+        .value("NoConformers", RDKit::PicklerOps::NoConformers)
         .export_values();
     ;
 
@@ -347,6 +352,7 @@ struct mol_wrapper {
         "Mol", molClassDoc.c_str(),
         python::init<>("Constructor, takes no arguments"))
         .def(python::init<const std::string &>())
+        .def(python::init<const std::string &, unsigned int>())
         .def(python::init<const ROMol &>())
         .def(python::init<const ROMol &, bool>())
         .def(python::init<const ROMol &, bool, int>())
@@ -710,7 +716,8 @@ struct mol_wrapper {
              "  ARGUMENTS:\n"
              "    - key: the name of the property to clear (a string).\n")
 
-        .def("ClearComputedProps", MolClearComputedProps<ROMol>,
+        .def("ClearComputedProps", MolClearComputedPropsHelper,
+             (python::arg("self"), python::arg("includeRings") = true),
              "Removes all computed properties from the molecule.\n\n")
 
         .def("UpdatePropertyCache", &ROMol::updatePropertyCache,
@@ -828,6 +835,7 @@ struct mol_wrapper {
         python::init<const ROMol &>("Construct from a Mol"))
         .def(python::init<>())
         .def(python::init<const std::string &>())
+        .def(python::init<const std::string &, unsigned int>())
         .def(python::init<const ROMol &, bool>())
         .def(python::init<const ROMol &, bool, int>())
         .def("__copy__", &generic__copy__<ReadWriteMol>)
@@ -869,8 +877,8 @@ struct mol_wrapper {
         .def("SetStereoGroups", &ReadWriteMol::SetStereoGroups,
              (python::arg("stereo_groups")), "Set the stereo groups")
 
-        .def("InsertMol", &ReadWriteMol::insertMol,
-        	   (python::arg("mol")), "Insert (add) the given molecule into this one")
+        .def("InsertMol", &ReadWriteMol::insertMol, (python::arg("mol")),
+             "Insert (add) the given molecule into this one")
 
         .def("BeginBatchEdit", &RWMol::beginBatchEdit, "starts batch editing")
         .def("RollbackBatchEdit", &RWMol::rollbackBatchEdit,

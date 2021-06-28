@@ -376,7 +376,11 @@ ROMol *MolFromSmilesHelper(python::object ismiles,
                            const SmilesParserParams &params) {
   std::string smiles = pyObjectToString(ismiles);
 
-  return SmilesToMol(smiles, params);
+  try {
+    return SmilesToMol(smiles, params);
+  } catch (...) {
+    return nullptr;
+  }
 }
 
 python::list MolToRandomSmilesHelper(const ROMol &mol, unsigned int numSmiles,
@@ -458,7 +462,7 @@ python::object addMetadataToPNGFileHelper(python::dict pymetadata, python::objec
   for (unsigned int i = 0;
        i < python::extract<unsigned int>(pymetadata.keys().attr("__len__")());
        ++i) {
-    std::string key = python::extract<std::string>(pymetadata.keys()[i]); 
+    std::string key = python::extract<std::string>(pymetadata.keys()[i]);
     std::string val = python::extract<std::string>(pymetadata.values()[i]);
     metadata.push_back(std::make_pair(key,val));
   }
@@ -477,7 +481,7 @@ python::object addMetadataToPNGStringHelper(python::dict pymetadata, python::obj
   for (unsigned int i = 0;
        i < python::extract<unsigned int>(pymetadata.keys().attr("__len__")());
        ++i) {
-    std::string key = python::extract<std::string>(pymetadata.keys()[i]); 
+    std::string key = python::extract<std::string>(pymetadata.keys()[i]);
     std::string val = python::extract<std::string>(pymetadata.values()[i]);
     metadata.push_back(std::make_pair(key,val));
   }
@@ -933,6 +937,34 @@ BOOST_PYTHON_MODULE(rdmolfiles) {
               (python::arg("mol"), python::arg("filename"),
                python::arg("includeStereo") = true, python::arg("confId") = -1,
                python::arg("kekulize") = true),
+              docString.c_str());
+  //
+
+  docString =
+      "Writes a CML block for a molecule\n\
+  ARGUMENTS:\n\
+\n\
+    - mol: the molecule\n\
+    - confId: (optional) selects which conformation to output\n\
+    - kekulize: (optional) triggers kekulization of the molecule before it's written\n\
+\n";
+  python::def("MolToCMLBlock", RDKit::MolToCMLBlock,
+              (python::arg{"mol"}, python::arg{"confId"} = -1,
+               python::arg{"kekulize"} = true),
+              docString.c_str());
+
+  docString =
+      "Writes a CML file for a molecule\n\
+  ARGUMENTS:\n\
+\n\
+    - mol: the molecule\n\
+    - filename: the file to write to\n\
+    - confId: (optional) selects which conformation to output\n\
+    - kekulize: (optional) triggers kekulization of the molecule before it's written\n\
+\n";
+  python::def("MolToCMLFile", RDKit::MolToCMLFile,
+              (python::arg{"mol"}, python::arg{"filename"},
+               python::arg{"confId"} = -1, python::arg{"kekulize"} = true),
               docString.c_str());
 
   //
@@ -1717,7 +1749,7 @@ BOOST_PYTHON_MODULE(rdmolfiles) {
 
      ARGUMENTS:
 
-       - metadata: dict with the metadata to be written 
+       - metadata: dict with the metadata to be written
                    (keys and values should be strings)
 
        - filename: the PNG filename
@@ -1734,7 +1766,7 @@ BOOST_PYTHON_MODULE(rdmolfiles) {
 
      ARGUMENTS:
 
-       - metadata: dict with the metadata to be written 
+       - metadata: dict with the metadata to be written
                    (keys and values should be strings)
 
        - png: the PNG string

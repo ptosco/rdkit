@@ -19,6 +19,7 @@
 #include <GraphMol/SmilesParse/SmilesWrite.h>
 #include <GraphMol/SmilesParse/SmartsWrite.h>
 #include <boost/format.hpp>
+#include <limits>
 
 using namespace RDKit;
 #if 1
@@ -1397,7 +1398,9 @@ TEST_CASE("Github #3470: Hydrogen is incorrectly identified as an early atom",
   }
   SECTION("confirm with SMILES") {
     RWMol m;
-    m.addAtom(new Atom(1));
+    bool updateLabel = false;
+    bool takeOwnership = true;
+    m.addAtom(new Atom(1), updateLabel, takeOwnership);
     m.getAtomWithIdx(0)->setFormalCharge(-1);
     m.updatePropertyCache();
     CHECK(MolToSmiles(m) == "[H-]");
@@ -1462,7 +1465,9 @@ TEST_CASE("needsHs function", "[chemistry]") {
     CHECK(MolOps::needsHs(*m));
 
     // add a single H:
-    m->addAtom(new Atom(1));
+    bool updateLabel = false;
+    bool takeOwnership = true;
+    m->addAtom(new Atom(1), updateLabel, takeOwnership);
     m->addBond(0, 2, Bond::BondType::SINGLE);
     MolOps::sanitizeMol(*m);
     CHECK(MolOps::needsHs(*m));
@@ -1796,7 +1801,9 @@ TEST_CASE("batch edits", "[editing]") {
     REQUIRE(m);
     m->beginBatchEdit();
     m->removeAtom(2);
-    m->addAtom(new Atom(7));
+    bool updateLabel = false;
+    bool takeOwnership = true;
+    m->addAtom(new Atom(7), updateLabel, takeOwnership);
     m->removeAtom(1);
     m->commitBatchEdit();
     CHECK(MolToSmiles(*m) == "C.N.O");
@@ -1806,7 +1813,9 @@ TEST_CASE("batch edits", "[editing]") {
     REQUIRE(m);
     m->beginBatchEdit();
     m->removeAtom(2);
-    m->addAtom(new Atom(7));
+    bool updateLabel = false;
+    bool takeOwnership = true;
+    m->addAtom(new Atom(7), updateLabel, takeOwnership);
     m->removeAtom(4);
     m->commitBatchEdit();
     CHECK(MolToSmiles(*m) == "CC.O");
@@ -1850,6 +1859,35 @@ TEST_CASE("batch edits", "[editing]") {
   }
 }
 
+TEST_CASE("github #4122: segfaults in commitBatchEdit()", "[editing]][bug]") {
+  SECTION("as reported, no atoms") {
+    RWMol m;
+    m.beginBatchEdit();
+    m.addAtom();
+    m.commitBatchEdit();
+  }
+  SECTION("no bonds") {
+    auto m = "C.C"_smiles;
+    m->beginBatchEdit();
+    m->addBond(0, 1, Bond::BondType::SINGLE);
+    m->commitBatchEdit();
+  }
+  SECTION("after add atom") {
+    auto m = "CC"_smiles;
+    m->beginBatchEdit();
+    m->addAtom(6);
+    m->removeAtom(0u);
+    m->addAtom(6);
+    m->commitBatchEdit();
+  }
+  SECTION("remove a just-added atom") {
+    auto m = "CC"_smiles;
+    m->beginBatchEdit();
+    m->addAtom(6);
+    m->removeAtom(2);
+    m->commitBatchEdit();
+  }
+}
 TEST_CASE("github #3912: cannot draw atom lists from SMARTS", "[query][bug]") {
   SECTION("original") {
     auto m = "C(-[N,O])-[#7,#8]"_smarts;
@@ -1900,5 +1938,135 @@ TEST_CASE("bridgehead queries", "[query]") {
         CHECK(test == false);
       }
     }
+  }
+}
+
+TEST_CASE("replaceAtom/Bond should not screw up bookmarks", "[RWMol]") {
+  SECTION("atom basics") {
+    auto m = "CCC"_smiles;
+    REQUIRE(m);
+    m->setAtomBookmark(m->getAtomWithIdx(2), 1);
+    auto origAt2 = m->getAtomWithIdx(2);
+    CHECK(m->getUniqueAtomWithBookmark(1) == origAt2);
+    Atom O(8);
+    m->replaceAtom(2, &O);
+    auto at2 = m->getAtomWithIdx(2);
+    CHECK(at2 != origAt2);
+    CHECK(m->getUniqueAtomWithBookmark(1) == at2);
+  }
+  SECTION("bond basics") {
+    auto m = "CCCC"_smiles;
+    REQUIRE(m);
+    m->setBondBookmark(m->getBondWithIdx(2), 1);
+    auto origB2 = m->getBondWithIdx(2);
+    CHECK(m->getUniqueBondWithBookmark(1) == origB2);
+    Bond single(Bond::BondType::SINGLE);
+    m->replaceBond(2, &single);
+    auto b2 = m->getBondWithIdx(2);
+    CHECK(b2 != origB2);
+    CHECK(m->getUniqueBondWithBookmark(1) == b2);
+  }
+}
+
+TEST_CASE("github #4071: StereoGroups not preserved by RenumberAtoms()",
+          "[molops]") {
+  SECTION("basics") {
+    auto mol =
+        "C[C@@H](O)[C@H](C)[C@@H](C)[C@@H](C)O |&3:3,o1:7,&1:1,&2:5,r|"_smiles;
+    REQUIRE(mol);
+    REQUIRE(mol->getStereoGroups().size() == 4);
+    std::vector<unsigned int> aindices(mol->getNumAtoms());
+    std::iota(aindices.begin(), aindices.end(), 0);
+    std::reverse(aindices.begin(), aindices.end());
+    std::unique_ptr<ROMol> nmol(MolOps::renumberAtoms(*mol, aindices));
+    REQUIRE(nmol);
+    CHECK(nmol->getStereoGroups().size() == 4);
+    for (size_t i = 0; i < nmol->getStereoGroups().size(); ++i) {
+      CHECK(nmol->getStereoGroups()[i].getGroupType() ==
+            mol->getStereoGroups()[i].getGroupType());
+    }
+    CHECK(MolToCXSmiles(*nmol) ==
+          "C[C@@H](O)[C@H](C)[C@@H](C)[C@@H](C)O |o1:1,&1:3,&2:5,&3:7|");
+  }
+}
+
+TEST_CASE("github #4127: SEGV in ROMol::getAtomDegree if atom is not in graph",
+          "[graphmol]") {
+  // also includes tests for some related edge cases found as part of that bug
+  // fix
+  Atom atom(6);
+  RWMol mol1;
+  auto mol2 = "CCC"_smiles;
+  SECTION("getAtomDegree") {
+    CHECK_THROWS_AS(mol1.getAtomDegree(nullptr), Invar::Invariant);
+    CHECK_THROWS_AS(mol1.getAtomDegree(&atom), Invar::Invariant);
+    CHECK_THROWS_AS(mol1.getAtomDegree(mol2->getAtomWithIdx(0)),
+                    Invar::Invariant);
+  }
+  SECTION("getAtomNeighbors") {
+    CHECK_THROWS_AS(mol1.getAtomNeighbors(nullptr), Invar::Invariant);
+    CHECK_THROWS_AS(mol1.getAtomNeighbors(&atom), Invar::Invariant);
+    CHECK_THROWS_AS(mol1.getAtomNeighbors(mol2->getAtomWithIdx(0)),
+                    Invar::Invariant);
+  }
+  SECTION("getAtomBonds") {
+    CHECK_THROWS_AS(mol1.getAtomBonds(nullptr), Invar::Invariant);
+    CHECK_THROWS_AS(mol1.getAtomBonds(&atom), Invar::Invariant);
+    CHECK_THROWS_AS(mol1.getAtomBonds(mol2->getAtomWithIdx(0)),
+                    Invar::Invariant);
+  }
+  SECTION("addAtom from another molecule") {
+    RWMol mol1cp(mol1);
+    CHECK_THROWS_AS(mol1cp.addAtom(nullptr), Invar::Invariant);
+    bool updateLabel = false;
+    bool takeOwnership = true;
+    CHECK_THROWS_AS(
+        mol1cp.addAtom(mol2->getAtomWithIdx(0), updateLabel, takeOwnership),
+        Invar::Invariant);
+    takeOwnership = false;
+    CHECK(mol1cp.addAtom(mol2->getAtomWithIdx(0), updateLabel, takeOwnership) ==
+          0);
+  }
+  SECTION("addBond from another molecule") {
+    auto mol3 = "C.C.C"_smiles;
+    bool takeOwnership = true;
+    CHECK_THROWS_AS(mol3->addBond(mol2->getBondWithIdx(0), takeOwnership),
+                    Invar::Invariant);
+    takeOwnership = false;
+    CHECK(mol3->addBond(mol2->getBondWithIdx(0), takeOwnership) == 1);
+  }
+}
+
+TEST_CASE(
+    "github #4128: SEGV from unsigned integer overflow in "
+    "Conformer::setAtomPos",
+    "[graphmol]") {
+  Conformer conf;
+  RDGeom::Point3D pt(0, 0, 0);
+  CHECK_THROWS_AS(conf.setAtomPos(std::numeric_limits<unsigned>::max(), pt),
+                  ValueErrorException);
+}
+
+TEST_CASE("KekulizeFragment", "[graphmol]") {
+  SECTION("basics") {
+    auto mol = "CCc1ccccc1"_smiles;
+    REQUIRE(mol);
+    boost::dynamic_bitset<> atomsInPlay(mol->getNumAtoms());
+    for (auto aidx : std::vector<size_t>{0, 1, 2, 3}) {
+      atomsInPlay.set(aidx);
+    }
+    boost::dynamic_bitset<> bondsInPlay(mol->getNumBonds());
+    for (auto bidx : std::vector<size_t>{0, 1, 2}) {
+      bondsInPlay.set(bidx);
+    }
+    MolOps::details::KekulizeFragment(*mol, atomsInPlay, bondsInPlay);
+    CHECK(!mol->getAtomWithIdx(2)->getIsAromatic());
+    CHECK(mol->getAtomWithIdx(4)->getIsAromatic());
+    CHECK(!mol->getBondWithIdx(2)->getIsAromatic());
+    // at the moment that bond still has an aromatic bond order, which isn't
+    // optimal, but that will have to wait until we add a feature to allow
+    // kekulization of conjugated chains.
+    CHECK(mol->getBondWithIdx(2)->getBondType() == Bond::AROMATIC);
+    CHECK(mol->getBondWithIdx(4)->getIsAromatic());
   }
 }

@@ -3,13 +3,13 @@
 if(RDK_USE_BOOST_IOSTREAMS)
 if(WIN32)
   find_package(Boost ${RDK_BOOST_VERSION} COMPONENTS system iostreams REQUIRED)
-  find_package(Boost ${RDK_BOOST_VERSION} COMPONENTS zlib)
   set (link_iostreams ${Boost_LIBRARIES})
   if (NOT Boost_USE_STATIC_LIBS)
      add_definitions("-DBOOST_IOSTREAMS_DYN_LINK")
   endif()
   find_package(ZLIB)
   include_directories(${ZLIB_INCLUDE_DIRS})
+  find_package(Boost ${RDK_BOOST_VERSION} COMPONENTS zlib)
   if(Boost_zlib_FOUND)
     set(zlib_lib Boost::zlib)
   else()
@@ -50,7 +50,7 @@ rdkit_library(FileParsers
               TDTMolSupplier.cpp TDTWriter.cpp
               TplFileParser.cpp TplFileWriter.cpp
               PDBParser.cpp PDBWriter.cpp PDBSupplier.cpp
-              XYZFileWriter.cpp
+              CMLWriter.cpp XYZFileWriter.cpp
               ${maesupplier}
               ProximityBonds.cpp
               SequenceParsers.cpp SequenceWriters.cpp
