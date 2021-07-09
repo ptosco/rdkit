@@ -236,6 +236,8 @@ RDKIT_DEPICTOR_EXPORT void generateDepictionMatching3DStructure(
     RDKit::ROMol &mol, const RDKit::ROMol &reference, int confId = -1,
     RDKit::ROMol *referencePattern = nullptr, bool acceptFailure = false,
     bool forceRDKit = false);
+
+RDKIT_DEPICTOR_EXPORT void straightenDepiction(RDKit::ROMol &mol, int confId = -1, bool smallestRotation = false);
 };  // namespace RDDepict
 
 #endif

@@ -634,4 +634,62 @@ void generateDepictionMatching3DStructure(RDKit::ROMol &mol,
   RDDepict::compute2DCoordsMimicDistMat(mol, &dmat, false, true, 0.5, 3, 100,
                                         25, true, forceRDKit);
 }
+
+void straightenDepiction(RDKit::ROMol &mol, int confId, bool smallestRotation) {
+  constexpr double RAD2DEG = 180. / M_PI;
+  constexpr double DEG2RAD = M_PI / 180.;
+  constexpr double INCR_DEG = 30.;
+  constexpr double HALF_INCR_DEG = 0.5 * INCR_DEG;
+  constexpr double TOL_DEG = 5.0;
+  auto &conf = mol.getConformer(confId);
+  auto &pos = conf.getPositions();
+  std::unordered_map<int, std::pair<unsigned int, double>> thetaBins;
+  std::vector<double> thetaValues;
+  thetaValues.reserve(mol.getNumBonds());
+  for (const auto b : mol.bonds()) {
+    auto bi = b->getBeginAtomIdx();
+    auto ei = b->getEndAtomIdx();
+    auto bv = pos.at(bi) - pos.at(ei);
+    bv.x = (bv.x < 0.) ? std::min(-1.e-5, bv.x) : std::max(1.e-5, bv.x);
+    auto theta = RAD2DEG * atan(bv.y / bv.x);
+    auto d_theta = fmod(-theta, INCR_DEG);
+    if (fabs(d_theta) > HALF_INCR_DEG) {
+      d_theta -= std::copysign(INCR_DEG, d_theta);
+    }
+    int thetaKey = static_cast<int>(d_theta + 0.5);
+    auto it = thetaBins.find(thetaKey);
+    if (it == thetaBins.end()) {
+      it = thetaBins.emplace(thetaKey, std::make_pair(0U, 0.0)).first;
+    }
+    ++it->second.first;
+    it->second.second += d_theta;
+    thetaValues.push_back(theta);
+  }
+  unsigned int maxCount = 0;
+  double d_thetaMin = 0.;
+  for (auto it : thetaBins) {
+    const auto count = it.second.first;
+    const auto d_thetaAvg = it.second.second / static_cast<double>(count);
+    if (count > maxCount || (count == maxCount && fabs(d_thetaAvg) < fabs(d_thetaMin))) {
+      maxCount = count;
+      d_thetaMin = d_thetaAvg;
+    }
+  }
+  unsigned int n30 = std::count_if(thetaValues.begin(), thetaValues.end(), [d_thetaMin, INCR_DEG, TOL_DEG](double theta) {
+    theta += d_thetaMin;
+    return (fabs(fmod(theta, INCR_DEG)) < TOL_DEG);
+  });
+  unsigned int n60 = std::count_if(thetaValues.begin(), thetaValues.end(), [d_thetaMin, INCR_DEG, TOL_DEG](double theta) {
+    theta += d_thetaMin;
+    return (fabs(fmod(theta, INCR_DEG)) < TOL_DEG && !(abs(static_cast<int>(theta / INCR_DEG + 0.5)) % 2));
+  });
+  bool shouldRotate = (n60 > n30 / 2);
+  if (shouldRotate && !smallestRotation) {
+    d_thetaMin -= std::copysign(INCR_DEG, d_thetaMin);
+  }
+  d_thetaMin *= DEG2RAD;
+  RDGeom::Transform3D trans;
+  trans.SetRotation(d_thetaMin, RDGeom::Z_Axis);
+  MolTransforms::transformConformer(conf, trans);
+}
 }  // namespace RDDepict
