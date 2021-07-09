@@ -66,18 +66,18 @@ class JSMol {
   std::string get_new_coords() const { return get_new_coords(false); }
   std::string remove_hs() const;
   std::string add_hs() const;
-  void normalize_2d_coords(bool reorient, bool scale, bool sanityCheck, bool useCoordGen);
-  void normalize_2d_coords(bool reorient, bool scale, bool sanityCheck) {
-    return normalize_2d_coords(reorient, scale, sanityCheck, false);
+  void normalize_2d_molblock(bool reorient, bool scale, bool sanityCheck, bool useCoordGen);
+  void normalize_2d_molblock(bool reorient, bool scale, bool sanityCheck) {
+    return normalize_2d_molblock(reorient, scale, sanityCheck, false);
   }
-  void normalize_2d_coords(bool reorient, bool scale) {
-    return normalize_2d_coords(reorient, scale, true, false);
+  void normalize_2d_molblock(bool reorient, bool scale) {
+    return normalize_2d_molblock(reorient, scale, true, false);
   }
-  void normalize_2d_coords(bool reorient) {
-    return normalize_2d_coords(reorient, true, true, false);
+  void normalize_2d_molblock(bool reorient) {
+    return normalize_2d_molblock(reorient, true, true, false);
   }
-  void normalize_2d_coords() {
-    return normalize_2d_coords(true, true, true, false);
+  void normalize_2d_molblock() {
+    return normalize_2d_molblock(true, true, true, false);
   }
   void straighten_2d_coords(bool smallestRotation, bool useCoordGen);
   void straighten_2d_coords(bool smallestRotation) {

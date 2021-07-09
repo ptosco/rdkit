@@ -321,7 +321,7 @@ std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
   return res;
 }
 
-void JSMol::normalize_2d_coords(bool reorient, bool scale, bool sanityCheck, bool useCoordGen) {
+void JSMol::normalize_2d_molblock(bool reorient, bool scale, bool sanityCheck, bool useCoordGen) {
   if (!d_mol) return;
   constexpr double RDKIT_BOND_LEN = 1.5;
   constexpr double MIN_BOND_LEN = 0.5;
@@ -395,6 +395,7 @@ void JSMol::normalize_2d_coords(bool reorient, bool scale, bool sanityCheck, boo
   if (trans.get()) {
     MolTransforms::transformConformer(conf, *trans);
   }
+  d_mol->clearProp("_Name");
 }
 
 void JSMol::straighten_2d_coords(bool smallestRotation, bool useCoordGen) {
