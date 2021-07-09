@@ -656,7 +656,7 @@ void straightenDepiction(RDKit::ROMol &mol, int confId, bool smallestRotation) {
     if (fabs(d_theta) > HALF_INCR_DEG) {
       d_theta -= std::copysign(INCR_DEG, d_theta);
     }
-    int thetaKey = static_cast<int>(d_theta + 0.5);
+    int thetaKey = static_cast<int>(d_theta + std::copysign(0.5, d_theta));
     auto it = thetaBins.find(thetaKey);
     if (it == thetaBins.end()) {
       it = thetaBins.emplace(thetaKey, std::make_pair(0U, 0.0)).first;
@@ -667,7 +667,7 @@ void straightenDepiction(RDKit::ROMol &mol, int confId, bool smallestRotation) {
   }
   unsigned int maxCount = 0;
   double d_thetaMin = 0.;
-  for (auto it : thetaBins) {
+  for (const auto &it : thetaBins) {
     const auto count = it.second.first;
     const auto d_thetaAvg = it.second.second / static_cast<double>(count);
     if (count > maxCount || (count == maxCount && fabs(d_thetaAvg) < fabs(d_thetaMin))) {
@@ -681,7 +681,7 @@ void straightenDepiction(RDKit::ROMol &mol, int confId, bool smallestRotation) {
   });
   unsigned int n60 = std::count_if(thetaValues.begin(), thetaValues.end(), [d_thetaMin, INCR_DEG, TOL_DEG](double theta) {
     theta += d_thetaMin;
-    return (fabs(fmod(theta, INCR_DEG)) < TOL_DEG && !(abs(static_cast<int>(theta / INCR_DEG + 0.5)) % 2));
+    return (fabs(fmod(theta, INCR_DEG)) < TOL_DEG && !(abs(static_cast<int>(theta / INCR_DEG + std::copysign(0.5, theta))) % 2));
   });
   bool shouldRotate = (n60 > n30 / 2);
   if (shouldRotate && !smallestRotation) {
