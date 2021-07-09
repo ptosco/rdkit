@@ -236,6 +236,25 @@ RDKIT_DEPICTOR_EXPORT void generateDepictionMatching3DStructure(
     RDKit::ROMol &mol, const RDKit::ROMol &reference, int confId = -1,
     RDKit::ROMol *referencePattern = nullptr, bool acceptFailure = false,
     bool forceRDKit = false);
+
+//! \brief Rotate the 2D depiction such that the majority bonds have an angle
+//   with the X axis which is a multiple of 30 degrees.
+/*!
+  Generates a depiction for a molecule where a piece of the molecule
+  is constrained to have coordinates similar to those of a 3D reference
+  structure.
+
+  ARGUMENTS:
+  \param mol - the molecule to be rotated
+  \param confId - (optional) the id of the reference conformation to use
+  \param smallestRotation - (optional) if true, the smallest rotation that
+                            leads to the majority of bonds having an angle which
+                            is a multiple of 30 degrees will be chosen.
+                            If false, and the angle is 0, a larger rotation that
+                            leads to an angle of 30 degrees will be chosen
+*/
+
+RDKIT_DEPICTOR_EXPORT void straightenDepiction(RDKit::ROMol &mol, int confId = -1, bool smallestRotation = false);
 };  // namespace RDDepict
 
 #endif

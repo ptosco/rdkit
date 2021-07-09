@@ -321,4 +321,23 @@ BOOST_PYTHON_MODULE(rdDepictor) {
        python::arg("refPatt") = python::object(),
        python::arg("acceptFailure") = false, python::arg("forceRDKit") = false),
       docString.c_str());
+
+  docString =
+      "Rotate the 2D depiction such that the majority bonds have an angle \n\
+  with the X axis which is a multiple of 30 degrees.\n\
+  ARGUMENTS: \n\n\
+  mol -    the molecule to be rotated. \n\
+  confId -       (optional) the id of the reference conformation to use \n\
+  smallestRotation -  (optional) if True, the smallest rotation that \n\
+                  leads to the majority of bonds having an angle which \n\
+                  is multiple of 30 degrees will be chosen.\n\
+                  If False, and the angle is 0, a larger rotation that \n\
+                  leads to an angle of 30 degrees will be chosen";
+
+  python::def(
+      "StraightenDepiction",
+      RDDepict::straightenDepiction,
+      (python::arg("mol"), python::arg("confId") = -1,
+       python::arg("smallestRotation") = false),
+      docString.c_str());
 }
