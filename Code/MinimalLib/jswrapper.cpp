@@ -151,7 +151,31 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
                 select_overload<std::string(double, bool)>(
                     &JSMol::condense_abbreviations))
       .function("add_hs", &JSMol::add_hs)
-      .function("remove_hs", &JSMol::remove_hs);
+      .function("remove_hs", &JSMol::remove_hs)
+      .function("normalize_2d_coords",
+                select_overload<void()>(
+                    &JSMol::normalize_2d_coords))
+      .function("normalize_2d_coords",
+                select_overload<void(bool)>(
+                    &JSMol::normalize_2d_coords))
+      .function("normalize_2d_coords",
+                select_overload<void(bool, bool)>(
+                    &JSMol::normalize_2d_coords))
+      .function("normalize_2d_coords",
+                select_overload<void(bool, bool, bool)>(
+                    &JSMol::normalize_2d_coords))
+      .function("normalize_2d_coords",
+                select_overload<void(bool, bool, bool, bool)>(
+                    &JSMol::normalize_2d_coords))
+      .function("straighten_2d_coords",
+                select_overload<void()>(
+                    &JSMol::straighten_2d_coords))
+      .function("straighten_2d_coords",
+                select_overload<void(bool, bool)>(
+                    &JSMol::straighten_2d_coords))
+      .function("straighten_2d_coords",
+                select_overload<void(bool)>(
+                    &JSMol::straighten_2d_coords));
 
   class_<JSSubstructLibrary>("SubstructLibrary")
       .constructor<>()

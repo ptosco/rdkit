@@ -29,6 +29,8 @@
 #include <GraphMol/Depictor/RDDepictor.h>
 #include <GraphMol/CIPLabeler/CIPLabeler.h>
 #include <GraphMol/Abbreviations/Abbreviations.h>
+#include <GraphMol/MolTransforms/MolTransforms.h>
+#include <Geometry/Transform3D.h>
 #include <DataStructs/BitOps.h>
 
 #include <INCHI-API/inchi.h>
@@ -317,7 +319,98 @@ std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
   RDDepict::preferCoordGen = oprefer;
 #endif
   return res;
-};
+}
+
+void JSMol::normalize_2d_coords(bool reorient, bool scale, bool sanityCheck, bool useCoordGen) {
+  if (!d_mol) return;
+  constexpr double RDKIT_BOND_LEN = 1.5;
+  constexpr double MIN_BOND_LEN = 0.5;
+  constexpr double MAX_BOND_LENGTH_FACTOR = 4.0;
+  bool redoLayout = (!d_mol->getNumConformers());
+  double scaleFactor = -1.;
+  if (!redoLayout) {
+    auto &conf = d_mol->getConformer();
+    int minBondLengthInt = std::numeric_limits<int>::max();
+    int maxBondLengthInt = std::numeric_limits<int>::min();
+    int mostCommonBondLengthInt = -1;
+    unsigned int maxCount = 0;
+    if (sanityCheck || scale) {
+      std::unordered_map<int, unsigned int> binnedBondLengths;
+      for (const auto b : d_mol->bonds()) {
+        int bondLength = static_cast<int>(MolTransforms::getBondLength(conf, b->getBeginAtomIdx(), b->getEndAtomIdx()) * 10.0 + 0.5);
+        if (bondLength > maxBondLengthInt) {
+          maxBondLengthInt = bondLength;
+        } else if (bondLength < minBondLengthInt) {
+          minBondLengthInt = bondLength;
+        }
+        auto it = binnedBondLengths.find(bondLength);
+        if (it == binnedBondLengths.end()) {
+          it = binnedBondLengths.emplace(bondLength, 0U).first;
+        }
+        ++it->second;
+        if (it->second > maxCount) {
+          maxCount = it->second;
+          mostCommonBondLengthInt = it->first;
+        }
+      }
+      if (!binnedBondLengths.empty()) {
+        double minBondLength = static_cast<double>(minBondLengthInt) * 0.1;
+        double maxBondLength = static_cast<double>(maxBondLengthInt) * 0.1;
+        double mostCommonBondLength = static_cast<double>(mostCommonBondLengthInt) * 0.1;
+        if (sanityCheck) {
+          redoLayout = (minBondLengthInt < MIN_BOND_LEN) || (maxBondLength / minBondLengthInt > MAX_BOND_LENGTH_FACTOR);
+        }
+        if (!redoLayout && scale) {
+          scaleFactor = RDKIT_BOND_LEN / mostCommonBondLength;
+        }
+      }
+    }
+  }
+  if (redoLayout) {
+#ifdef RDK_BUILD_COORDGEN_SUPPORT
+    bool oprefer = RDDepict::preferCoordGen;
+    RDDepict::preferCoordGen = useCoordGen;
+#endif
+    RDDepict::compute2DCoords(*d_mol);
+#ifdef RDK_BUILD_COORDGEN_SUPPORT
+    RDDepict::preferCoordGen = oprefer;
+#endif
+  }
+  boost::shared_ptr<RDGeom::Transform3D> canonTrans;
+  boost::shared_ptr<RDGeom::Transform3D> trans;
+  auto &conf = d_mol->getConformer();
+  if (reorient) {
+    auto ctd = MolTransforms::computeCentroid(conf);
+    canonTrans.reset(MolTransforms::computeCanonicalTransform(conf, &ctd));
+    trans = canonTrans;
+  }
+  if (scaleFactor > 0.) {
+    trans.reset(new RDGeom::Transform3D());
+    trans->setVal(0, 0, scaleFactor);
+    trans->setVal(1, 1, scaleFactor);
+    if (canonTrans.get()) {
+      *trans *= *canonTrans;
+    }
+  }
+  if (trans.get()) {
+    MolTransforms::transformConformer(conf, *trans);
+  }
+}
+
+void JSMol::straighten_2d_coords(bool smallestRotation, bool useCoordGen) {
+  if (!d_mol) return;
+  if (!d_mol->getNumConformers()) {
+#ifdef RDK_BUILD_COORDGEN_SUPPORT
+    bool oprefer = RDDepict::preferCoordGen;
+    RDDepict::preferCoordGen = useCoordGen;
+#endif
+    RDDepict::compute2DCoords(*d_mol);
+#ifdef RDK_BUILD_COORDGEN_SUPPORT
+    RDDepict::preferCoordGen = oprefer;
+#endif
+  }
+  RDDepict::straightenDepiction(*d_mol, -1, smallestRotation);
+}
 
 JSSubstructLibrary::JSSubstructLibrary(unsigned int num_bits)
     : d_sslib(new SubstructLibrary(
