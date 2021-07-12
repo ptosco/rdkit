@@ -66,17 +66,17 @@ class JSMol {
   std::string get_new_coords() const { return get_new_coords(false); }
   std::string remove_hs() const;
   std::string add_hs() const;
-  void normalize_2d_molblock(bool reorient, bool scale, bool sanityCheck, bool useCoordGen);
-  void normalize_2d_molblock(bool reorient, bool scale, bool sanityCheck) {
+  std::string normalize_2d_molblock(bool reorient, bool scale, bool sanityCheck, bool useCoordGen);
+  std::string normalize_2d_molblock(bool reorient, bool scale, bool sanityCheck) {
     return normalize_2d_molblock(reorient, scale, sanityCheck, false);
   }
-  void normalize_2d_molblock(bool reorient, bool scale) {
+  std::string normalize_2d_molblock(bool reorient, bool scale) {
     return normalize_2d_molblock(reorient, scale, true, false);
   }
-  void normalize_2d_molblock(bool reorient) {
+  std::string normalize_2d_molblock(bool reorient) {
     return normalize_2d_molblock(reorient, true, true, false);
   }
-  void normalize_2d_molblock() {
+  std::string normalize_2d_molblock() {
     return normalize_2d_molblock(true, true, true, false);
   }
   void straighten_2d_coords(bool smallestRotation, bool useCoordGen);
@@ -129,6 +129,7 @@ class JSSubstructLibrary {
   inline int add_mol_helper(const RDKit::ROMol &mol);
 };
 
+double compute_msd(const std::string &pos1, const std::string& pos2);
 std::string get_inchikey_for_inchi(const std::string &input);
 JSMol *get_mol(const std::string &input, const std::string &details_json);
 JSMol *get_qmol(const std::string &input);

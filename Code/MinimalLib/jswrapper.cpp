@@ -153,19 +153,19 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("add_hs", &JSMol::add_hs)
       .function("remove_hs", &JSMol::remove_hs)
       .function("normalize_2d_molblock",
-                select_overload<void()>(
+                select_overload<std::string()>(
                     &JSMol::normalize_2d_molblock))
       .function("normalize_2d_molblock",
-                select_overload<void(bool)>(
+                select_overload<std::string(bool)>(
                     &JSMol::normalize_2d_molblock))
       .function("normalize_2d_molblock",
-                select_overload<void(bool, bool)>(
+                select_overload<std::string(bool, bool)>(
                     &JSMol::normalize_2d_molblock))
       .function("normalize_2d_molblock",
-                select_overload<void(bool, bool, bool)>(
+                select_overload<std::string(bool, bool, bool)>(
                     &JSMol::normalize_2d_molblock))
       .function("normalize_2d_molblock",
-                select_overload<void(bool, bool, bool, bool)>(
+                select_overload<std::string(bool, bool, bool, bool)>(
                     &JSMol::normalize_2d_molblock))
       .function("straighten_2d_coords",
                 select_overload<void()>(

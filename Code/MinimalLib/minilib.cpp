@@ -32,6 +32,7 @@
 #include <GraphMol/MolTransforms/MolTransforms.h>
 #include <Geometry/Transform3D.h>
 #include <DataStructs/BitOps.h>
+#include <boost/functional/hash.hpp>
 
 #include <INCHI-API/inchi.h>
 
@@ -321,11 +322,17 @@ std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
   return res;
 }
 
-void JSMol::normalize_2d_molblock(bool reorient, bool scale, bool sanityCheck, bool useCoordGen) {
-  if (!d_mol) return;
+std::string JSMol::normalize_2d_molblock(bool reorient, bool scale, bool sanityCheck, bool useCoordGen) {
+  if (!d_mol || !d_mol->getNumAtoms()) return "";
   constexpr double RDKIT_BOND_LEN = 1.5;
   constexpr double MIN_BOND_LEN = 0.5;
   constexpr double MAX_BOND_LENGTH_FACTOR = 4.0;
+  auto smi = MolToSmiles(*d_mol);
+  if (d_mol->hasProp(common_properties::_smilesAtomOutputOrder)) {
+    std::vector<unsigned int> atomOrder;
+    d_mol->getProp(common_properties::_smilesAtomOutputOrder, atomOrder);
+    d_mol.reset(static_cast<RWMol *>(MolOps::renumberAtoms(*d_mol, atomOrder)));
+  }
   bool redoLayout = (!d_mol->getNumConformers());
   double scaleFactor = -1.;
   if (!redoLayout) {
@@ -396,6 +403,13 @@ void JSMol::normalize_2d_molblock(bool reorient, bool scale, bool sanityCheck, b
     MolTransforms::transformConformer(conf, *trans);
   }
   d_mol->clearProp("_Name");
+
+  boost::hash<std::string> coordHash;
+  const auto &pos = conf.getPositions();
+  std::string approxCoords = std::accumulate(pos.begin(), pos.end(), std::string(), [](std::string growing, const RDGeom::Point3D &p) {
+    return std::move(growing) + std::to_string(static_cast<int>(p.x * 10. + 0.5)) + std::to_string(static_cast<int>(p.y * 10. + 0.5));
+  });
+  return smi + " " + std::to_string(coordHash(approxCoords));
 }
 
 void JSMol::straighten_2d_coords(bool smallestRotation, bool useCoordGen) {
