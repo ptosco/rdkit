@@ -412,7 +412,7 @@ std::string JSMol::normalize_2d_molblock(bool reorient, bool scale, bool sanityC
   return smi + " " + std::to_string(coordHash(approxCoords));
 }
 
-void JSMol::straighten_2d_coords(bool smallestRotation, bool useCoordGen) {
+void JSMol::straighten_2d_layout(bool smallestRotation, bool useCoordGen) {
   if (!d_mol) return;
   if (!d_mol->getNumConformers()) {
 #ifdef RDK_BUILD_COORDGEN_SUPPORT

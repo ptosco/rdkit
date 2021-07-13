@@ -167,15 +167,15 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("normalize_2d_molblock",
                 select_overload<std::string(bool, bool, bool, bool)>(
                     &JSMol::normalize_2d_molblock))
-      .function("straighten_2d_coords",
+      .function("straighten_2d_layout",
                 select_overload<void()>(
-                    &JSMol::straighten_2d_coords))
-      .function("straighten_2d_coords",
+                    &JSMol::straighten_2d_layout))
+      .function("straighten_2d_layout",
                 select_overload<void(bool, bool)>(
-                    &JSMol::straighten_2d_coords))
-      .function("straighten_2d_coords",
+                    &JSMol::straighten_2d_layout))
+      .function("straighten_2d_layout",
                 select_overload<void(bool)>(
-                    &JSMol::straighten_2d_coords));
+                    &JSMol::straighten_2d_layout));
 
   class_<JSSubstructLibrary>("SubstructLibrary")
       .constructor<>()

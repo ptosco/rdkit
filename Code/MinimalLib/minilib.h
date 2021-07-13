@@ -79,12 +79,12 @@ class JSMol {
   std::string normalize_2d_molblock() {
     return normalize_2d_molblock(true, true, true, false);
   }
-  void straighten_2d_coords(bool smallestRotation, bool useCoordGen);
-  void straighten_2d_coords(bool smallestRotation) {
-    return straighten_2d_coords(smallestRotation, false);
+  void straighten_2d_layout(bool smallestRotation, bool useCoordGen);
+  void straighten_2d_layout(bool smallestRotation) {
+    return straighten_2d_layout(smallestRotation, false);
   }
-  void straighten_2d_coords() {
-    return straighten_2d_coords(false, false);
+  void straighten_2d_layout() {
+    return straighten_2d_layout(false, false);
   }
 
   std::unique_ptr<RDKit::RWMol> d_mol;
