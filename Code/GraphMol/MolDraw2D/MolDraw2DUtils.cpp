@@ -104,7 +104,7 @@ void updateDrawerParamsFromJSON(MolDraw2D &drawer, const char *json) {
 };
 #define PT_OPT_GET(opt) opts.opt = pt.get(#opt, opts.opt)
 
-void get_rgb(const boost::property_tree::ptree &node, DrawColour &colour) {
+void get_rgba(const boost::property_tree::ptree &node, DrawColour &colour) {
   boost::property_tree::ptree::const_iterator itm = node.begin();
   colour.r = itm->second.get_value<float>();
   ++itm;
@@ -126,7 +126,7 @@ void get_colour_option(boost::property_tree::ptree *pt, const char *pnm,
   }
 
   const auto &node = pt->get_child(pnm);
-  get_rgb(node, colour);
+  get_rgba(node, colour);
 }
 
 void get_colour_palette_option(boost::property_tree::ptree *pt, const char *pnm,
@@ -139,7 +139,7 @@ void get_colour_palette_option(boost::property_tree::ptree *pt, const char *pnm,
   for (const auto &atomicNumNodeIt : pt->get_child(pnm)) {
     int atomicNum = boost::lexical_cast<int>(atomicNumNodeIt.first);
     DrawColour colour;
-    get_rgb(atomicNumNodeIt.second, colour);
+    get_rgba(atomicNumNodeIt.second, colour);
     palette[atomicNum] = colour;
   }
 }
@@ -204,8 +204,7 @@ void updateDrawerParamsFromJSON(MolDraw2D &drawer, const std::string &json) {
   get_colour_option(&pt, "annotationColour", opts.annotationColour);
   get_colour_option(&pt, "variableAttachmentColour",
                     opts.variableAttachmentColour);
-  get_colour_palette_option(&pt, "atomColourPalette",
-                    opts.atomColourPalette);
+  get_colour_palette_option(&pt, "atomColourPalette", opts.atomColourPalette);
   if (pt.find("atomLabels") != pt.not_found()) {
     for (const auto &item : pt.get_child("atomLabels")) {
       opts.atomLabels[boost::lexical_cast<int>(item.first)] =
