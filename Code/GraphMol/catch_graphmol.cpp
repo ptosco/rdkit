@@ -1888,6 +1888,7 @@ TEST_CASE("github #4122: segfaults in commitBatchEdit()", "[editing]][bug]") {
     m->commitBatchEdit();
   }
 }
+
 TEST_CASE("github #3912: cannot draw atom lists from SMARTS", "[query][bug]") {
   SECTION("original") {
     auto m = "C(-[N,O])-[#7,#8]"_smarts;
@@ -1904,6 +1905,20 @@ TEST_CASE("github #3912: cannot draw atom lists from SMARTS", "[query][bug]") {
   }
 }
 
+TEST_CASE("github #4496: cannot draw aromatic atom lists from SMARTS", "[query][bug]") {
+  SECTION("original") {
+    auto m = "[c,n]1[c,n][c,n][c,n][c,n][c,n]1"_smarts;
+    REQUIRE(m);
+    std::vector<int> expected({6, 7});
+    for (const auto a : m->atoms()) {
+      CHECK(isAtomListQuery(a));
+      std::vector<int> vals;
+      getAtomListQueryVals(a->getQuery(), vals);
+      CHECK(vals == expected);
+    }
+  }
+}
+
 TEST_CASE("bridgehead queries", "[query]") {
   SECTION("basics") {
     {
@@ -1912,9 +1927,9 @@ TEST_CASE("bridgehead queries", "[query]") {
       for (const auto atom : m->atoms()) {
         auto test = queryIsAtomBridgehead(atom);
         if (atom->getIdx() == 1 || atom->getIdx() == 4) {
-          CHECK(test == true);
+          CHECK(test == 1);
         } else {
-          CHECK(test == false);
+          CHECK(test == 0);
         }
       }
     }
@@ -1924,9 +1939,9 @@ TEST_CASE("bridgehead queries", "[query]") {
       for (const auto atom : m->atoms()) {
         auto test = queryIsAtomBridgehead(atom);
         if (atom->getIdx() == 1 || atom->getIdx() == 4) {
-          CHECK(test == true);
+          CHECK(test == 1);
         } else {
-          CHECK(test == false);
+          CHECK(test == 0);
         }
       }
     }
@@ -1935,7 +1950,7 @@ TEST_CASE("bridgehead queries", "[query]") {
       REQUIRE(m);
       for (const auto atom : m->atoms()) {
         auto test = queryIsAtomBridgehead(atom);
-        CHECK(test == false);
+        CHECK(test == 0);
       }
     }
   }
