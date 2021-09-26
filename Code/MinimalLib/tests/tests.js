@@ -495,6 +495,33 @@ M  END
 }
 
 
+function test_straighten_2d_layout() {
+    var mol1 = RDKitModule.get_mol(`
+  MJ201900                      
+
+  2  1  0  0  0  0  0  0  0  0999 V2000
+   -0.3904    2.1535    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.1049    1.7410    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  2  1  1  0  0  0  0
+M  END
+`);
+    var mol2 = RDKitModule.get_mol(`
+  MJ201900                      
+
+  2  1  0  0  0  0  0  0  0  0999 V2000
+    0.1899    1.9526    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.5245    1.5401    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  2  1  1  0  0  0  0
+M  END
+`);
+    mol1.normalize_2d_molblock();
+    mol1.straighten_2d_layout();
+    mol2.normalize_2d_molblock();
+    mol2.straighten_2d_layout();
+    assert(mol1.get_molblock() === mol2.get_molblock());
+}
+
+
 initRDKitModule().then(function(instance) {
     var done = {};
     const waitAllTestsFinished = () => {
@@ -527,6 +554,7 @@ initRDKitModule().then(function(instance) {
     test_get_mol_no_kekulize();
     test_get_smarts();
     test_get_cxsmarts();
+    test_straighten_2d_layout();
     waitAllTestsFinished().then(() =>
         console.log("Tests finished successfully")
     );

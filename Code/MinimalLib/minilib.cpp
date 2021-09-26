@@ -387,7 +387,8 @@ std::string JSMol::normalize_2d_molblock(bool reorient, bool scale, bool sanityC
         double maxBondLength = static_cast<double>(maxBondLengthInt) * 0.1;
         double mostCommonBondLength = static_cast<double>(mostCommonBondLengthInt) * 0.1;
         if (sanityCheck) {
-          redoLayout = (minBondLengthInt < MIN_BOND_LEN) || (maxBondLength / minBondLengthInt > MAX_BOND_LENGTH_FACTOR);
+          redoLayout = (minBondLength < MIN_BOND_LEN) ||
+                       (maxBondLength / minBondLength > MAX_BOND_LENGTH_FACTOR);
         }
         if (!redoLayout && scale) {
           scaleFactor = RDKIT_BOND_LEN / mostCommonBondLength;
