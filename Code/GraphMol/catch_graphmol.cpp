@@ -14,7 +14,9 @@
 #include <GraphMol/new_canon.h>
 #include <GraphMol/RDKitQueries.h>
 #include <GraphMol/Chirality.h>
+#include <GraphMol/MonomerInfo.h>
 #include <GraphMol/FileParsers/FileParsers.h>
+#include <GraphMol/FileParsers/SequenceParsers.h>
 #include <GraphMol/SmilesParse/SmilesParse.h>
 #include <GraphMol/SmilesParse/SmilesWrite.h>
 #include <GraphMol/SmilesParse/SmartsWrite.h>
@@ -2372,5 +2374,89 @@ TEST_CASE("allow 5 valent N/P/As to kekulize", "[kekulization]") {
       CHECK(!failed);
       CHECK(MolToSmiles(*m) == pr.second);
     }
+  }
+}
+
+TEST_CASE("KekulizeIfPossible") {
+  SECTION("basics: molecules with failures") {
+    std::vector<std::string> smis = {
+        "c1cccn1",
+        "c1ccccc1-c1cccn1",
+    };
+    for (const auto &smi : smis) {
+      SmilesParserParams ps;
+      ps.sanitize = false;
+      std::unique_ptr<RWMol> m{SmilesToMol(smi, ps)};
+      REQUIRE(m);
+      m->updatePropertyCache(false);
+      // confirm that we normally fail:
+      {
+        RWMol m2(*m);
+        CHECK_THROWS_AS(MolOps::Kekulize(m2), MolSanitizeException);
+      }
+      {
+        RWMol m2(*m);
+        CHECK(!MolOps::KekulizeIfPossible(m2));
+        for (unsigned i = 0; i < m2.getNumAtoms(); ++i) {
+          CHECK(m2.getAtomWithIdx(i)->getIsAromatic() ==
+                m->getAtomWithIdx(i)->getIsAromatic());
+        }
+        for (unsigned i = 0; i < m2.getNumBonds(); ++i) {
+          CHECK(m2.getBondWithIdx(i)->getIsAromatic() ==
+                m->getBondWithIdx(i)->getIsAromatic());
+          CHECK(m2.getBondWithIdx(i)->getBondType() ==
+                m->getBondWithIdx(i)->getBondType());
+        }
+      }
+    }
+  }
+  SECTION("basics: molecules without failures") {
+    std::vector<std::string> smis = {"c1ccc[nH]1", "c1ccccc1"};
+    for (const auto &smi : smis) {
+      SmilesParserParams ps;
+      ps.sanitize = false;
+      std::unique_ptr<RWMol> m{SmilesToMol(smi, ps)};
+      REQUIRE(m);
+      m->updatePropertyCache(false);
+      {
+        RWMol m2(*m);
+        MolOps::Kekulize(m2);
+        RWMol m3(*m);
+        CHECK(MolOps::KekulizeIfPossible(m3));
+        for (unsigned i = 0; i < m2.getNumAtoms(); ++i) {
+          CHECK(m2.getAtomWithIdx(i)->getIsAromatic() ==
+                m3.getAtomWithIdx(i)->getIsAromatic());
+        }
+        for (unsigned i = 0; i < m2.getNumBonds(); ++i) {
+          CHECK(m2.getBondWithIdx(i)->getIsAromatic() ==
+                m3.getBondWithIdx(i)->getIsAromatic());
+          CHECK(m2.getBondWithIdx(i)->getBondType() ==
+                m3.getBondWithIdx(i)->getBondType());
+        }
+      }
+    }
+  }
+}
+
+TEST_CASE("Github #4535: operator<< for AtomPDBResidue", "[PDB]") {
+  SECTION("basics") {
+    bool sanitize = true;
+    int flavor = 0;
+    std::unique_ptr<RWMol> mol(SequenceToMol("KY", sanitize, flavor));
+    REQUIRE(mol);
+    REQUIRE(mol->getAtomWithIdx(0)->getMonomerInfo());
+    auto res = static_cast<AtomPDBResidueInfo *>(
+        mol->getAtomWithIdx(0)->getMonomerInfo());
+    REQUIRE(res);
+    std::stringstream oss;
+    oss << *res << std::endl;
+    res = static_cast<AtomPDBResidueInfo *>(
+        mol->getAtomWithIdx(mol->getNumAtoms() - 1)->getMonomerInfo());
+    REQUIRE(res);
+    oss << *res << std::endl;
+    auto tgt = R"FOO(1  N   LYS A 1
+22  OXT TYR A 2
+)FOO";
+    CHECK(oss.str() == tgt);
   }
 }
