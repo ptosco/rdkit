@@ -1069,8 +1069,8 @@ extern "C" double calcSparseDiceSml(CSfp a, CSfp b) {
   return res;
 }
 
-extern "C" double calcSparseStringDiceSml(const char *a, unsigned int sza,
-                                          const char *b, unsigned int szb) {
+extern "C" double calcSparseStringDiceSml(const char *a, unsigned int,
+                                          const char *b, unsigned int) {
   const auto *t1 = (const unsigned char *)a;
   const auto *t2 = (const unsigned char *)b;
 
@@ -1182,7 +1182,7 @@ extern "C" double calcSparseStringDiceSml(const char *a, unsigned int sza,
   return res;
 }
 
-extern "C" bool calcSparseStringAllValsGT(const char *a, unsigned int sza,
+extern "C" bool calcSparseStringAllValsGT(const char *a, unsigned int,
                                           int tgt) {
   const auto *t1 = (const unsigned char *)a;
 
@@ -1222,7 +1222,7 @@ extern "C" bool calcSparseStringAllValsGT(const char *a, unsigned int sza,
   }
   return true;
 }
-extern "C" bool calcSparseStringAllValsLT(const char *a, unsigned int sza,
+extern "C" bool calcSparseStringAllValsLT(const char *a, unsigned int,
                                           int tgt) {
   const auto *t1 = (const unsigned char *)a;
 
@@ -1975,7 +1975,6 @@ extern "C" CSfp makeReactionDifferenceSFP(CChemicalReaction data, int size,
     if (fpType > 3 || fpType < 1) {
       elog(ERROR, "makeReactionDifferenceSFP: Unknown Fingerprint type");
     }
-    auto fp = static_cast<RDKit::FingerprintType>(fpType);
     RDKit::ReactionFingerprintParams params;
     params.fpType = static_cast<FingerprintType>(fpType);
     params.fpSize = size;
@@ -1997,7 +1996,6 @@ extern "C" CBfp makeReactionBFP(CChemicalReaction data, int size, int fpType) {
     if (fpType > 5 || fpType < 1) {
       elog(ERROR, "makeReactionBFP: Unknown Fingerprint type");
     }
-    auto fp = static_cast<RDKit::FingerprintType>(fpType);
     RDKit::ReactionFingerprintParams params;
     params.fpType = static_cast<FingerprintType>(fpType);
     params.fpSize = size;
@@ -2082,20 +2080,18 @@ extern "C" char *findMCSsmiles(char *smiles, char *params) {
 
   char *str = smiles;
   char *s = str;
-  int len, nmols = 0;
+  char *s_end = str + strlen(str);
+  int len = 0;
   std::vector<RDKit::ROMOL_SPTR> molecules;
   while (*s && *s <= ' ') {
     s++;
   }
-  while (*s > ' ') {
+  while (s < s_end && *s > ' ') {
     len = 0;
     while (s[len] > ' ') {
       len++;
     }
     s[len] = '\0';
-    if (0 == strlen(s)) {
-      continue;
-    }
     ROMol *molptr = nullptr;
     try {
       molptr = RDKit::SmilesToMol(s);
