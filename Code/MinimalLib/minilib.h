@@ -37,7 +37,13 @@ class JSMol {
   std::string get_morgan_fp_as_binary_text(unsigned int radius,
                                            unsigned int len) const;
   std::string get_morgan_fp_as_binary_text() const {
-    return get_morgan_fp(2, 2048);
+    return get_morgan_fp_as_binary_text(2, 2048);
+  }
+  std::string get_pattern_fp(unsigned int len) const;
+  std::string get_pattern_fp() const { return get_pattern_fp(2048); }
+  std::string get_pattern_fp_as_binary_text(unsigned int len) const;
+  std::string get_pattern_fp_as_binary_text() const {
+    return get_pattern_fp_as_binary_text(2048);
   }
   std::string condense_abbreviations(double maxCoverage, bool useLinkers);
   std::string condense_abbreviations() {

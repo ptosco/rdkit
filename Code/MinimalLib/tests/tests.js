@@ -70,7 +70,18 @@ function test_basics() {
     assert.equal((fp2.match(/1/g)||[]).length,3);
     var fp2Uint8Array = mol.get_morgan_fp_as_uint8array(0, 512);
     checkStringBinaryFpIdentity(fp2, fp2Uint8Array);
-    
+
+    fp1 = mol.get_pattern_fp();
+    assert.equal(fp1.length,2048);
+    assert.equal((fp1.match(/1/g)||[]).length,73);
+    fp1Uint8Array = mol.get_pattern_fp_as_uint8array();
+    checkStringBinaryFpIdentity(fp1, fp1Uint8Array);
+    fp2 = mol.get_pattern_fp(256);
+    assert.equal(fp2.length,256);
+    assert.equal((fp2.match(/1/g)||[]).length,65);
+    fp2Uint8Array = mol.get_pattern_fp_as_uint8array(256);
+    checkStringBinaryFpIdentity(fp2, fp2Uint8Array);
+
     var svg = mol.get_svg();
     assert(svg.search("svg")>0);
 

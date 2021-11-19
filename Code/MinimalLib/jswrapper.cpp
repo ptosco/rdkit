@@ -91,10 +91,7 @@ JSMol *get_mol_no_details(const std::string &input) {
   return get_mol(input, std::string());
 }
 
-emscripten::val get_morgan_fp_as_uint8array(const JSMol &self,
-                                            unsigned int radius,
-                                            unsigned int fplen) {
-  std::string fp = self.get_morgan_fp_as_binary_text(radius, fplen);
+emscripten::val get_fp_as_uint8array(const std::string &fp) {
   emscripten::val view(emscripten::typed_memory_view(
       fp.size(), reinterpret_cast<const unsigned char *>(fp.c_str())));
   auto res = emscripten::val::global("Uint8Array").new_(fp.size());
@@ -102,8 +99,25 @@ emscripten::val get_morgan_fp_as_uint8array(const JSMol &self,
   return res;
 }
 
+emscripten::val get_morgan_fp_as_uint8array(const JSMol &self,
+                                            unsigned int radius,
+                                            unsigned int fplen) {
+  std::string fp = self.get_morgan_fp_as_binary_text(radius, fplen);
+  return get_fp_as_uint8array(fp);
+}
+
 emscripten::val get_morgan_fp_as_uint8array(const JSMol &self) {
   return get_morgan_fp_as_uint8array(self, 2, 2048);
+}
+
+emscripten::val get_pattern_fp_as_uint8array(const JSMol &self,
+                                             unsigned int fplen) {
+  std::string fp = self.get_pattern_fp_as_binary_text(fplen);
+  return get_fp_as_uint8array(fp);
+}
+
+emscripten::val get_pattern_fp_as_uint8array(const JSMol &self) {
+  return get_pattern_fp_as_uint8array(self, 2048);
 }
 
 }  // namespace
@@ -139,6 +153,12 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
                 select_overload<emscripten::val(const JSMol &, unsigned int,
                                                 unsigned int)>(
                     get_morgan_fp_as_uint8array))
+      .function("get_pattern_fp_as_uint8array",
+                select_overload<emscripten::val(const JSMol &)>(
+                    get_pattern_fp_as_uint8array))
+      .function("get_pattern_fp_as_uint8array",
+                select_overload<emscripten::val(const JSMol &, unsigned int)>(
+                    get_pattern_fp_as_uint8array))
 #endif
       .function("get_substruct_match", &JSMol::get_substruct_match)
       .function("get_substruct_matches", &JSMol::get_substruct_matches)
@@ -148,6 +168,11 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("get_morgan_fp",
                 select_overload<std::string(unsigned int, unsigned int) const>(
                     &JSMol::get_morgan_fp))
+      .function("get_pattern_fp",
+                select_overload<std::string() const>(&JSMol::get_pattern_fp))
+      .function("get_pattern_fp",
+                select_overload<std::string(unsigned int) const>(
+                    &JSMol::get_pattern_fp))
 
       // functionality primarily useful in ketcher
       .function("get_stereo_tags", &JSMol::get_stereo_tags)
@@ -177,11 +202,9 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("add_hs", &JSMol::add_hs)
       .function("remove_hs", &JSMol::remove_hs)
       .function("normalize_2d_molblock",
-                select_overload<std::string()>(
-                    &JSMol::normalize_2d_molblock))
-      .function("normalize_2d_molblock",
-                select_overload<std::string(bool)>(
-                    &JSMol::normalize_2d_molblock))
+                select_overload<std::string()>(&JSMol::normalize_2d_molblock))
+      .function("normalize_2d_molblock", select_overload<std::string(bool)>(
+                                             &JSMol::normalize_2d_molblock))
       .function("normalize_2d_molblock",
                 select_overload<std::string(bool, bool)>(
                     &JSMol::normalize_2d_molblock))
@@ -192,14 +215,11 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
                 select_overload<std::string(bool, bool, bool, bool)>(
                     &JSMol::normalize_2d_molblock))
       .function("straighten_2d_layout",
-                select_overload<void()>(
-                    &JSMol::straighten_2d_layout))
+                select_overload<void()>(&JSMol::straighten_2d_layout))
       .function("straighten_2d_layout",
-                select_overload<void(bool, bool)>(
-                    &JSMol::straighten_2d_layout))
+                select_overload<void(bool, bool)>(&JSMol::straighten_2d_layout))
       .function("straighten_2d_layout",
-                select_overload<void(bool)>(
-                    &JSMol::straighten_2d_layout));
+                select_overload<void(bool)>(&JSMol::straighten_2d_layout));
 
   class_<JSSubstructLibrary>("SubstructLibrary")
       .constructor<>()

@@ -142,18 +142,32 @@ std::string JSMol::get_descriptors() const {
 std::string JSMol::get_morgan_fp(unsigned int radius,
                                  unsigned int fplen) const {
   if (!d_mol) return "";
-  auto fp = MorganFingerprints::getFingerprintAsBitVect(*d_mol, radius, fplen);
+  std::unique_ptr<ExplicitBitVect> fp(
+      MorganFingerprints::getFingerprintAsBitVect(*d_mol, radius, fplen));
   std::string res = BitVectToText(*fp);
-  delete fp;
   return res;
 }
 
 std::string JSMol::get_morgan_fp_as_binary_text(unsigned int radius,
                                                 unsigned int fplen) const {
   if (!d_mol) return "";
-  auto fp = MorganFingerprints::getFingerprintAsBitVect(*d_mol, radius, fplen);
+  std::unique_ptr<ExplicitBitVect> fp(
+      MorganFingerprints::getFingerprintAsBitVect(*d_mol, radius, fplen));
   std::string res = BitVectToBinaryText(*fp);
-  delete fp;
+  return res;
+}
+
+std::string JSMol::get_pattern_fp(unsigned int fplen) const {
+  if (!d_mol) return "";
+  std::unique_ptr<ExplicitBitVect> fp(PatternFingerprintMol(*d_mol, fplen));
+  std::string res = BitVectToText(*fp);
+  return res;
+}
+
+std::string JSMol::get_pattern_fp_as_binary_text(unsigned int fplen) const {
+  if (!d_mol) return "";
+  std::unique_ptr<ExplicitBitVect> fp(PatternFingerprintMol(*d_mol, fplen));
+  std::string res = BitVectToBinaryText(*fp);
   return res;
 }
 
@@ -467,11 +481,11 @@ int JSSubstructLibrary::add_trusted_smiles(const std::string &smi) {
     return -1;
   }
   mol->updatePropertyCache();
-  ExplicitBitVect *bv = PatternFingerprintMol(*mol, d_num_bits);
-  if (!bv) {
+  auto fp = PatternFingerprintMol(*mol, d_num_bits);
+  if (!fp) {
     return -1;
   }
-  d_fpHolder->addFingerprint(bv);
+  d_fpHolder->addFingerprint(fp);
   auto ret = d_molHolder->addSmiles(smi);
   return ret;
 }
