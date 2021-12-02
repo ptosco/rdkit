@@ -185,6 +185,7 @@ void markAtomsBondsArom(ROMol &mol, const VECT_INT_VECT &srings,
 
     // first mark the atoms in the ring
     for (ai = aring.begin(); ai != aring.end(); ai++) {
+      std::cerr << "markAtomsBondsArom setting atom " << *ai << " to aromatic" << std::endl;
       mol.getAtomWithIdx(*ai)->setIsAromatic(true);
     }
   }
@@ -215,6 +216,7 @@ void markAtomsBondsArom(ROMol &mol, const VECT_INT_VECT &srings,
     if (bci->second == 1) {
       auto bond = bondsByIdx[bci->first];
       // Bond *bond = mol.get BondWithIdx(bci->first);
+      std::cerr << "markAtomsBondsArom setting bond " << bond->getIdx() << " between atoms " << bond->getBeginAtomIdx() << " and " << bond->getEndAtomIdx() << " to aromatic" << std::endl;
       bond->setIsAromatic(true);
       switch (bond->getBondType()) {
         case Bond::SINGLE:
@@ -322,7 +324,7 @@ bool applyHuckel(ROMol &, const INT_VECT &ring, const VECT_EDON_TYPE &edon,
   }
 
   if (rup >= 6) {
-    for (rie = rlw; rie <= rup; rie++) {
+    for (rie = rlw; rie <= rup; ++rie) {
       if ((rie - 2) % 4 == 0) {
         aromatic = true;
         break;
@@ -356,13 +358,13 @@ void applyHuckelToFused(
   // rung subsystems etc.
 
   INT_VECT aromRings;
-  aromRings.resize(0);
   auto nrings = rdcast<unsigned int>(fused.size());
   INT_VECT curRs;
   INT_VECT_CI mri;
   curRs.push_back(fused.front());
   int pos;
-  unsigned int i, curSize = 0;
+  unsigned int i;
+  unsigned int curSize = 0;
   INT_VECT comb;
   pos = -1;
 
@@ -380,7 +382,7 @@ void applyHuckelToFused(
   while (1) {
     if (pos == -1) {
       ++curSize;
-      // check is we are done with all the atoms in the fused
+      // check if we are done with all the atoms in the fused
       // system, if so quit. This is a fix for Issue252 REVIEW: is
       // this check sufficient or should we add an additional
       // constraint on the number of combinations of rings in a
@@ -404,7 +406,7 @@ void applyHuckelToFused(
       continue;
     }
 
-    curRs.resize(0);
+    curRs.clear();
     for (i = 0; i < comb.size(); i++) {
       curRs.push_back(fused[comb[i]]);
     }
@@ -417,9 +419,8 @@ void applyHuckelToFused(
     // check aromaticity on the current fused system
     INT_VECT atsInRingSystem(mol.getNumAtoms(), 0);
     for (auto ridx : curRs) {
-      auto sring = srings[ridx];
-      for (const auto rid : sring) {
-        atsInRingSystem[rid]++;
+      for (const auto rid : srings[ridx]) {
+        ++atsInRingSystem[rid];
       }
     }
     INT_VECT unon;
@@ -435,6 +436,20 @@ void applyHuckelToFused(
 
     if (applyHuckel(mol, unon, edon, minRingSize)) {
       // mark the atoms and bonds in these rings to be aromatic
+      std::cerr << "before calling markAtomsBondsArom srings" << std::endl;
+      for (const auto &sring : srings) {
+        for (auto ai : sring) {
+          std::cerr << ai << (mol.getAtomWithIdx(ai)->getIsAromatic() ? "A" : "") << ",";
+        }
+        std::cerr << std::endl;
+      }
+      std::cerr << "before calling markAtomsBondsArom brings" << std::endl;
+      for (const auto &bring : brings) {
+        for (auto bi : bring) {
+          std::cerr << bi << "(" << mol.getBondWithIdx(bi)->getBondTypeAsDouble() << ")" << (mol.getBondWithIdx(bi)->getIsAromatic() ? "A" : "") << ",";
+        }
+        std::cerr << std::endl;
+      }
       markAtomsBondsArom(mol, srings, brings, curRs, doneBonds, bondsByIdx);
 
       // add the ring IDs to the aromatic rings found so far
@@ -627,7 +642,7 @@ ElectronDonorType getAtomDonorTypeArom(
       res = TwoElectronDonorType;
     }
   }
-  return (res);
+  return res;
 }
 }  // namespace
 
@@ -774,7 +789,7 @@ int mdlAromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings) {
   }
 
   while (curr < cnrs) {
-    fused.resize(0);
+    fused.clear();
     RingUtils::pickFusedRings(curr, neighMap, fused, fusDone);
     const unsigned int maxFused = 6;
     const unsigned int minRingSize = 6;
@@ -815,6 +830,9 @@ int aromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings,
 
   VECT_INT_VECT cRings;  // holder for rings that are candidates for aromaticity
   for (auto &sring : srings) {
+    std::cerr << "aromaticityHelper sring ";
+    for (auto i : sring) std::cerr << i << ",";
+    std::cerr << std::endl;
     size_t ringSz = sring.size();
     // test ring size:
     if ((minRingSize && ringSz < minRingSize) ||
@@ -828,11 +846,13 @@ int aromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings,
       Atom *at = mol.getAtomWithIdx(firstIdx);
 
       if (allDummy && at->getAtomicNum() != 0) {
+        std::cerr << "aromaticityHelper allDummy=false because of atom " << at->getIdx() << std::endl;
         allDummy = false;
       }
 
       if (aseen[firstIdx]) {
         if (!acands[firstIdx]) {
+          std::cerr << "1) aromaticityHelper allAromatic=false because of atom " << firstIdx << std::endl;
           allAromatic = false;
         }
         continue;
@@ -846,10 +866,12 @@ int aromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings,
       edon[firstIdx] = getAtomDonorTypeArom(at);
       acands[firstIdx] = isAtomCandForArom(at, edon[firstIdx]);
       if (!acands[firstIdx]) {
+        std::cerr << "2) aromaticityHelper allAromatic=false because of atom " << firstIdx << std::endl;
         allAromatic = false;
       }
     }
     if (allAromatic && !allDummy) {
+      std::cerr << "*** aromaticityHelper allAromatic && !allDummy" << std::endl;
       cRings.push_back(sring);
     }
   }
@@ -893,7 +915,7 @@ int aromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings,
     boost::dynamic_bitset<> fusDone(cnrs);
     INT_VECT fused;
     while (curr < cnrs) {
-      fused.resize(0);
+      fused.clear();
       RingUtils::pickFusedRings(curr, neighMap, fused, fusDone);
       applyHuckelToFused(mol, cRings, brings, fused, edon, neighMap, narom, 6,
                          bondsByIdx);
@@ -919,6 +941,7 @@ int aromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings,
 }  // end of anonymous namespace
 
 int setAromaticity(RWMol &mol, AromaticityModel model, int (*func)(RWMol &)) {
+  std::cerr << "setAromaticity" << std::endl;
   // This function used to check if the input molecule came
   // with aromaticity information, assumed it is correct and
   // did not touch it. Now it ignores that information entirely.
@@ -935,12 +958,14 @@ int setAromaticity(RWMol &mol, AromaticityModel model, int (*func)(RWMol &)) {
   switch (model) {
     case AROMATICITY_DEFAULT:
     case AROMATICITY_RDKIT:
+      std::cerr << "setAromaticity before calling aromaticityHelper" << std::endl;
       res = aromaticityHelper(mol, srings, 0, 0, true);
       break;
     case AROMATICITY_SIMPLE:
       res = aromaticityHelper(mol, srings, 5, 6, false);
       break;
     case AROMATICITY_MDL:
+      std::cerr << "setAromaticity before calling mdlAromaticityHelper" << std::endl;
       res = mdlAromaticityHelper(mol, srings);
       break;
     case AROMATICITY_CUSTOM:

@@ -61,7 +61,7 @@ void backTrack(RWMol &mol, INT_INT_DEQ_MAP &, int lastOpt, INT_VECT &done,
   done = tdone;
 }
 
-void markDbondCands(RWMol &mol, const VECT_INT_VECT &arings,
+void markDbondCands(RWMol &mol,
                     const INT_VECT &allAtms, boost::dynamic_bitset<> &dBndCands,
                     INT_VECT &questions, INT_VECT &done) {
   // ok this function does more than mark atoms that are candidates for
@@ -87,7 +87,7 @@ void markDbondCands(RWMol &mol, const VECT_INT_VECT &arings,
   // mark rings which are certainly aliphatic
   boost::dynamic_bitset<> isRingAliphatic(mol.getRingInfo()->numRings());
   unsigned int ri = 0;
-  for (const auto &aring : arings) {
+  for (const auto &aring : mol.getRingInfo()->atomRings()) {
     for (auto ai : aring) {
       const auto at = mol.getAtomWithIdx(ai);
       if (!at->getIsAromatic() && at->getAtomicNum()) {
@@ -97,6 +97,11 @@ void markDbondCands(RWMol &mol, const VECT_INT_VECT &arings,
     }
     ++ri;
   }
+  std::cerr << "markDbondCands isRingAliphatic ";
+  for (unsigned int ri = 0; ri < isRingAliphatic.size(); ++ri) {
+    std::cerr << isRingAliphatic.test(ri) << "(" << mol.getRingInfo()->atomRings().at(ri).size() << ")" << ",";
+  }
+  std::cerr << std::endl;
   std::vector<Bond *> makeSingle;
 
   boost::dynamic_bitset<> inAllAtms(mol.getNumAtoms());
@@ -163,6 +168,7 @@ void markDbondCands(RWMol &mol, const VECT_INT_VECT &arings,
          !isRingAliphatic.test(
              mol.getRingInfo()->atomMembers(at->getIdx()).front()))) {
       // dummies always start as candidates to have a double bond:
+      std::cerr << "1) dBndCands[" << allAtm << "] = 1" << std::endl;
       dBndCands[allAtm] = 1;
       // but they don't have to have one, so mark them as questionable:
       questions.push_back(allAtm);
@@ -220,10 +226,12 @@ void markDbondCands(RWMol &mol, const VECT_INT_VECT &arings,
       // matches the valence state
       // (including nRadicals here was SF.net issue 3349243)
       if (dv == (sbo + 1 + nRadicals)) {
+        std::cerr << "2) dBndCands[" << allAtm << "] = 1" << std::endl;
         dBndCands[allAtm] = 1;
       } else if (!nRadicals && at->getNoImplicit() && dv == (sbo + 2)) {
         // special case: there is currently no radical on the atom, but if
         // if we allow one then this is a candidate:
+        std::cerr << "3) dBndCands[" << allAtm << "] = 1" << std::endl;
         dBndCands[allAtm] = 1;
       }
     }
@@ -490,7 +498,7 @@ void kekulizeFused(RWMol &mol, const VECT_INT_VECT &arings,
   boost::dynamic_bitset<> dBndCands(nats);
   boost::dynamic_bitset<> dBndAdds(nbnds);
 
-  markDbondCands(mol, arings, allAtms, dBndCands, questions, done);
+  markDbondCands(mol, allAtms, dBndCands, questions, done);
 #if 0
       std::cerr << "candidates: ";
       for(int i=0;i<nats;++i) std::cerr << dBndCands[i];
@@ -734,6 +742,7 @@ bool KekulizeIfPossible(RWMol &mol, bool markAtomsBonds,
     for (unsigned int i = 0; i < mol.getNumBonds(); ++i) {
       if (aromaticBonds[i]) {
         auto bond = mol.getBondWithIdx(i);
+        std::cerr << "kekulize setting bond " << bond->getIdx() << " between " << bond->getBeginAtomIdx() << " and " << bond->getEndAtomIdx() << " to aromatic" << std::endl;
         bond->setIsAromatic(true);
         bond->setBondType(Bond::BondType::AROMATIC);
       }
@@ -741,6 +750,7 @@ bool KekulizeIfPossible(RWMol &mol, bool markAtomsBonds,
     for (unsigned int i = 0; i < mol.getNumAtoms(); ++i) {
       if (aromaticAtoms[i]) {
         mol.getAtomWithIdx(i)->setIsAromatic(true);
+        std::cerr << "kekulize setting atom " << i << " to aromatic" << std::endl;
       }
     }
   }

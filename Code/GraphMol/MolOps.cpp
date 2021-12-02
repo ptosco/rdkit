@@ -350,6 +350,7 @@ void sanitizeMol(RWMol &mol, unsigned int &operationThatFailed,
   // then do aromaticity perception
   operationThatFailed = SANITIZE_SETAROMATICITY;
   if (sanitizeOps & operationThatFailed) {
+    std::cerr << "sanitizeMol before calling setAromaticity" << std::endl;
     setAromaticity(mol);
   }
 
