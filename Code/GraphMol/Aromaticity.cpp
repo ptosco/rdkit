@@ -159,7 +159,7 @@ typedef VECT_EDON_TYPE::const_iterator VECT_EDON_TYPE_CI;
  *  in the ring have been computed
  ******************************************************************************/
 static bool applyHuckel(ROMol &mol, const INT_VECT &ring,
-                        const VECT_EDON_TYPE &edon);
+                        const VECT_EDON_TYPE &edon, unsigned int minRingSize);
 
 static void applyHuckelToFused(
     ROMol &mol,                   // molecule of interest
@@ -316,16 +316,19 @@ bool applyHuckel(ROMol &, const INT_VECT &ring, const VECT_EDON_TYPE &edon,
   bool aromatic = false;
   rlw = 0;
   rup = 0;
+  std::cerr << "applyHuckel ring" << std::endl;
   for (auto idx : ring) {
     ElectronDonorType edonType = edon[idx];
     getMinMaxAtomElecs(edonType, atlw, atup);
     rlw += atlw;
     rup += atup;
+    std::cerr << "applyHuckel idx " << idx << " ElectronDonorType " << edonType << " rlw " << rlw << " rup " << rup << std::endl;
   }
 
   if (rup >= 6) {
     for (rie = rlw; rie <= rup; ++rie) {
       if ((rie - 2) % 4 == 0) {
+        std::cerr << "applyHuckel rie " << rie << " (rie - 2) % 4 == 0" << std::endl;
         aromatic = true;
         break;
       }
@@ -433,7 +436,11 @@ void applyHuckelToFused(
         unon.push_back(i);
       }
     }
-
+    std::cerr << "unon ";
+    for (auto ii : unon) {
+      std::cerr << ii << ",";
+    }
+    std::cerr << std::endl;
     if (applyHuckel(mol, unon, edon, minRingSize)) {
       // mark the atoms and bonds in these rings to be aromatic
       std::cerr << "before calling markAtomsBondsArom srings" << std::endl;

@@ -90,7 +90,7 @@ void markDbondCands(RWMol &mol,
   for (const auto &aring : mol.getRingInfo()->atomRings()) {
     for (auto ai : aring) {
       const auto at = mol.getAtomWithIdx(ai);
-      if (!at->getIsAromatic() && at->getAtomicNum()) {
+      if (!isAromaticAtom(*at) && at->getAtomicNum()) {
         isRingAliphatic.set(ri);
         break;
       }
@@ -99,7 +99,7 @@ void markDbondCands(RWMol &mol,
   }
   std::cerr << "markDbondCands isRingAliphatic ";
   for (unsigned int ri = 0; ri < isRingAliphatic.size(); ++ri) {
-    std::cerr << isRingAliphatic.test(ri) << "(" << mol.getRingInfo()->atomRings().at(ri).size() << ")" << ",";
+    std::cerr << "ri " << ri << " " << (isRingAliphatic.test(ri) ? "true" : "false") << "(" << mol.getRingInfo()->atomRings().at(ri).size() << ")" << ",";
   }
   std::cerr << std::endl;
   std::vector<Bond *> makeSingle;
