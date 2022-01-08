@@ -3482,6 +3482,38 @@ void testSFNetIssue2196817() {
     }
   }
 
+  {
+    for (auto smi : {"c12ccccc1****2", "c12ccccc1***2", "C12=CC=CC=C1****2",
+                     "c1ccccc1N1****1", "c1ccccc1C1****1", "c1ccccc1*1****1",
+                     "c1ccccc1*1*=**=*1"}) {
+      std::unique_ptr<RWMol> m(SmilesToMol(smi));
+      TEST_ASSERT(m);
+      for (unsigned int i = 6; i < m->getNumAtoms(); ++i) {
+        TEST_ASSERT(!m->getAtomWithIdx(i)->getIsAromatic());
+      }
+    }
+  }
+
+  {
+    ROMOL_SPTR m = "N1****1"_smiles;
+    for (const auto b : m->bonds()) {
+      TEST_ASSERT(!b->getIsAromatic());
+    }
+  }
+
+  {
+    for (auto smi : {"N1*=**=*1", "C1=CC2=CC=C3C=CC4=CC=C5C=CN1N1N2N3N4N51",
+                     "C1=CC2=CC=C3C=CC4=CC=C5C=CN1*1N2*3N4N51",
+                     "C1=CC2=CC=C3C=CC4=CC=C5C=CN1*1*2*3*4N51",
+                     "C1=CC2=CC=C3C=CC4=CC=C5C=CN1*1*2*3*4*51"}) {
+      std::unique_ptr<RWMol> m(SmilesToMol(smi));
+      TEST_ASSERT(m);
+      for (const auto b : m->bonds()) {
+        TEST_ASSERT(b->getIsAromatic());
+      }
+    }
+  }
+
   BOOST_LOG(rdInfoLog) << "Finished" << std::endl;
 }
 

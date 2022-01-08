@@ -14,6 +14,8 @@
 #include <boost/dynamic_bitset.hpp>
 #include <set>
 
+//#define DEBUG_KEKULIZE 1
+
 // introduced for the sake of efficiency
 // this is the maximum ring size that will be considered
 // as a candidate for fused-ring aromaticity. This is picked to
@@ -46,7 +48,7 @@ void pickFusedRings(int curr, const INT_INT_VECT_MAP &neighMap, INT_VECT &res,
   done[curr] = 1;
   res.push_back(curr);
 
-  const INT_VECT &neighs = pos->second;
+  const auto &neighs = pos->second;
 #if 0
     std::cerr<<"depth: "<<depth<<" ring: "<<curr<<" size: "<<res.size()<<" neighs: "<<neighs.size()<<std::endl;
     std::cerr<<"   ";
@@ -61,15 +63,14 @@ void pickFusedRings(int curr, const INT_INT_VECT_MAP &neighMap, INT_VECT &res,
 }
 
 bool checkFused(const INT_VECT &rids, INT_INT_VECT_MAP &ringNeighs) {
-  INT_INT_VECT_MAP_CI nci;
-  int nrings = rdcast<int>(ringNeighs.size());
+  auto nrings = rdcast<int>(ringNeighs.size());
   boost::dynamic_bitset<> done(nrings);
   int rid;
   INT_VECT fused;
 
   // mark all rings in the system other than those in rids as done
-  for (nci = ringNeighs.begin(); nci != ringNeighs.end(); nci++) {
-    rid = (*nci).first;
+  for (auto nci : ringNeighs) {
+    rid = nci.first;
     if (std::find(rids.begin(), rids.end(), rid) == rids.end()) {
       done[rid] = 1;
     }
@@ -88,20 +89,18 @@ bool checkFused(const INT_VECT &rids, INT_INT_VECT_MAP &ringNeighs) {
 void makeRingNeighborMap(const VECT_INT_VECT &brings,
                          INT_INT_VECT_MAP &neighMap, unsigned int maxSize,
                          unsigned int maxOverlapSize) {
-  int nrings = rdcast<int>(brings.size());
+  auto nrings = rdcast<int>(brings.size());
   int i, j;
   INT_VECT ring1;
-  for (i = 0; i < nrings; i++) {
-    INT_VECT neighs;
-    neighMap[i] = neighs;
-  }
 
-  for (i = 0; i < nrings; i++) {
+  for (i = 0; i < nrings; ++i) {
+    // create an empty INT_VECT at neighMap[i] if it does not yet exist
+    neighMap[i];
     if (maxSize && brings[i].size() > maxSize) {
       continue;
     }
     ring1 = brings[i];
-    for (j = i + 1; j < nrings; j++) {
+    for (j = i + 1; j < nrings; ++j) {
       if (maxSize && brings[j].size() > maxSize) {
         continue;
       }
@@ -176,17 +175,17 @@ void markAtomsBondsArom(ROMol &mol, const VECT_INT_VECT &srings,
                         const VECT_INT_VECT &brings, const INT_VECT &ringIds,
                         std::set<unsigned int> &doneBonds,
                         const std::vector<Bond *> &bondsByIdx) {
-  INT_VECT aring, bring;
-  INT_VECT_CI ri, ai, bi;
-
   // first mark the atoms in the rings
-  for (ri = ringIds.begin(); ri != ringIds.end(); ri++) {
-    aring = srings[*ri];
+  for (auto ri : ringIds) {
+    const auto &aring = srings[ri];
 
     // first mark the atoms in the ring
-    for (ai = aring.begin(); ai != aring.end(); ai++) {
-      std::cerr << "markAtomsBondsArom setting atom " << *ai << " to aromatic" << std::endl;
-      mol.getAtomWithIdx(*ai)->setIsAromatic(true);
+    for (auto ai : aring) {
+#ifdef DEBUG_KEKULIZE
+      std::cerr << "markAtomsBondsArom setting atom " << ai << " to aromatic"
+                << std::endl;
+#endif
+      mol.getAtomWithIdx(ai)->setIsAromatic(true);
     }
   }
 
@@ -197,26 +196,25 @@ void markAtomsBondsArom(ROMol &mol, const VECT_INT_VECT &srings,
   //   all the fused rings.
   // - bonds that appears only once are marked aromatic
   INT_MAP_INT bndCntr;
-  INT_MAP_INT_I bci;
 
-  for (ri = ringIds.begin(); ri != ringIds.end(); ri++) {
-    bring = brings[*ri];
-    for (bi = bring.begin(); bi != bring.end(); bi++) {
-      if (bndCntr.find(*bi) == bndCntr.end()) {
-        bndCntr[*bi] = 1;
-      } else {
-        bndCntr[*bi] += 1;
-      }
+  for (auto ri : ringIds) {
+    const auto &bring = brings[ri];
+    for (auto bi : bring) {
+      ++bndCntr[bi];
     }
   }
   // now mark bonds that have a count of 1 to be aromatic;
   // std::cerr << "bring:";
-  for (bci = bndCntr.begin(); bci != bndCntr.end(); ++bci) {
+  for (const auto &bci : bndCntr) {
     // std::cerr << " " << bci->first << "(" << bci->second << ")";
-    if (bci->second == 1) {
-      auto bond = bondsByIdx[bci->first];
+    if (bci.second == 1) {
+      auto bond = bondsByIdx[bci.first];
       // Bond *bond = mol.get BondWithIdx(bci->first);
-      std::cerr << "markAtomsBondsArom setting bond " << bond->getIdx() << " between atoms " << bond->getBeginAtomIdx() << " and " << bond->getEndAtomIdx() << " to aromatic" << std::endl;
+#ifdef DEBUG_KEKULIZE
+      std::cerr << "markAtomsBondsArom setting bond " << bond->getIdx()
+                << " between atoms " << bond->getBeginAtomIdx() << " and "
+                << bond->getEndAtomIdx() << " to aromatic" << std::endl;
+#endif
       bond->setIsAromatic(true);
       switch (bond->getBondType()) {
         case Bond::SINGLE:
@@ -261,53 +259,47 @@ bool incidentNonCyclicMultipleBond(const Atom *at, int &who) {
   // check if "at" has an non-cyclic multiple bond on it
   // if yes check which atom this bond goes to
   // and record the atomID in who
-  const ROMol &mol = at->getOwningMol();
-  ROMol::OEDGE_ITER beg, end;
-  boost::tie(beg, end) = mol.getAtomBonds(at);
-  while (beg != end) {
-    if (!mol.getRingInfo()->numBondRings(mol[*beg]->getIdx())) {
-      if (mol[*beg]->getValenceContrib(at) >= 2.0) {
-        who = mol[*beg]->getOtherAtomIdx(at->getIdx());
+  const auto &mol = at->getOwningMol();
+  for (const auto &bi : boost::make_iterator_range(mol.getAtomBonds(at))) {
+    const auto bond = mol[bi];
+    if (!mol.getRingInfo()->numBondRings(bond->getIdx())) {
+      if (bond->getValenceContrib(at) >= 2.0) {
+        who = bond->getOtherAtomIdx(at->getIdx());
         return true;
       }
     }
-    ++beg;
   }
   return false;
 }
 
 bool incidentCyclicMultipleBond(const Atom *at) {
   PRECONDITION(at, "bad atom");
-  const ROMol &mol = at->getOwningMol();
-  ROMol::OEDGE_ITER beg, end;
-  boost::tie(beg, end) = mol.getAtomBonds(at);
-  while (beg != end) {
-    if (mol.getRingInfo()->numBondRings(mol[*beg]->getIdx())) {
-      if (mol[*beg]->getValenceContrib(at) >= 2.0) {
+  const auto &mol = at->getOwningMol();
+  for (const auto &bi : boost::make_iterator_range(mol.getAtomBonds(at))) {
+    const auto bond = mol[bi];
+    if (mol.getRingInfo()->numBondRings(bond->getIdx())) {
+      if (bond->getValenceContrib(at) >= 2.0) {
         return true;
       }
     }
-    beg++;
   }
   return false;
 }
 
 bool incidentMultipleBond(const Atom *at) {
   PRECONDITION(at, "bad atom");
+  const auto &mol = at->getOwningMol();
   int deg = at->getDegree() + at->getNumExplicitHs();
-  ROMol::OEDGE_ITER beg, end;
-  boost::tie(beg, end) = at->getOwningMol().getAtomBonds(at);
-  while (beg != end) {
-    Bond *bond = at->getOwningMol()[*beg];
+  for (const auto &bi : boost::make_iterator_range(mol.getAtomBonds(at))) {
+    const auto bond = mol[bi];
     if (!std::lround(bond->getValenceContrib(at))) {
       --deg;
     }
-    ++beg;
   }
-  return at->getExplicitValence() != static_cast<int>(deg);
+  return at->getExplicitValence() != deg;
 }
 
-bool applyHuckel(ROMol &, const INT_VECT &ring, const VECT_EDON_TYPE &edon,
+bool applyHuckel(ROMol &mol, const INT_VECT &ring, const VECT_EDON_TYPE &edon,
                  unsigned int minRingSize) {
   if (ring.size() < minRingSize) {
     return false;
@@ -316,19 +308,35 @@ bool applyHuckel(ROMol &, const INT_VECT &ring, const VECT_EDON_TYPE &edon,
   bool aromatic = false;
   rlw = 0;
   rup = 0;
+#ifdef DEBUG_KEKULIZE
   std::cerr << "applyHuckel ring" << std::endl;
+#endif
+  unsigned int nAnyElectronDonorType = 0;
   for (auto idx : ring) {
     ElectronDonorType edonType = edon[idx];
+    if (mol.getRingInfo()->numAtomRings(idx) == 1 &&
+        edonType == AnyElectronDonorType) {
+      ++nAnyElectronDonorType;
+      if (nAnyElectronDonorType > 1) {
+        return false;
+      }
+    }
     getMinMaxAtomElecs(edonType, atlw, atup);
     rlw += atlw;
     rup += atup;
-    std::cerr << "applyHuckel idx " << idx << " ElectronDonorType " << edonType << " rlw " << rlw << " rup " << rup << std::endl;
+#ifdef DEBUG_KEKULIZE
+    std::cerr << "applyHuckel idx " << idx << " ElectronDonorType " << edonType
+              << " rlw " << rlw << " rup " << rup << std::endl;
+#endif
   }
 
   if (rup >= 6) {
     for (rie = rlw; rie <= rup; ++rie) {
       if ((rie - 2) % 4 == 0) {
-        std::cerr << "applyHuckel rie " << rie << " (rie - 2) % 4 == 0" << std::endl;
+#ifdef DEBUG_KEKULIZE
+        std::cerr << "applyHuckel rie " << rie << " (rie - 2) % 4 == 0"
+                  << std::endl;
+#endif
         aromatic = true;
         break;
       }
@@ -360,16 +368,14 @@ void applyHuckelToFused(
   // huckel rule checked first on all the 1 ring subsystems then 2
   // rung subsystems etc.
 
-  INT_VECT aromRings;
+  std::unordered_set<int> aromRings;
   auto nrings = rdcast<unsigned int>(fused.size());
   INT_VECT curRs;
-  INT_VECT_CI mri;
   curRs.push_back(fused.front());
-  int pos;
+  int pos = -1;
   unsigned int i;
   unsigned int curSize = 0;
   INT_VECT comb;
-  pos = -1;
 
   size_t nRingBonds;
   {
@@ -397,10 +403,8 @@ void applyHuckelToFused(
         break;
       }
       comb.resize(curSize);
+      std::iota(comb.begin(), comb.end(), 0);
       pos = 0;
-      for (i = 0; i < curSize; i++) {
-        comb[i] = i;
-      }
     } else {
       pos = nextCombination(comb, nrings);
     }
@@ -410,9 +414,8 @@ void applyHuckelToFused(
     }
 
     curRs.clear();
-    for (i = 0; i < comb.size(); i++) {
-      curRs.push_back(fused[comb[i]]);
-    }
+    std::transform(comb.begin(), comb.end(), std::back_inserter(curRs),
+                   [&fused](const int i) { return fused[i]; });
 
     // check if the picked subsystem is fused
     if (ringNeighs.size() && !RingUtils::checkFused(curRs, ringNeighs)) {
@@ -422,7 +425,7 @@ void applyHuckelToFused(
     // check aromaticity on the current fused system
     INT_VECT atsInRingSystem(mol.getNumAtoms(), 0);
     for (auto ridx : curRs) {
-      for (const auto rid : srings[ridx]) {
+      for (auto rid : srings[ridx]) {
         ++atsInRingSystem[rid];
       }
     }
@@ -436,37 +439,42 @@ void applyHuckelToFused(
         unon.push_back(i);
       }
     }
+#ifdef DEBUG_KEKULIZE
     std::cerr << "unon ";
     for (auto ii : unon) {
       std::cerr << ii << ",";
     }
     std::cerr << std::endl;
+#endif
     if (applyHuckel(mol, unon, edon, minRingSize)) {
-      // mark the atoms and bonds in these rings to be aromatic
+    // mark the atoms and bonds in these rings to be aromatic
+#ifdef DEBUG_KEKULIZE
       std::cerr << "before calling markAtomsBondsArom srings" << std::endl;
       for (const auto &sring : srings) {
         for (auto ai : sring) {
-          std::cerr << ai << (mol.getAtomWithIdx(ai)->getIsAromatic() ? "A" : "") << ",";
+          std::cerr << ai
+                    << (mol.getAtomWithIdx(ai)->getIsAromatic() ? "A" : "")
+                    << ",";
         }
         std::cerr << std::endl;
       }
       std::cerr << "before calling markAtomsBondsArom brings" << std::endl;
       for (const auto &bring : brings) {
         for (auto bi : bring) {
-          std::cerr << bi << "(" << mol.getBondWithIdx(bi)->getBondTypeAsDouble() << ")" << (mol.getBondWithIdx(bi)->getIsAromatic() ? "A" : "") << ",";
+          std::cerr << bi << "("
+                    << mol.getBondWithIdx(bi)->getBondTypeAsDouble() << ")"
+                    << (mol.getBondWithIdx(bi)->getIsAromatic() ? "A" : "")
+                    << ",";
         }
         std::cerr << std::endl;
       }
+#endif
       markAtomsBondsArom(mol, srings, brings, curRs, doneBonds, bondsByIdx);
 
       // add the ring IDs to the aromatic rings found so far
       // avoid duplicates
-      for (mri = curRs.begin(); mri != curRs.end(); mri++) {
-        if (std::find(aromRings.begin(), aromRings.end(), (*mri)) ==
-            aromRings.end()) {
-          aromRings.push_back(*mri);
-        }
-      }
+      std::copy(curRs.begin(), curRs.end(),
+                std::inserter(aromRings, aromRings.begin()));
     }  // end check huckel rule
   }    // end while(1)
   narom += rdcast<int>(aromRings.size());
@@ -504,7 +512,8 @@ bool isAtomCandForArom(const Atom *at, const ElectronDonorType edon,
   }
 
   // atoms that aren't in their default valence state also get shut out
-  int defVal = PeriodicTable::getTable()->getDefaultValence(at->getAtomicNum());
+  auto defVal =
+      PeriodicTable::getTable()->getDefaultValence(at->getAtomicNum());
   if (defVal > 0 && rdcast<int>(at->getTotalValence()) >
                         (PeriodicTable::getTable()->getDefaultValence(
                             at->getAtomicNum() - at->getFormalCharge()))) {
@@ -526,11 +535,9 @@ bool isAtomCandForArom(const Atom *at, const ElectronDonorType edon,
   int nUnsaturations = at->getExplicitValence() - at->getDegree();
   if (nUnsaturations > 1) {
     unsigned int nMult = 0;
-    const ROMol &mol = at->getOwningMol();
-    ROMol::OEDGE_ITER beg, end;
-    boost::tie(beg, end) = mol.getAtomBonds(at);
-    while (beg != end) {
-      switch (mol[*beg]->getBondType()) {
+    const auto &mol = at->getOwningMol();
+    for (const auto &bi : boost::make_iterator_range(mol.getAtomBonds(at))) {
+      switch (mol[bi]->getBondType()) {
         case Bond::SINGLE:
         case Bond::AROMATIC:
           break;
@@ -552,7 +559,6 @@ bool isAtomCandForArom(const Atom *at, const ElectronDonorType edon,
       if (nMult > 1) {
         break;
       }
-      ++beg;
     }
     if (nMult > 1) {
       return (false);
@@ -560,17 +566,14 @@ bool isAtomCandForArom(const Atom *at, const ElectronDonorType edon,
   }
 
   if (!allowExocyclicMultipleBonds) {
-    const ROMol &mol = at->getOwningMol();
-    ROMol::OEDGE_ITER beg, end;
-    boost::tie(beg, end) = mol.getAtomBonds(at);
-    while (beg != end) {
-      const Bond *bnd = mol[*beg];
-      if ((bnd->getBondType() == Bond::DOUBLE ||
-           bnd->getBondType() == Bond::TRIPLE) &&
-          !queryIsBondInRing(bnd)) {
+    const auto &mol = at->getOwningMol();
+    for (const auto &bi : boost::make_iterator_range(mol.getAtomBonds(at))) {
+      const auto bond = mol[bi];
+      if ((bond->getBondType() == Bond::DOUBLE ||
+           bond->getBondType() == Bond::TRIPLE) &&
+          !queryIsBondInRing(bond)) {
         return false;
       }
-      ++beg;
     }
   }
 
@@ -581,14 +584,14 @@ ElectronDonorType getAtomDonorTypeArom(
     const Atom *at, bool exocyclicBondsStealElectrons = true) {
   PRECONDITION(at, "bad atom");
   if (at->getAtomicNum() == 0) {
-    // dummies can be anything:
-    return AnyElectronDonorType;
+    return incidentCyclicMultipleBond(at) ? OneElectronDonorType
+                                          : AnyElectronDonorType;
   }
 
   ElectronDonorType res = NoElectronDonorType;
-  int nelec = MolOps::countAtomElec(at);
+  auto nelec = MolOps::countAtomElec(at);
   int who = -1;
-  const ROMol &mol = at->getOwningMol();
+  const auto &mol = at->getOwningMol();
   if (nelec < 0) {
     res = NoElectronDonorType;
   } else if (nelec == 0) {
@@ -612,7 +615,7 @@ ElectronDonorType getAtomDonorTypeArom(
       // external multiple bond this electron will not be available
       // for aromaticity if this atom is bonded to a more electro
       // negative atom
-      const Atom *at2 = mol.getAtomWithIdx(who);
+      const auto at2 = mol.getAtomWithIdx(who);
       if (exocyclicBondsStealElectrons &&
           PeriodicTable::getTable()->moreElectroNegative(at2->getAtomicNum(),
                                                          at->getAtomicNum())) {
@@ -636,11 +639,11 @@ ElectronDonorType getAtomDonorTypeArom(
       // if there is an incident multiple bond with an element that
       // is more electronegative than the this atom, count one less
       // electron
-      const Atom *at2 = mol.getAtomWithIdx(who);
+      const auto at2 = mol.getAtomWithIdx(who);
       if (exocyclicBondsStealElectrons &&
           PeriodicTable::getTable()->moreElectroNegative(at2->getAtomicNum(),
                                                          at->getAtomicNum())) {
-        nelec--;
+        --nelec;
       }
     }
     if (nelec % 2 == 1) {
@@ -659,7 +662,7 @@ int countAtomElec(const Atom *at) {
   PRECONDITION(at, "bad atom");
 
   // default valence :
-  int dv = PeriodicTable::getTable()->getDefaultValence(at->getAtomicNum());
+  auto dv = PeriodicTable::getTable()->getDefaultValence(at->getAtomicNum());
   if (dv <= 1) {
     // univalent elements can't be either aromatic or conjugated
     return -1;
@@ -668,15 +671,13 @@ int countAtomElec(const Atom *at) {
   // total atom degree:
   int degree = at->getDegree() + at->getTotalNumHs();
 
-  ROMol::OEDGE_ITER beg, end;
-  boost::tie(beg, end) = at->getOwningMol().getAtomBonds(at);
-  while (beg != end) {
-    Bond *bond = at->getOwningMol()[*beg];
+  const auto &mol = at->getOwningMol();
+  for (const auto &bi : boost::make_iterator_range(mol.getAtomBonds(at))) {
+    auto bond = mol[bi];
     // don't count bonds that aren't actually contributing to the valence here:
     if (!std::lround(bond->getValenceContrib(at))) {
       --degree;
     }
-    ++beg;
   }
 
   // if we are more than 3 coordinated we should not be aromatic
@@ -685,8 +686,7 @@ int countAtomElec(const Atom *at) {
   }
 
   // number of lone pair electrons = (outer shell elecs) - (default valence)
-  int nlp;
-  nlp = PeriodicTable::getTable()->getNouterElecs(at->getAtomicNum()) - dv;
+  auto nlp = PeriodicTable::getTable()->getNouterElecs(at->getAtomicNum()) - dv;
 
   // subtract the charge to get the true number of lone pair electrons:
   nlp = std::max(nlp - at->getFormalCharge(), 0);
@@ -729,7 +729,7 @@ int mdlAromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings) {
     bool allAromatic = true;
     bool allDummy = true;
     for (auto firstIdx : sring) {
-      Atom *at = mol.getAtomWithIdx(firstIdx);
+      const auto at = mol.getAtomWithIdx(firstIdx);
 
       if (allDummy && at->getAtomicNum() != 0) {
         allDummy = false;
@@ -785,13 +785,13 @@ int mdlAromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings) {
   // huckel rule - of course paying attention to fused systems.
   INT_VECT doneRs;
   int curr = 0;
-  int cnrs = rdcast<int>(cRings.size());
+  auto cnrs = rdcast<int>(cRings.size());
   boost::dynamic_bitset<> fusDone(cnrs);
   INT_VECT fused;
 
   std::vector<Bond *> bondsByIdx;
   bondsByIdx.reserve(mol.getNumBonds());
-  for (auto b : mol.bonds()) {
+  for (const auto b : mol.bonds()) {
     bondsByIdx.push_back(b);
   }
 
@@ -804,7 +804,7 @@ int mdlAromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings) {
                        maxFused, bondsByIdx, minRingSize);
 
     int rix;
-    for (rix = 0; rix < cnrs; rix++) {
+    for (rix = 0; rix < cnrs; ++rix) {
       if (!fusDone[rix]) {
         curr = rix;
         break;
@@ -837,9 +837,11 @@ int aromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings,
 
   VECT_INT_VECT cRings;  // holder for rings that are candidates for aromaticity
   for (auto &sring : srings) {
+#ifdef DEBUG_KEKULIZE
     std::cerr << "aromaticityHelper sring ";
     for (auto i : sring) std::cerr << i << ",";
     std::cerr << std::endl;
+#endif
     size_t ringSz = sring.size();
     // test ring size:
     if ((minRingSize && ringSz < minRingSize) ||
@@ -850,16 +852,22 @@ int aromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings,
     bool allAromatic = true;
     bool allDummy = true;
     for (auto firstIdx : sring) {
-      Atom *at = mol.getAtomWithIdx(firstIdx);
+      const auto at = mol.getAtomWithIdx(firstIdx);
 
       if (allDummy && at->getAtomicNum() != 0) {
-        std::cerr << "aromaticityHelper allDummy=false because of atom " << at->getIdx() << std::endl;
+#ifdef DEBUG_KEKULIZE
+        std::cerr << "aromaticityHelper allDummy=false because of atom "
+                  << at->getIdx() << std::endl;
+#endif
         allDummy = false;
       }
 
       if (aseen[firstIdx]) {
         if (!acands[firstIdx]) {
-          std::cerr << "1) aromaticityHelper allAromatic=false because of atom " << firstIdx << std::endl;
+#ifdef DEBUG_KEKULIZE
+          std::cerr << "1) aromaticityHelper allAromatic=false because of atom "
+                    << firstIdx << std::endl;
+#endif
           allAromatic = false;
         }
         continue;
@@ -873,15 +881,29 @@ int aromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings,
       edon[firstIdx] = getAtomDonorTypeArom(at);
       acands[firstIdx] = isAtomCandForArom(at, edon[firstIdx]);
       if (!acands[firstIdx]) {
-        std::cerr << "2) aromaticityHelper allAromatic=false because of atom " << firstIdx << std::endl;
+#ifdef DEBUG_KEKULIZE
+        std::cerr << "2) aromaticityHelper allAromatic=false because of atom "
+                  << firstIdx << std::endl;
+#endif
         allAromatic = false;
       }
     }
     if (allAromatic && !allDummy) {
-      std::cerr << "*** aromaticityHelper allAromatic && !allDummy" << std::endl;
+#ifdef DEBUG_KEKULIZE
+      std::cerr << "*** aromaticityHelper allAromatic && !allDummy"
+                << std::endl;
+#endif
       cRings.push_back(sring);
     }
   }
+  std::sort(cRings.begin(), cRings.end(),
+            [&mol](const INT_VECT &ring1, const INT_VECT &ring2) {
+              const auto isDummy = [&mol](int idx) {
+                return !mol.getAtomWithIdx(idx)->getAtomicNum();
+              };
+              return std::count_if(ring1.begin(), ring1.begin(), isDummy) >
+                     std::count_if(ring2.begin(), ring2.begin(), isDummy);
+            });
 
   // first convert all rings to bonds ids
   VECT_INT_VECT brings;
@@ -918,7 +940,7 @@ int aromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings,
     // huckel rule - of course paying attention to fused systems.
     INT_VECT doneRs;
     int curr = 0;
-    int cnrs = rdcast<int>(cRings.size());
+    auto cnrs = rdcast<int>(cRings.size());
     boost::dynamic_bitset<> fusDone(cnrs);
     INT_VECT fused;
     while (curr < cnrs) {
@@ -928,7 +950,7 @@ int aromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings,
                          bondsByIdx);
 
       int rix;
-      for (rix = 0; rix < cnrs; rix++) {
+      for (rix = 0; rix < cnrs; ++rix) {
         if (!fusDone[rix]) {
           curr = rix;
           break;
@@ -948,7 +970,9 @@ int aromaticityHelper(RWMol &mol, const VECT_INT_VECT &srings,
 }  // end of anonymous namespace
 
 int setAromaticity(RWMol &mol, AromaticityModel model, int (*func)(RWMol &)) {
+#ifdef DEBUG_KEKULIZE
   std::cerr << "setAromaticity" << std::endl;
+#endif
   // This function used to check if the input molecule came
   // with aromaticity information, assumed it is correct and
   // did not touch it. Now it ignores that information entirely.
@@ -965,14 +989,20 @@ int setAromaticity(RWMol &mol, AromaticityModel model, int (*func)(RWMol &)) {
   switch (model) {
     case AROMATICITY_DEFAULT:
     case AROMATICITY_RDKIT:
-      std::cerr << "setAromaticity before calling aromaticityHelper" << std::endl;
+#ifdef DEBUG_KEKULIZE
+      std::cerr << "setAromaticity before calling aromaticityHelper"
+                << std::endl;
+#endif
       res = aromaticityHelper(mol, srings, 0, 0, true);
       break;
     case AROMATICITY_SIMPLE:
       res = aromaticityHelper(mol, srings, 5, 6, false);
       break;
     case AROMATICITY_MDL:
-      std::cerr << "setAromaticity before calling mdlAromaticityHelper" << std::endl;
+#ifdef DEBUG_KEKULIZE
+      std::cerr << "setAromaticity before calling mdlAromaticityHelper"
+                << std::endl;
+#endif
       res = mdlAromaticityHelper(mol, srings);
       break;
     case AROMATICITY_CUSTOM:
