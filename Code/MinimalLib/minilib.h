@@ -80,18 +80,18 @@ class JSMol {
   std::string get_new_coords() const { return get_new_coords(false); }
   std::string remove_hs() const;
   std::string add_hs() const;
-  std::string normalize_2d_molblock(bool reorient, bool scale, bool sanityCheck, bool useCoordGen);
-  std::string normalize_2d_molblock(bool reorient, bool scale, bool sanityCheck) {
-    return normalize_2d_molblock(reorient, scale, sanityCheck, false);
+  std::string normalize_2d_molblock(int principalAxis, bool scale, bool sanityCheck, bool useCoordGen);
+  std::string normalize_2d_molblock(int principalAxis, bool scale, bool sanityCheck) {
+    return normalize_2d_molblock(principalAxis, scale, sanityCheck, false);
   }
-  std::string normalize_2d_molblock(bool reorient, bool scale) {
-    return normalize_2d_molblock(reorient, scale, true, false);
+  std::string normalize_2d_molblock(int principalAxis, bool scale) {
+    return normalize_2d_molblock(principalAxis, scale, true, false);
   }
-  std::string normalize_2d_molblock(bool reorient) {
-    return normalize_2d_molblock(reorient, true, true, false);
+  std::string normalize_2d_molblock(int principalAxis) {
+    return normalize_2d_molblock(principalAxis, true, true, false);
   }
   std::string normalize_2d_molblock() {
-    return normalize_2d_molblock(true, true, true, false);
+    return normalize_2d_molblock(0, true, true, false);
   }
   void straighten_2d_layout(bool smallestRotation, bool useCoordGen);
   void straighten_2d_layout(bool smallestRotation) {

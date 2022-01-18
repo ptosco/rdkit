@@ -358,7 +358,7 @@ std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
   return res;
 }
 
-std::string JSMol::normalize_2d_molblock(bool reorient, bool scale, bool sanityCheck, bool useCoordGen) {
+std::string JSMol::normalize_2d_molblock(int principalAxis, bool scale, bool sanityCheck, bool useCoordGen) {
   if (!d_mol || !d_mol->getNumAtoms()) return "";
   constexpr double RDKIT_BOND_LEN = 1.5;
   constexpr double MIN_BOND_LEN = 0.5;
@@ -423,9 +423,14 @@ std::string JSMol::normalize_2d_molblock(bool reorient, bool scale, bool sanityC
   boost::shared_ptr<RDGeom::Transform3D> canonTrans;
   boost::shared_ptr<RDGeom::Transform3D> trans;
   auto &conf = d_mol->getConformer();
-  if (reorient) {
+  if (principalAxis == 0 || principalAxis == 1) {
     auto ctd = MolTransforms::computeCentroid(conf);
     canonTrans.reset(MolTransforms::computeCanonicalTransform(conf, &ctd));
+    if (principalAxis == 1) {
+      boost::shared_ptr<RDGeom::Transform3D> rotate90(new RDGeom::Transform3D());
+      rotate90->SetRotation(0., 1., RDGeom::Point3D(0., 0., 1.));
+      *canonTrans *= *rotate90;
+    }
     trans = canonTrans;
   }
   if (scaleFactor > 0.) {

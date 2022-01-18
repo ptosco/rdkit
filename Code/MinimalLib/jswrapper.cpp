@@ -203,23 +203,22 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("remove_hs", &JSMol::remove_hs)
       .function("normalize_2d_molblock",
                 select_overload<std::string()>(&JSMol::normalize_2d_molblock))
-      .function("normalize_2d_molblock", select_overload<std::string(bool)>(
+      .function("normalize_2d_molblock", select_overload<std::string(int)>(
+                                             &JSMol::normalize_2d_molblock))
+      .function("normalize_2d_molblock", select_overload<std::string(int, bool)>(
                                              &JSMol::normalize_2d_molblock))
       .function("normalize_2d_molblock",
-                select_overload<std::string(bool, bool)>(
+                select_overload<std::string(int, bool, bool)>(
                     &JSMol::normalize_2d_molblock))
       .function("normalize_2d_molblock",
-                select_overload<std::string(bool, bool, bool)>(
-                    &JSMol::normalize_2d_molblock))
-      .function("normalize_2d_molblock",
-                select_overload<std::string(bool, bool, bool, bool)>(
+                select_overload<std::string(int, bool, bool, bool)>(
                     &JSMol::normalize_2d_molblock))
       .function("straighten_2d_layout",
                 select_overload<void()>(&JSMol::straighten_2d_layout))
       .function("straighten_2d_layout",
-                select_overload<void(bool, bool)>(&JSMol::straighten_2d_layout))
+                select_overload<void(bool)>(&JSMol::straighten_2d_layout))
       .function("straighten_2d_layout",
-                select_overload<void(bool)>(&JSMol::straighten_2d_layout));
+                select_overload<void(bool, bool)>(&JSMol::straighten_2d_layout));
 
   class_<JSSubstructLibrary>("SubstructLibrary")
       .constructor<>()
