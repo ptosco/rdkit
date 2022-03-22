@@ -88,7 +88,7 @@ class JSMol {
   double normalize_depiction(int canonicalize) {
     return normalize_depiction(canonicalize, -1.);
   }
-  double normalize_depiction() { return normalize_depiction(0, -1.); }
+  double normalize_depiction() { return normalize_depiction(1, -1.); }
   void straighten_depiction(bool smallestRotation);
   void straighten_depiction() { return straighten_depiction(false); }
 

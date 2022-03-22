@@ -350,20 +350,17 @@ standards. The applied scaling factor is returned.\n\n\
 ARGUMENTS:\n\n\
 mol          - the molecule to be normalized\n\
 confId       - (optional) the id of the reference conformation to use\n\
-canonicalize - (optional) if 0 or 1, a canonical transformation is\n\
-               applied, If 0 (the default), the main molecule axis is aligned\n\
-               to the X axis.\n\
-               if 1, the canonical orientation is rotated by 90-degree\n\
-               to align the main molecule axis to the Y axis.\n\
-               If >1, no canonical transformation is applied.\n\
-scaleFactor  - (optional) if >0.0, the scaling factor to apply. The default\n\
-               (-1.0) means that the depiction is automatically scaled\n\
-               such that bond lengths are the standard RDKit ones.\n\n\
-RETURNS: the applied scaling factor.";
+canonicalize - (optional) If <0, the main molecule axis is aligned to the Y axis.\n\
+               If >0 (the default), the main molecule axis is aligned to the X axis.\n\
+               If 0 no canonical transformation is applied.\n\
+scaleFactor - (optional) if > 0.0,the scaling factor to apply. The default\n\
+              (-1.0) means that the depiction is automatically scaled\n\
+              such that bond lengths are the standard RDKit ones.\n\n\
+RETURNS : the applied scaling factor.";
 
-  python::def(
-      "NormalizeDepiction", RDDepict::normalizeDepiction,
-      (python::arg("mol"), python::arg("confId") = -1,
-       python::arg("canonicalize") = 0, python::arg("scaleFactor") = -1.),
-      docString.c_str());
+          python::def("NormalizeDepiction", RDDepict::normalizeDepiction,
+                      (python::arg("mol"), python::arg("confId") = -1,
+                       python::arg("canonicalize") = 1,
+                       python::arg("scaleFactor") = -1.),
+                      docString.c_str());
 }

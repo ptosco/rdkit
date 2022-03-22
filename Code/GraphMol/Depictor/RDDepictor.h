@@ -270,12 +270,9 @@ RDKIT_DEPICTOR_EXPORT void straightenDepiction(RDKit::ROMol &mol,
   ARGUMENTS:
   \param mol          - the molecule to be normalized
   \param confId       - (optional) the id of the reference conformation to use
-  \param canonicalize - (optional) if 0 or 1, a canonical transformation is
-                        applied, If 0 (the default), the main molecule axis is
-                        aligned to the X axis.
-                        if 1, the canonical orientation is rotated by 90-degree
-                        to align the main molecule axis to the Y axis.
-                        If <0 or >1, no canonical transformation is applied.
+  \param canonicalize - (optional) If <0, the main molecule axis is aligned to the Y axis.
+                        If >0 (the default), the main molecule axis is aligned to the X axis.
+                        If 0, no canonical transformation is applied.
   \param scaleFactor  - (optional) if >0.0, the scaling factor to apply. The
                         default (-1.0) means that the depiction is automatically
                         scaled such that bond lengths are the standard RDKit
@@ -287,7 +284,7 @@ RDKIT_DEPICTOR_EXPORT void straightenDepiction(RDKit::ROMol &mol,
 
 RDKIT_DEPICTOR_EXPORT double normalizeDepiction(RDKit::ROMol &mol,
                                                 int confId = -1,
-                                                int canonicalize = 0,
+                                                int canonicalize = 1,
                                                 double scaleFactor = -1.0);
 };  // namespace RDDepict
 

@@ -731,10 +731,10 @@ double normalizeDepiction(RDKit::ROMol &mol, int confId, int canonicalize,
   }
   boost::shared_ptr<RDGeom::Transform3D> canonTrans;
   boost::shared_ptr<RDGeom::Transform3D> trans;
-  if (canonicalize == 0 || canonicalize == 1) {
+  if (canonicalize) {
     auto ctd = MolTransforms::computeCentroid(conf);
     canonTrans.reset(MolTransforms::computeCanonicalTransform(conf, &ctd));
-    if (canonicalize == 1) {
+    if (canonicalize < 0) {
       boost::shared_ptr<RDGeom::Transform3D> rotate90(
           new RDGeom::Transform3D());
       rotate90->SetRotation(0., 1., RDGeom::Point3D(0., 0., 1.));

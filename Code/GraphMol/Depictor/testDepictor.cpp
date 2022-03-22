@@ -1381,7 +1381,7 @@ M  END)RES"_ctab;
     auto conformerCopy = new Conformer(noradrenalineMJCopy->getConformer());
     noradrenalineMJCopy->addConformer(conformerCopy, true);
     auto scalingFactor =
-        RDDepict::normalizeDepiction(*noradrenalineMJCopy, 1, 1);
+        RDDepict::normalizeDepiction(*noradrenalineMJCopy, 1, -1);
     TEST_ASSERT(Rmsd::compute(noradrenalineMJ->getConformer(0),
                               noradrenalineMJCopy->getConformer(0)) < 1.e-5);
     TEST_ASSERT(Rmsd::compute(noradrenalineMJ->getConformer(0),
@@ -1412,7 +1412,7 @@ M  END)RES"_ctab;
     auto conformerCopy = new Conformer(noradrenalineMJCopy->getConformer());
     noradrenalineMJCopy->addConformer(conformerCopy, true);
     auto scalingFactor =
-        RDDepict::normalizeDepiction(*noradrenalineMJCopy, 1, -1, 3.0);
+        RDDepict::normalizeDepiction(*noradrenalineMJCopy, 1, 0, 3.0);
     TEST_ASSERT(Rmsd::compute(noradrenalineMJ->getConformer(0),
                               noradrenalineMJCopy->getConformer(0)) < 1.e-5);
     TEST_ASSERT(Rmsd::compute(noradrenalineMJ->getConformer(0),
