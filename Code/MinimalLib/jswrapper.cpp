@@ -96,32 +96,27 @@ JSMol *get_mol_no_details(const std::string &input) {
   return get_mol(input, std::string());
 }
 
-emscripten::val get_as_uint8array(const JSMol &self) {
-  auto pickle = self.get_pickle();
+emscripten::val binary_string_to_uint8array(const std::string &pkl) {
   emscripten::val view(emscripten::typed_memory_view(
-      pickle.size(), reinterpret_cast<const unsigned char *>(pickle.c_str())));
-  auto res = emscripten::val::global("Uint8Array").new_(pickle.size());
+      pkl.size(), reinterpret_cast<const unsigned char *>(pkl.c_str())));
+  auto res = emscripten::val::global("Uint8Array").new_(pkl.size());
   res.call<void>("set", view);
   return res;
+}
+
+emscripten::val get_as_uint8array(const JSMol &self) {
+  return binary_string_to_uint8array(self.get_pickle());
 }
 
 JSMol *get_mol_from_uint8array(const emscripten::val &pickleAsUInt8Array) {
   return get_mol_from_pickle(pickleAsUInt8Array.as<std::string>());
 }
 
-emscripten::val get_fp_as_uint8array(const std::string &fp) {
-  emscripten::val view(emscripten::typed_memory_view(
-      fp.size(), reinterpret_cast<const unsigned char *>(fp.c_str())));
-  auto res = emscripten::val::global("Uint8Array").new_(fp.size());
-  res.call<void>("set", view);
-  return res;
-}
-
 emscripten::val get_morgan_fp_as_uint8array(const JSMol &self,
                                             unsigned int radius,
                                             unsigned int fplen) {
   std::string fp = self.get_morgan_fp_as_binary_text(radius, fplen);
-  return get_fp_as_uint8array(fp);
+  return binary_string_to_uint8array(fp);
 }
 
 emscripten::val get_morgan_fp_as_uint8array(const JSMol &self) {
@@ -131,7 +126,7 @@ emscripten::val get_morgan_fp_as_uint8array(const JSMol &self) {
 emscripten::val get_pattern_fp_as_uint8array(const JSMol &self,
                                              unsigned int fplen) {
   std::string fp = self.get_pattern_fp_as_binary_text(fplen);
-  return get_fp_as_uint8array(fp);
+  return binary_string_to_uint8array(fp);
 }
 
 emscripten::val get_pattern_fp_as_uint8array(const JSMol &self) {
