@@ -323,7 +323,7 @@ BOOST_PYTHON_MODULE(rdDepictor) {
       docString.c_str());
 
   docString =
-      "Rotate the 2D depiction such that the majority bonds have an angle \n\
+      "Rotate the 2D depiction such that the majority of bonds have an angle \n\
   with the X axis which is a multiple of 30 degrees.\n\
   ARGUMENTS: \n\n\
   mol -    the molecule to be rotated. \n\

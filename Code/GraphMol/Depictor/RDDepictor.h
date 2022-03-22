@@ -237,7 +237,7 @@ RDKIT_DEPICTOR_EXPORT void generateDepictionMatching3DStructure(
     RDKit::ROMol *referencePattern = nullptr, bool acceptFailure = false,
     bool forceRDKit = false);
 
-//! \brief Rotate the 2D depiction such that the majority bonds have an angle
+//! \brief Rotate the 2D depiction such that the majority of bonds have an angle
 //   with the X axis which is a multiple of 30 degrees.
 /*!
   Generates a depiction for a molecule where a piece of the molecule
