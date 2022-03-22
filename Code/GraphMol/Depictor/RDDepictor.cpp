@@ -737,29 +737,26 @@ double normalizeDepiction(RDKit::ROMol &mol, int confId, int canonicalize,
       scaleFactor = RDKIT_BOND_LEN / mostCommonBondLength;
     }
   }
-  boost::shared_ptr<RDGeom::Transform3D> canonTrans;
-  boost::shared_ptr<RDGeom::Transform3D> trans;
+  std::unique_ptr<RDGeom::Transform3D> canonTrans;
   if (canonicalize) {
     auto ctd = MolTransforms::computeCentroid(conf);
     canonTrans.reset(MolTransforms::computeCanonicalTransform(conf, &ctd));
     if (canonicalize < 0) {
-      boost::shared_ptr<RDGeom::Transform3D> rotate90(
-          new RDGeom::Transform3D());
-      rotate90->SetRotation(0., 1., RDGeom::Point3D(0., 0., 1.));
-      *canonTrans *= *rotate90;
+      RDGeom::Transform3D rotate90;
+      rotate90.SetRotation(0., 1., RDGeom::Point3D(0., 0., 1.));
+      *canonTrans *= rotate90;
     }
-    trans = canonTrans;
   }
   if (scaleFactor > 0. && fabs(scaleFactor - 1.0) > 1.e-5) {
-    trans.reset(new RDGeom::Transform3D());
-    trans->setVal(0, 0, scaleFactor);
-    trans->setVal(1, 1, scaleFactor);
+    RDGeom::Transform3D trans;
+    trans.setVal(0, 0, scaleFactor);
+    trans.setVal(1, 1, scaleFactor);
     if (canonTrans.get()) {
-      *trans *= *canonTrans;
+      trans *= *canonTrans;
     }
-  }
-  if (trans.get()) {
-    MolTransforms::transformConformer(conf, *trans);
+    MolTransforms::transformConformer(conf, trans);
+  } else if (canonTrans) {
+    MolTransforms::transformConformer(conf, *canonTrans);
   }
   return scaleFactor;
 }
