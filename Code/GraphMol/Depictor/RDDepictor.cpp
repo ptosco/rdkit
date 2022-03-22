@@ -673,6 +673,10 @@ void straightenDepiction(RDKit::ROMol &mol, int confId, bool smallestRotation) {
       d_thetaMin = d_thetaAvg;
     }
   }
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-lambda-capture"
+#endif
   unsigned int n30 =
       std::count_if(thetaValues.begin(), thetaValues.end(),
                     [d_thetaMin, INCR_DEG, TOL_DEG](double theta) {
@@ -689,6 +693,9 @@ void straightenDepiction(RDKit::ROMol &mol, int confId, bool smallestRotation) {
                       DepictorLocal::copySign(0.5, theta, ALMOST_ZERO))) %
                   2));
       });
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
   bool shouldRotate = (n60 > n30 / 2);
   if (shouldRotate && !smallestRotation) {
     d_thetaMin -= DepictorLocal::copySign(INCR_DEG, d_thetaMin, ALMOST_ZERO);
@@ -723,6 +730,7 @@ double normalizeDepiction(RDKit::ROMol &mol, int confId, int canonicalize,
         mostCommonBondLengthInt = it->first;
       }
     }
+
     if (!binnedBondLengths.empty()) {
       double mostCommonBondLength =
           static_cast<double>(mostCommonBondLengthInt) * 0.1;
