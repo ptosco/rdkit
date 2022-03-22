@@ -240,9 +240,6 @@ RDKIT_DEPICTOR_EXPORT void generateDepictionMatching3DStructure(
 //! \brief Rotate the 2D depiction such that the majority of bonds have an angle
 //   with the X axis which is a multiple of 30 degrees.
 /*!
-  Generates a depiction for a molecule where a piece of the molecule
-  is constrained to have coordinates similar to those of a 3D reference
-  structure.
 
   ARGUMENTS:
   \param mol - the molecule to be rotated
@@ -270,14 +267,12 @@ RDKIT_DEPICTOR_EXPORT void straightenDepiction(RDKit::ROMol &mol,
   ARGUMENTS:
   \param mol          - the molecule to be normalized
   \param confId       - (optional) the id of the reference conformation to use
-  \param canonicalize - (optional) If <0, the main molecule axis is aligned to the Y axis.
-                        If >0 (the default), the main molecule axis is aligned to the X axis.
-                        If 0, no canonical transformation is applied.
-  \param scaleFactor  - (optional) if >0.0, the scaling factor to apply. The
-                        default (-1.0) means that the depiction is automatically
-                        scaled such that bond lengths are the standard RDKit
-                        ones.
-  RETURNS:
+  \param canonicalize - (optional) If <0, the main molecule axis is aligned to
+  the Y axis. If >0 (the default), the main molecule axis is aligned to the X
+  axis. If 0, no canonical transformation is applied. \param scaleFactor  -
+  (optional) if >0.0, the scaling factor to apply. The default (-1.0) means that
+  the depiction is automatically scaled such that bond lengths are the standard
+  RDKit ones. RETURNS:
 
   \return the applied scaling factor.
 */
