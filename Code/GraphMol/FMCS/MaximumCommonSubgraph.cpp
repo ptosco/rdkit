@@ -329,6 +329,7 @@ struct WeightedBond {
 void MaximumCommonSubgraph::makeInitialSeeds() {
   // build a set of initial seeds as "all" single bonds from query
   // molecule
+  std::cerr << "MaximumCommonSubgraph::makeInitialSeeds" << std::endl;
   std::vector<bool> excludedBonds(QueryMolecule->getNumBonds(), false);
 
   Seeds.clear();
@@ -452,6 +453,7 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
       }
     }
   }
+  std::cerr << "Seeds.size() " << Seeds.size() << std::endl;
   size_t nq = QueryMolecule->getNumAtoms();
   for (size_t i = 0; i < nq; i++) {  // all query's atoms
     const Atom* queryMolAtom = QueryMolecule->getAtomWithIdx(i);
@@ -464,6 +466,7 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
         if (tag->AtomMatchTable.at(i, aj)) {
           const Atom* targetMolAtom = tag->Molecule->getAtomWithIdx(aj);
           bool isTargetMolAtomInRing = queryIsAtomInRing(targetMolAtom);
+          std::cerr << "i " << i << " aj " << aj << " isQueryMolAtomInRing " << isQueryMolAtomInRing << " isTargetMolAtomInRing " << isTargetMolAtomInRing << std::endl;
           ++matched;
           if (!(Parameters.BondCompareParameters.CompleteRingsOnly &&
                 (isQueryMolAtomInRing || isTargetMolAtomInRing))) {
@@ -491,7 +494,7 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
     if (matched >= ThresholdCount) {
       ++QueryMoleculeMatchedAtoms;
     }
-  }
+    std::cerr << "matched " << matched << " ThresholdCount " << ThresholdCount << " QueryMoleculeMatchedAtoms " << QueryMoleculeMatchedAtoms << std::endl;  }
 }
 
 namespace {
@@ -612,6 +615,7 @@ bool MaximumCommonSubgraph::growSeeds() {
   // Find MCS -- SDF Seed growing OPTIMISATION (it works in 3 times
   // faster)
   while (!Seeds.empty()) {
+    std::cerr << "Seeds.size() " << Seeds.size() << std::endl;
     if (getMaxNumberBonds() == QueryMoleculeMatchedBonds) {  // MCS == Query
       break;
     }
@@ -641,11 +645,13 @@ bool MaximumCommonSubgraph::growSeeds() {
         // #945: test here to see if the MCS actually has all rings closed
         if (possibleMCS && Parameters.BondCompareParameters.CompleteRingsOnly) {
           possibleMCS = checkIfRingsAreClosed(fs);
+          std::cerr << "1) possibleMCS fs.getNumAtoms() " << fs.getNumAtoms() << possibleMCS << " fs.getNumBonds() " << fs.getNumBonds() << std::endl;
         }
         if (possibleMCS && Parameters.AtomCompareParameters.CompleteRingsOnly) {
           possibleMCS = checkNoLoneRingAtoms(fs);
         }
         if (possibleMCS) {
+          std::cerr << "2) possibleMCS " << possibleMCS << std::endl;
           mcsFound = true;
 #ifdef VERBOSE_STATISTICS_ON
           VerboseStatistics.MCSFoundStep = VerboseStatistics.TotalSteps;
@@ -1001,7 +1007,9 @@ MCSResult MaximumCommonSubgraph::find(const std::vector<ROMOL_SPTR>& src_mols) {
     }
 
     areSeedsEmpty = Seeds.empty();
+    std::cerr << "before growSeeds" << std::endl;
     res.Canceled = !(areSeedsEmpty || growSeeds());
+    std::cerr << "after growSeeds" << std::endl;
     // verify what MCS is equal to one of initial seed for chirality match
     if ((FinalMatchCheckFunction == Parameters.FinalMatchChecker &&
          1 == getMaxNumberBonds()) ||

@@ -123,6 +123,8 @@ class RDKIT_FMCS_EXPORT Seed {
   void grow(MaximumCommonSubgraph& mcs) const;
   bool canGrowBiggerThan(unsigned maxBonds,
                          unsigned maxAtoms) const {  // prune()
+    std::cerr << "canGrowBiggerThan RemainingBonds " << RemainingBonds << " getNumBonds() " << getNumBonds() << " maxBonds " << maxBonds
+      << " RemainingAtoms " << RemainingAtoms << " getNumAtoms() " << getNumAtoms() << " maxAtoms " << maxAtoms << std::endl;
     return RemainingBonds + getNumBonds() > maxBonds ||
            (RemainingBonds + getNumBonds() == maxBonds &&
             RemainingAtoms + getNumAtoms() > maxAtoms);

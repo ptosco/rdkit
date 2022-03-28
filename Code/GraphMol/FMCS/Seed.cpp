@@ -110,6 +110,7 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     Seed seed;
     seed.createFromParent(this);
 
+    std::cerr << "NewBonds.size() " << NewBonds.size() << std::endl;
     for (std::vector<NewBond>::const_iterator nbi = NewBonds.begin();
          nbi != NewBonds.end(); nbi++) {
       unsigned aIdx = nbi->EndAtomIdx;
@@ -131,6 +132,7 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     seed.RemainingAtoms =
         RemainingAtoms - newAtomsSet.size();  // new atoms added to seed
 
+    std::cerr << "seed.RemainingBonds " << seed.RemainingBonds << " seed.RemainingAtoms " << seed.RemainingAtoms << std::endl;
     // prune() Best Sizes
     if (!seed.canGrowBiggerThan(mcs.getMaxNumberBonds(),
                                 mcs.getMaxNumberAtoms())) {
@@ -144,15 +146,18 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     seed.MatchResult = MatchResult;
     bool allMatched = mcs.checkIfMatchAndAppend(
         seed);  // this seed + all extern bonds is a part of MCS
+    std::cerr << "allMatched " << allMatched << std::endl;
 
     GrowingStage = 1;
     if (allMatched && NewBonds.size() > 1) {
+      std::cerr << "1) return";
       return;  // grow deep first. postpone next growing steps
     }
   }
   // 2. Check and add all 2^N-1-1 other possible seeds:
   if (1 == NewBonds.size()) {
     GrowingStage = NotSet;
+    std::cerr << "2) return";
     return;  // everything has been done
   }
   // OPTIMISATION:
@@ -179,9 +184,11 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     if (seed.canGrowBiggerThan(mcs.getMaxNumberBonds(),
                                mcs.getMaxNumberAtoms())) {  // prune()
       if (!MatchResult.empty()) {
+        std::cerr << "3) here" << std::endl;
         seed.MatchResult = MatchResult;
       }
       if (!mcs.checkIfMatchAndAppend(seed)) {
+        std::cerr << "4) here" << std::endl;
         nbi.BondIdx = NotSet;  // exclude this new bond from growing this seed
                                // - decrease 2^^N-1 to 2^^k-1, k<N.
         ++numErasedNewBonds;
@@ -195,8 +202,10 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
 #endif
     }
   }
+  std::cerr << "*** HERE ***" << std::endl;
 
   if (numErasedNewBonds > 0) {
+    std::cerr << "5) numErasedNewBonds " << numErasedNewBonds << std::endl;
     std::vector<NewBond> dirtyNewBonds;
     dirtyNewBonds.reserve(NewBonds.size());
     dirtyNewBonds.swap(NewBonds);
@@ -214,6 +223,7 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
       throw std::runtime_error(
           "Max number of new external bonds of a seed more than 64");
     }
+    std::cerr << "6) NewBonds.size() " << NewBonds.size() << std::endl;
     BitSet maxCompositionValue;
     Composition2N::compute2N(NewBonds.size(), maxCompositionValue);
     maxCompositionValue -= 1;  // 2^N-1
@@ -304,6 +314,7 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
       }
     }
   }
+  std::cerr << "7) here " << std::endl;
   GrowingStage = NotSet;  // finished
 }
 
