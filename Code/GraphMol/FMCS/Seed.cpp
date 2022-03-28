@@ -16,6 +16,8 @@
 
 #include <set>
 
+//#define DEBUG_FMCS 1
+
 namespace RDKit {
 namespace FMCS {
 
@@ -51,7 +53,7 @@ unsigned Seed::addBond(const Bond* bond) {
 }
 
 void Seed::fillNewBonds(const ROMol& qmol) {
-  std::vector<bool> excludedBonds = ExcludedBonds;
+  auto excludedBonds = ExcludedBonds;
   for (unsigned srcAtomIdx = LastAddedAtomsBeginIdx; srcAtomIdx < getNumAtoms();
        srcAtomIdx++) {  // all atoms added on previous growing only
     const Atom* atom = MoleculeFragment.Atoms[srcAtomIdx];
@@ -59,9 +61,9 @@ void Seed::fillNewBonds(const ROMol& qmol) {
     for (boost::tie(beg, end) = qmol.getAtomBonds(atom); beg != end;
          beg++) {  // all bonds from MoleculeFragment.Atoms[srcAtomIdx]
       const Bond* bond = &*(qmol[*beg]);
-      if (!excludedBonds[bond->getIdx()]) {
+      if (!excludedBonds.test(bond->getIdx())) {
         // already in the seed or NewBonds list from another atom in a RING
-        excludedBonds[bond->getIdx()] = true;
+        excludedBonds.set(bond->getIdx());
         unsigned ai = (atom == bond->getBeginAtom()) ? bond->getEndAtomIdx()
                                                      : bond->getBeginAtomIdx();
         const Atom* end_atom = qmol.getAtomWithIdx(ai);
@@ -82,7 +84,7 @@ void Seed::fillNewBonds(const ROMol& qmol) {
 
 void Seed::grow(MaximumCommonSubgraph& mcs) const {
   const ROMol& qmol = mcs.getQueryMolecule();
-  std::set<unsigned> newAtomsSet;  // keep track of newly added atoms
+  std::set<unsigned int> newAtomsSet;  // keep track of newly added atoms
 
   if (!canGrowBiggerThan(mcs.getMaxNumberBonds(),
                          mcs.getMaxNumberAtoms())) {  // prune() parent
@@ -110,7 +112,9 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     Seed seed;
     seed.createFromParent(this);
 
-    std::cerr << "NewBonds.size() " << NewBonds.size() << std::endl;
+#ifdef DEBUG_FMCS
+    std::cerr << "Seed::grow NewBonds.size() " << NewBonds.size() << std::endl;
+#endif
     for (std::vector<NewBond>::const_iterator nbi = NewBonds.begin();
          nbi != NewBonds.end(); nbi++) {
       unsigned aIdx = nbi->EndAtomIdx;
@@ -132,7 +136,9 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     seed.RemainingAtoms =
         RemainingAtoms - newAtomsSet.size();  // new atoms added to seed
 
-    std::cerr << "seed.RemainingBonds " << seed.RemainingBonds << " seed.RemainingAtoms " << seed.RemainingAtoms << std::endl;
+#ifdef DEBUG_FMCS
+    std::cerr << "Seed::grow seed.RemainingBonds " << seed.RemainingBonds << " seed.RemainingAtoms " << seed.RemainingAtoms << std::endl;
+#endif
     // prune() Best Sizes
     if (!seed.canGrowBiggerThan(mcs.getMaxNumberBonds(),
                                 mcs.getMaxNumberAtoms())) {
@@ -146,18 +152,24 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     seed.MatchResult = MatchResult;
     bool allMatched = mcs.checkIfMatchAndAppend(
         seed);  // this seed + all extern bonds is a part of MCS
-    std::cerr << "allMatched " << allMatched << std::endl;
+#ifdef DEBUG_FMCS
+    std::cerr << "Seed::grow allMatched " << allMatched << std::endl;
+#endif
 
     GrowingStage = 1;
     if (allMatched && NewBonds.size() > 1) {
-      std::cerr << "1) return";
+#ifdef DEBUG_FMCS
+      std::cerr << "1) Seed::grow return" << std::endl;
+#endif
       return;  // grow deep first. postpone next growing steps
     }
   }
   // 2. Check and add all 2^N-1-1 other possible seeds:
   if (1 == NewBonds.size()) {
     GrowingStage = NotSet;
-    std::cerr << "2) return";
+#ifdef DEBUG_FMCS
+    std::cerr << "2) Seed::grow return" << std::endl;
+#endif
     return;  // everything has been done
   }
   // OPTIMISATION:
@@ -184,11 +196,15 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     if (seed.canGrowBiggerThan(mcs.getMaxNumberBonds(),
                                mcs.getMaxNumberAtoms())) {  // prune()
       if (!MatchResult.empty()) {
-        std::cerr << "3) here" << std::endl;
+#ifdef DEBUG_FMCS
+        std::cerr << "3) Seed::grow here" << std::endl;
+#endif
         seed.MatchResult = MatchResult;
       }
       if (!mcs.checkIfMatchAndAppend(seed)) {
-        std::cerr << "4) here" << std::endl;
+#ifdef DEBUG_FMCS
+        std::cerr << "4) Seed::grow here" << std::endl;
+#endif
         nbi.BondIdx = NotSet;  // exclude this new bond from growing this seed
                                // - decrease 2^^N-1 to 2^^k-1, k<N.
         ++numErasedNewBonds;
@@ -202,10 +218,14 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
 #endif
     }
   }
-  std::cerr << "*** HERE ***" << std::endl;
+#ifdef DEBUG_FMCS
+  std::cerr << "5) Seed::grow here" << std::endl;
+#endif
 
   if (numErasedNewBonds > 0) {
-    std::cerr << "5) numErasedNewBonds " << numErasedNewBonds << std::endl;
+#ifdef DEBUG_FMCS
+    std::cerr << "6) Seed::grow numErasedNewBonds " << numErasedNewBonds << std::endl;
+#endif
     std::vector<NewBond> dirtyNewBonds;
     dirtyNewBonds.reserve(NewBonds.size());
     dirtyNewBonds.swap(NewBonds);
@@ -223,7 +243,9 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
       throw std::runtime_error(
           "Max number of new external bonds of a seed more than 64");
     }
-    std::cerr << "6) NewBonds.size() " << NewBonds.size() << std::endl;
+#ifdef DEBUG_FMCS
+    std::cerr << "7) Seed::grow NewBonds.size() " << NewBonds.size() << std::endl;
+#endif
     BitSet maxCompositionValue;
     Composition2N::compute2N(NewBonds.size(), maxCompositionValue);
     maxCompositionValue -= 1;  // 2^N-1
@@ -314,25 +336,22 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
       }
     }
   }
-  std::cerr << "7) here " << std::endl;
+#ifdef DEBUG_FMCS
+  std::cerr << "8) Seed::grow here" << std::endl;
+#endif
   GrowingStage = NotSet;  // finished
 }
 
 void Seed::computeRemainingSize(const ROMol& qmol) {
   RemainingBonds = RemainingAtoms = 0;
 
-  std::vector<unsigned> end_atom_stack;
-  std::vector<bool> visitedBonds = ExcludedBonds;
-  std::vector<bool> visitedAtoms(qmol.getNumAtoms());
+  std::vector<unsigned int> end_atom_stack;
+  auto visitedBonds = ExcludedBonds;
+  boost::dynamic_bitset<> visitedAtoms(qmol.getNumAtoms());
 
-  for (auto&& visitedAtom : visitedAtoms) {
-    visitedAtom = false;
-  }
-  for (std::vector<unsigned>::const_iterator it =
-           MoleculeFragment.AtomsIdx.begin();
-       it != MoleculeFragment.AtomsIdx.end(); it++) {
-    visitedAtoms[*it] = true;
-  }
+  std::for_each(MoleculeFragment.AtomsIdx.begin(), MoleculeFragment.AtomsIdx.end(), [&visitedAtoms](unsigned int i) {
+    visitedAtoms.set(i);
+  });
 
   // SDF all paths
   // 1. direct neighbours
@@ -345,16 +364,16 @@ void Seed::computeRemainingSize(const ROMol& qmol) {
     for (boost::tie(beg, end) = qmol.getAtomBonds(atom); beg != end;
          beg++) {  // all bonds from MoleculeFragment.Atoms[srcAtomIdx]
       const Bond& bond = *(qmol[*beg]);
-      if (!visitedBonds[bond.getIdx()]) {
+      if (!visitedBonds.test(bond.getIdx())) {
         ++RemainingBonds;
-        visitedBonds[bond.getIdx()] = true;
+        visitedBonds.set(bond.getIdx());
         unsigned end_atom_idx =
             (MoleculeFragment.AtomsIdx[seedAtomIdx] == bond.getBeginAtomIdx())
                 ? bond.getEndAtomIdx()
                 : bond.getBeginAtomIdx();
-        if (!visitedAtoms[end_atom_idx]) {  // check RING/CYCLE
+        if (!visitedAtoms.test(end_atom_idx)) {  // check RING/CYCLE
           ++RemainingAtoms;
-          visitedAtoms[end_atom_idx] = true;
+          visitedAtoms.set(end_atom_idx);
           end_atom_stack.push_back(end_atom_idx);
         }
       }
@@ -369,15 +388,15 @@ void Seed::computeRemainingSize(const ROMol& qmol) {
     for (boost::tie(beg, end) = qmol.getAtomBonds(atom); beg != end;
          beg++) {  // all bonds from end_atom
       const Bond& bond = *(qmol[*beg]);
-      if (!visitedBonds[bond.getIdx()]) {
+      if (!visitedBonds.test(bond.getIdx())) {
         ++RemainingBonds;
-        visitedBonds[bond.getIdx()] = true;
+        visitedBonds.set(bond.getIdx());
         unsigned end_atom_idx = (ai == bond.getBeginAtomIdx())
                                     ? bond.getEndAtomIdx()
                                     : bond.getBeginAtomIdx();
-        if (!visitedAtoms[end_atom_idx]) {  // check RING/CYCLE
+        if (!visitedAtoms.test(end_atom_idx)) {  // check RING/CYCLE
           ++RemainingAtoms;
-          visitedAtoms[end_atom_idx] = true;
+          visitedAtoms.set(end_atom_idx);
           end_atom_stack.push_back(end_atom_idx);
         }
       }

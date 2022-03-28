@@ -38,15 +38,15 @@ class RDKIT_FMCS_EXPORT SubstructureCache {
 
    public:
     void computeKey(const Seed& seed,
-                    const std::vector<unsigned>& queryAtomLabels,
-                    const std::vector<unsigned>& queryBondLabels) {
+                    const std::vector<unsigned int>& queryAtomLabels,
+                    const std::vector<unsigned int>& queryBondLabels) {
       computeMorganCodeHash(seed, queryAtomLabels, queryBondLabels);
     }
 
    private:
     void computeMorganCodeHash(const Seed& seed,
-                               const std::vector<unsigned>& queryAtomLabels,
-                               const std::vector<unsigned>& queryBondLabels) {
+                               const std::vector<unsigned int>& queryAtomLabels,
+                               const std::vector<unsigned int>& queryBondLabels) {
       size_t nv = seed.getNumAtoms();
       size_t ne = seed.getNumBonds();
       std::vector<unsigned long> currCodes(nv);
@@ -123,8 +123,8 @@ class RDKIT_FMCS_EXPORT SubstructureCache {
   // search algorithm,
   // including a resolving of collisions of hash key
   TIndexEntry* find(const Seed& seed,
-                    const std::vector<unsigned>& queryAtomLabels,
-                    const std::vector<unsigned>& queryBondLabels,
+                    const std::vector<unsigned int>& queryAtomLabels,
+                    const std::vector<unsigned int>& queryBondLabels,
                     TKey& key) {  // compute key and find entry
     key.computeKey(seed, queryAtomLabels, queryBondLabels);
     std::map<KeyNumericMetrics::TValue, size_t>::const_iterator entryit =

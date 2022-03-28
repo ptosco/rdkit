@@ -96,7 +96,7 @@ void parseMCSParametersJSON(const char* json, MCSParameters* params) {
     RDKit::MCSParameters& p = *params;
     p.MaximizeBonds = pt.get<bool>("MaximizeBonds", p.MaximizeBonds);
     p.Threshold = pt.get<double>("Threshold", p.Threshold);
-    p.Timeout = pt.get<unsigned>("Timeout", p.Timeout);
+    p.Timeout = pt.get<unsigned int>("Timeout", p.Timeout);
     p.AtomCompareParameters.MatchValences =
         pt.get<bool>("MatchValences", p.AtomCompareParameters.MatchValences);
     p.AtomCompareParameters.MatchChiralTag =

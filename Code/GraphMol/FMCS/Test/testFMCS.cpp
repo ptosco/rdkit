@@ -122,8 +122,8 @@ std::string getSmilesOnlyChEMBL(
 MCSParameters p;
 
 void testFileMCSB(const char* test, unsigned timeout = 30,
-                  std::vector<unsigned> test_N =
-                      std::vector<unsigned>()) {  // optional list of some tests
+                  std::vector<unsigned int> test_N =
+                      std::vector<unsigned int>()) {  // optional list of some tests
                                                   // for investigation
   p.Verbose = false;
 
@@ -1736,7 +1736,7 @@ int main(int argc, const char* argv[]) {
     //    testGregSDFFileSetFiltered();
     // return 0;
 
-    std::vector<unsigned> tc;
+    std::vector<unsigned int> tc;
     tc.push_back(90);
     tc.push_back(326);
     tc.push_back(330);
@@ -1777,7 +1777,7 @@ int main(int argc, const char* argv[]) {
         fclose(f);
       } break;
       case 'b': {
-        std::vector<unsigned> tc;       // empty -> all
+        std::vector<unsigned int> tc;       // empty -> all
         testFileMCSB(argv[2], 30, tc);  // .mcsb
       } break;
       default:

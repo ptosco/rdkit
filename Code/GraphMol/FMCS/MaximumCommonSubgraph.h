@@ -40,8 +40,8 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
   struct MCS {  // current result. Reference to a fragment of source molecule
     std::vector<const Atom*> Atoms;
     std::vector<const Bond*> Bonds;
-    std::vector<unsigned> AtomsIdx;
-    std::vector<unsigned> BondsIdx;  // need for results and size() only !
+    std::vector<unsigned int> AtomsIdx;
+    std::vector<unsigned int> BondsIdx;  // need for results and size() only !
     const ROMol* QueryMolecule;
     std::vector<Target> Targets;
   };
@@ -52,9 +52,9 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
   unsigned ThresholdCount;  // min number of matching
   std::vector<const ROMol*> Molecules;
 #ifdef FAST_SUBSTRUCT_CACHE
-  std::vector<unsigned> QueryAtomLabels;  // for code Morgan. Value based on
+  std::vector<unsigned int> QueryAtomLabels;  // for code Morgan. Value based on
                                           // current functor and parameters
-  std::vector<unsigned> QueryBondLabels;  // for code Morgan. Value based on
+  std::vector<unsigned int> QueryBondLabels;  // for code Morgan. Value based on
                                           // current functor and parameters
   SubstructureCache HashCache;
   MatchTable QueryAtomMatchTable;

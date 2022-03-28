@@ -10,6 +10,7 @@
 #include <RDGeneral/export.h>
 #pragma once
 #include <map>
+#include <boost/dynamic_bitset.hpp>
 #include "../RDKitBase.h"
 #include "DebugTrace.h"  // algorithm optimisation definitions
 #include "Graph.h"
@@ -25,8 +26,8 @@ struct RDKIT_FMCS_EXPORT
     MolFragment {  // Reference to a fragment of source molecule
   std::vector<const Atom*> Atoms;
   std::vector<const Bond*> Bonds;
-  std::vector<unsigned> AtomsIdx;
-  std::vector<unsigned> BondsIdx;  // need for results and size() only !
+  std::vector<unsigned int> AtomsIdx;
+  std::vector<unsigned int> BondsIdx;  // need for results and size() only !
   std::map<unsigned, unsigned> SeedAtomIdxMap;  // Full Query Molecule to Seed
                                                 // indices backward conversion
                                                 // map
@@ -68,7 +69,7 @@ class RDKIT_FMCS_EXPORT Seed {
   MolFragment MoleculeFragment;  // Reference to a fragment of source molecule
   Graph Topology;  // seed topology with references to source molecule
 
-  std::vector<bool> ExcludedBonds;
+  boost::dynamic_bitset<> ExcludedBonds;
   unsigned LastAddedAtomsBeginIdx{0};  // in this subgraph for improving
                                        // performance of future growing
   unsigned LastAddedBondsBeginIdx{0};  // in this subgraph for DEBUG ONLY
@@ -123,8 +124,6 @@ class RDKIT_FMCS_EXPORT Seed {
   void grow(MaximumCommonSubgraph& mcs) const;
   bool canGrowBiggerThan(unsigned maxBonds,
                          unsigned maxAtoms) const {  // prune()
-    std::cerr << "canGrowBiggerThan RemainingBonds " << RemainingBonds << " getNumBonds() " << getNumBonds() << " maxBonds " << maxBonds
-      << " RemainingAtoms " << RemainingAtoms << " getNumAtoms() " << getNumAtoms() << " maxAtoms " << maxAtoms << std::endl;
     return RemainingBonds + getNumBonds() > maxBonds ||
            (RemainingBonds + getNumBonds() == maxBonds &&
             RemainingAtoms + getNumAtoms() > maxAtoms);

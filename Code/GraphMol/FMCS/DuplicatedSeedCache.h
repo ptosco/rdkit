@@ -20,19 +20,19 @@ class DuplicatedSeedCache {
  public:
   typedef bool TValue;
   class TKey {
-    std::vector<unsigned> AtomIdx;  // sorted
-    std::vector<unsigned> BondIdx;  // sorted
+    std::vector<unsigned int> AtomIdx;  // sorted
+    std::vector<unsigned int> BondIdx;  // sorted
    public:
     size_t getNumAtoms() const { return AtomIdx.size(); }
     size_t getNumBonds() const { return BondIdx.size(); }
 
     void addAtom(unsigned i) {
-      std::vector<unsigned>::iterator it =
+      std::vector<unsigned int>::iterator it =
           std::lower_bound(AtomIdx.begin(), AtomIdx.end(), i);
       AtomIdx.insert(it, i);
     }
     void addBond(unsigned i) {
-      std::vector<unsigned>::iterator it =
+      std::vector<unsigned int>::iterator it =
           std::lower_bound(BondIdx.begin(), BondIdx.end(), i);
       BondIdx.insert(it, i);
     }
