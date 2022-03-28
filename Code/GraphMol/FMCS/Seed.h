@@ -28,20 +28,20 @@ struct RDKIT_FMCS_EXPORT
   std::vector<const Bond*> Bonds;
   std::vector<unsigned int> AtomsIdx;
   std::vector<unsigned int> BondsIdx;  // need for results and size() only !
-  std::map<unsigned, unsigned> SeedAtomIdxMap;  // Full Query Molecule to Seed
+  std::map<unsigned int, unsigned> SeedAtomIdxMap;  // Full Query Molecule to Seed
                                                 // indices backward conversion
                                                 // map
 };
 
 struct RDKIT_FMCS_EXPORT NewBond {
-  unsigned SourceAtomIdx{0};  // index in the seed. Atom is already in the seed
-  unsigned BondIdx{0};  // index in qmol of new bond scheduled to be added into
+  unsigned int SourceAtomIdx{0};  // index in the seed. Atom is already in the seed
+  unsigned int BondIdx{0};  // index in qmol of new bond scheduled to be added into
                         // seed. This is outgoing bond from SourceAtomIdx
   unsigned int NewAtomIdx{0};  // index in qmol of new atom scheduled to be added
                            // into seed. Another end of new bond
   const Atom* NewAtom{nullptr};  // pointer to qmol's new atom scheduled to be
                                  // added into seed. Another end of new bond
-  unsigned EndAtomIdx{0};  // index in the seed. RING. "New" Atom on the another
+  unsigned int EndAtomIdx{0};  // index in the seed. RING. "New" Atom on the another
                            // end of new bond is already exists in the seed.
 
   NewBond()
@@ -49,7 +49,7 @@ struct RDKIT_FMCS_EXPORT NewBond {
   {}
 
   NewBond(unsigned int from_atom, unsigned bond_idx, unsigned int new_atom,
-          unsigned to_atom, const Atom* a)
+          unsigned int to_atom, const Atom* a)
       : SourceAtomIdx(from_atom),
         BondIdx(bond_idx),
         NewAtomIdx(new_atom),
@@ -118,8 +118,8 @@ class RDKIT_FMCS_EXPORT Seed {
     GrowingStage = 0;
   }
 
-  unsigned getNumAtoms() const { return MoleculeFragment.AtomsIdx.size(); }
-  unsigned getNumBonds() const { return MoleculeFragment.BondsIdx.size(); }
+  unsigned int getNumAtoms() const { return MoleculeFragment.AtomsIdx.size(); }
+  unsigned int getNumBonds() const { return MoleculeFragment.BondsIdx.size(); }
 
   void grow(MaximumCommonSubgraph& mcs) const;
   bool canGrowBiggerThan(unsigned int maxBonds,

@@ -18,7 +18,7 @@ namespace FMCS {
 class RDKIT_FMCS_EXPORT RingMatchTableSet {
   class RingMatchTable {
     FMCS::MatchTable MatchMatrix;
-    std::map<const INT_VECT*, unsigned> RingIndex;
+    std::map<const INT_VECT*, unsigned int> RingIndex;
 
    public:
     inline void clear() {
@@ -34,7 +34,7 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
       }
     }
     inline void makeRingIndex(const ROMol* mol2) {
-      unsigned i = 0;
+      unsigned int i = 0;
       // for each TARGET ring
       const RingInfo::VECT_INT_VECT& rings2 = mol2->getRingInfo()->bondRings();
       for (RingInfo::VECT_INT_VECT::const_iterator r2 = rings2.begin();
@@ -42,16 +42,16 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
         RingIndex[&*r2] = i++;
       }
     }
-    inline bool isEqual(unsigned i, const INT_VECT* r2) const {
+    inline bool isEqual(unsigned int i, const INT_VECT* r2) const {
       return MatchMatrix.at(i, getRingIndex(r2));
     }
-    inline void setMatch(unsigned i, const INT_VECT* r2) {
+    inline void setMatch(unsigned int i, const INT_VECT* r2) {
       MatchMatrix.set(i, getRingIndex(r2), true);
     }
 
    private:
-    inline unsigned getRingIndex(const INT_VECT* r2) const {
-      std::map<const INT_VECT*, unsigned>::const_iterator j =
+    inline unsigned int getRingIndex(const INT_VECT* r2) const {
+      std::map<const INT_VECT*, unsigned int>::const_iterator j =
           RingIndex.find(r2);
       if (RingIndex.end() == j) {
         throw -1;
@@ -66,7 +66,7 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
       TargetBondRingsIndecesSet;  // by target molecules
 
   std::map<const ROMol*, RingMatchTable> MatchMatrixSet;  // by target molecules
-  std::map<const INT_VECT*, unsigned> QueryRingIndex;
+  std::map<const INT_VECT*, unsigned int> QueryRingIndex;
 
  public:
   RingMatchTableSet() {}
@@ -108,14 +108,14 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
   inline bool isEqual(const INT_VECT* r1, const INT_VECT* r2,
                       const ROMol* mol2) const {
     const RingMatchTable& m = getTargetMatchMatrix(mol2);
-    unsigned i = getQueryRingIndex(r1);
+    unsigned int i = getQueryRingIndex(r1);
     return m.isEqual(i, r2);
   }
 
   void init(const ROMol* query) {
     MatchMatrixSet.clear();
     // fill out QueryRingIndex
-    unsigned i = 0;
+    unsigned int i = 0;
     const RingInfo::VECT_INT_VECT& rings = query->getRingInfo()->bondRings();
     for (RingInfo::VECT_INT_VECT::const_iterator r = rings.begin();
          r != rings.end(); r++) {
@@ -156,7 +156,7 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
         targetMolecule->getRingInfo()->bondRings();
     RingMatchTable& m =
         addTargetMatchMatrix(targetMolecule, rings1.size(), rings2.size());
-    unsigned i = 0;
+    unsigned int i = 0;
     // for each query ring
     for (RingInfo::VECT_INT_VECT::const_iterator r1 = rings1.begin();
          r1 != rings1.end(); r1++, i++) {
@@ -201,7 +201,7 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
  private:
   void makeRingGraph(FMCS::Graph& g, const INT_VECT& ring,
                      const ROMol* mol) const {  // ADD all atoms and bonds
-    std::map<const Atom*, unsigned> atomMap;
+    std::map<const Atom*, unsigned int> atomMap;
 
     for (size_t i = 0; i < ring.size(); i++) {
       const Bond* bond = mol->getBondWithIdx(ring[i]);
@@ -209,7 +209,7 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
       const Atom* atom2 = bond->getEndAtom();
       unsigned int j1 = NotSet;
       unsigned int j2 = NotSet;
-      std::map<const Atom*, unsigned>::const_iterator ai;
+      std::map<const Atom*, unsigned int>::const_iterator ai;
       ai = atomMap.find(atom1);
       if (atomMap.end() != ai) {
         j1 = ai->second;
@@ -232,8 +232,8 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
     }
   }
 
-  inline unsigned getQueryRingIndex(const INT_VECT* r1) const {
-    std::map<const INT_VECT*, unsigned>::const_iterator i =
+  inline unsigned int getQueryRingIndex(const INT_VECT* r1) const {
+    std::map<const INT_VECT*, unsigned int>::const_iterator i =
         QueryRingIndex.find(r1);
     if (QueryRingIndex.end() == i) {
       throw -1;  // never

@@ -22,7 +22,7 @@ namespace RDKit {
 namespace FMCS {
 
 unsigned int Seed::addAtom(const Atom* atom) {
-  unsigned i = MoleculeFragment.AtomsIdx.size();
+  unsigned int i = MoleculeFragment.AtomsIdx.size();
   unsigned int aqi = atom->getIdx();
   MoleculeFragment.Atoms.push_back(atom);
   MoleculeFragment.AtomsIdx.push_back(aqi);
@@ -43,7 +43,7 @@ unsigned int Seed::addBond(const Bond* bond) {
   MoleculeFragment.BondsIdx.push_back(b);
   MoleculeFragment.Bonds.push_back(bond);
   // remap idx to seed's indices:
-  unsigned i = MoleculeFragment.SeedAtomIdxMap[bond->getBeginAtomIdx()];
+  unsigned int i = MoleculeFragment.SeedAtomIdxMap[bond->getBeginAtomIdx()];
   unsigned int j = MoleculeFragment.SeedAtomIdxMap[bond->getEndAtomIdx()];
   Topology.addBond(b, i, j);
 #ifdef DUP_SUBSTRUCT_CACHE
@@ -67,8 +67,8 @@ void Seed::fillNewBonds(const ROMol& qmol) {
         unsigned int ai = (atom == bond->getBeginAtom()) ? bond->getEndAtomIdx()
                                                      : bond->getBeginAtomIdx();
         const Atom* end_atom = qmol.getAtomWithIdx(ai);
-        unsigned end_atom_idx = NotSet;
-        for (unsigned i = 0; i < getNumAtoms(); i++) {
+        unsigned int end_atom_idx = NotSet;
+        for (unsigned int i = 0; i < getNumAtoms(); i++) {
           if (end_atom ==
               MoleculeFragment.Atoms[i]) {  // already exists in this seed
             end_atom_idx = i;
@@ -295,7 +295,7 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
       seed.createFromParent(this);
       newAtomsSet.clear();
 
-      for (unsigned i = 0; i < NewBonds.size(); i++) {
+      for (unsigned int i = 0; i < NewBonds.size(); i++) {
         if (composition.isSet(i)) {
           const NewBond* nbi = &NewBonds[i];
           unsigned int aIdx =
@@ -367,7 +367,7 @@ void Seed::computeRemainingSize(const ROMol& qmol) {
       if (!visitedBonds.test(bond.getIdx())) {
         ++RemainingBonds;
         visitedBonds.set(bond.getIdx());
-        unsigned end_atom_idx =
+        unsigned int end_atom_idx =
             (MoleculeFragment.AtomsIdx[seedAtomIdx] == bond.getBeginAtomIdx())
                 ? bond.getEndAtomIdx()
                 : bond.getBeginAtomIdx();
@@ -391,7 +391,7 @@ void Seed::computeRemainingSize(const ROMol& qmol) {
       if (!visitedBonds.test(bond.getIdx())) {
         ++RemainingBonds;
         visitedBonds.set(bond.getIdx());
-        unsigned end_atom_idx = (ai == bond.getBeginAtomIdx())
+        unsigned int end_atom_idx = (ai == bond.getBeginAtomIdx())
                                     ? bond.getEndAtomIdx()
                                     : bond.getBeginAtomIdx();
         if (!visitedAtoms.test(end_atom_idx)) {  // check RING/CYCLE

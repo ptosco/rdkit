@@ -39,7 +39,7 @@ class MolMatchFinalCheckFunctor {
 
   bool operator()(const boost::detail::node_id c1[],
                   const boost::detail::node_id c2[]) const {
-    if ((unsigned)c1[0] >= boost::num_vertices(QueryTopology)) {
+    if ((unsigned int)c1[0] >= boost::num_vertices(QueryTopology)) {
       return false;  // invalid index - match failed, see v2f implementation
     }
     MCSFinalMatchCheckFunction compare =
@@ -160,7 +160,7 @@ class BondLabelFunctor {
 
   bool operator()(FMCS::Graph::edge_descriptor i,
                   FMCS::Graph::edge_descriptor j) const {
-    unsigned ii = QueryTopology[i];   // take actual Idx value for full source
+    unsigned int ii = QueryTopology[i];   // take actual Idx value for full source
                                       // query molecule from index list
     unsigned int jj = TargetTopology[j];  // the same Idx
     return BondCompare(Parameters, d_query, ii, d_mol, jj, UserData);

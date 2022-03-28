@@ -81,9 +81,9 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
   ~MaximumCommonSubgraph() { clear(); }
   MCSResult find(const std::vector<ROMOL_SPTR>& mols);
   const ROMol& getQueryMolecule() const { return *QueryMolecule; }
-  unsigned getMaxNumberBonds() const { return McsIdx.BondsIdx.size(); }
+  unsigned int getMaxNumberBonds() const { return McsIdx.BondsIdx.size(); }
 
-  unsigned getMaxNumberAtoms() const { return McsIdx.AtomsIdx.size(); }
+  unsigned int getMaxNumberAtoms() const { return McsIdx.AtomsIdx.size(); }
   // internal:
   bool checkIfMatchAndAppend(Seed& seed);
 
@@ -102,7 +102,7 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
   bool addFusedBondQueries(const MCS& McsIdx, RWMol* rwMol) const;
 
   bool match(Seed& seed);
-  bool matchIncrementalFast(Seed& seed, unsigned itarget);
+  bool matchIncrementalFast(Seed& seed, unsigned int itarget);
 };
 }  // namespace FMCS
 }  // namespace RDKit

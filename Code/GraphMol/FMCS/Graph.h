@@ -18,7 +18,7 @@
 namespace RDKit {
 namespace FMCS {
 typedef unsigned int AtomIdx_t;
-typedef unsigned BondIdx_t;
+typedef unsigned int BondIdx_t;
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS,
                               AtomIdx_t, BondIdx_t>
     Graph_t;

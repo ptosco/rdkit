@@ -205,7 +205,7 @@ void testFileMCSB(const char* test, unsigned int timeout = 30,
       if ('#' != str[0]) {
         // str= "1 CHEMBL526291 CHEMBL498211 ..."
         char name[256];
-        unsigned nn, len;
+        unsigned int nn, len;
         n++;
         testCase.emplace_back();
         sscanf(str, "%u%n", &nn, &len);
@@ -1374,7 +1374,7 @@ void testFileSDF_RandomSet(const char* test = "chembl13-10000-random-pairs.sdf",
   std::cout << "\n****** RANDOM SET test *********\n\n";
   const unsigned int N_RandomTests = all_mols.size() * 7;
   srand(1);  // make stable pseudorandom sequence
-  for (unsigned jn = 0; n <= N_RandomTests; jn++, n++) {
+  for (unsigned int jn = 0; n <= N_RandomTests; jn++, n++) {
     char smiName[256];
     sprintf(smiName, "%s/smilesRAND/%s.%u.smi", path, test, n);
     FILE* fsmi = fopen(smiName, "wt");
@@ -1384,8 +1384,8 @@ void testFileSDF_RandomSet(const char* test = "chembl13-10000-random-pairs.sdf",
             (std::string(path) + "_" + test + ".P.csv")
                 .c_str());  // command for the same Python test
     // ROMol *m=0;
-    unsigned iN = 3 + rand() % 32;
-    for (unsigned i = 0; i < iN; i++) {  // load random set
+    unsigned int iN = 3 + rand() % 32;
+    for (unsigned int i = 0; i < iN; i++) {  // load random set
       mols.push_back(all_mols[rand() % (all_mols.size() - 1)]);
       fprintf(fsmi, "%s Mol%u\n", MolToSmiles(*mols.back()).c_str(), n + i);
     }
@@ -1465,7 +1465,7 @@ void testFileSDF_RandomSet(const char* test = "chembl13-10000-random-pairs.sdf",
     char smiName[512];
     sprintf(smiName, "%s/smilesBIG/%s.%u.smi", path, test, n);
     // ROMol *m=0;
-    unsigned iN = 2 + rand() % 24;
+    unsigned int iN = 2 + rand() % 24;
     mols.clear();
     for (size_t i = 0; i < iN; i++) {  // load random set
       for (size_t ij = 0; ij < all_mols.size() / 2; ij++) {

@@ -19,7 +19,7 @@ class Composition2N {  // generator of 2^N-1 possible bit combinations
   Composition2N(BitSet maxValue, BitSet valueMask)
       : Bits(0), InverseBits(0), MaxValue(maxValue), ValueMask(valueMask) {}
 
-  static void compute2N(unsigned power, BitSet& value) {
+  static void compute2N(unsigned int power, BitSet& value) {
     value = 1uLL << power;
   }
 
@@ -49,7 +49,7 @@ class Composition2N {  // generator of 2^N-1 possible bit combinations
     return 0 == bits;                     // remained bits except lowest 1
   }
   // unused:        bool nonZero() {return 0!=getBitSet();}
-  bool isSet(unsigned bit) const { return 0 != (getBitSet() & (1uLL << bit)); }
+  bool isSet(unsigned int bit) const { return 0 != (getBitSet() & (1uLL << bit)); }
 };
 }  // namespace FMCS
 }  // namespace RDKit
