@@ -73,7 +73,7 @@ std::string getSmilesOnly(
     const char* smiles,
     std::string* id = nullptr) {  // remove label, because RDKit parse FAILED
   const char* sp = strchr(smiles, ' ');
-  unsigned n = (sp ? sp - smiles + 1 : strlen(smiles));
+  unsigned int n = (sp ? sp - smiles + 1 : strlen(smiles));
   if (id) {
     *id = std::string(smiles + n);
   }
@@ -105,7 +105,7 @@ std::string getSmilesOnlyChEMBL(
     std::string* id = nullptr) {  // remove label, because RDKit parse FAILED
   const char* sp = strchr(smiles, '\t');
   if (sp) {
-    unsigned n = (sp ? sp - smiles + 1 : strlen(smiles));
+    unsigned int n = (sp ? sp - smiles + 1 : strlen(smiles));
     if (id) {
       *id = std::string(smiles, n);
     }
@@ -121,7 +121,7 @@ std::string getSmilesOnlyChEMBL(
 
 MCSParameters p;
 
-void testFileMCSB(const char* test, unsigned timeout = 30,
+void testFileMCSB(const char* test, unsigned int timeout = 30,
                   std::vector<unsigned int> test_N =
                       std::vector<unsigned int>()) {  // optional list of some tests
                                                   // for investigation
@@ -150,7 +150,7 @@ void testFileMCSB(const char* test, unsigned timeout = 30,
 
   std::string outSmilesFile(test);
   outSmilesFile += ".smiles";
-  unsigned n = 0, passed = 0, failed = 0, failed_less = 0, timedout = 0;
+  unsigned int n = 0, passed = 0, failed = 0, failed_less = 0, timedout = 0;
   double secTotal = 0.;
 
   std::vector<MCSResult> referenceResults;
@@ -492,7 +492,7 @@ void test504() {
       "CHEMBL529994",
   };
   RWMol* qm = SmilesToMol(getSmilesOnly(smi[0]));
-  unsigned nq = qm->getNumAtoms();
+  unsigned int nq = qm->getNumAtoms();
   for (size_t ai = 0; ai < nq; ai++) {
     Atom* atom = qm->getAtomWithIdx(ai);
     atom->setProp(common_properties::molAtomMapNumber, (int)ai);
@@ -514,7 +514,7 @@ std::string testChEMBL_Txt(const char* test, double th = 1.0,
   std::cout << "\ntestChEMBL_Txt() " << test << "\n";
   std::vector<ROMOL_SPTR> mols;
   char smiles[4096];
-  // unsigned n=0;
+  // unsigned int n=0;
   FILE* f = fopen(test, "rt");
   if (!f) {
     perror("fopen testChEMBL_Txt()");
@@ -971,7 +971,7 @@ void testChEMBLdat(const char* test, double th = 1.0) {
   std::cout << "\ntestChEMBLdat() " << test << "\n";
   std::vector<ROMOL_SPTR> mols;
   char smiles[4096];
-  unsigned n = 0;
+  unsigned int n = 0;
   FILE* f = fopen(test, "rt");
   if (!f) {
     perror("fopen testChEMBLdat()");
@@ -1208,7 +1208,7 @@ void testFileSDF_RandomSet_SMI(
           "nAtoms;E nBonds;E C++ MCS\n");
 
   bool fileExist = true;
-  unsigned n = 1;
+  unsigned int n = 1;
   for (; fileExist; n++) {
     char smiName[256];
     sprintf(smiName, "%s/smiles/%s.%u.smi", path, test, n);
@@ -1303,7 +1303,7 @@ void testFileSDF_RandomSet(const char* test = "chembl13-10000-random-pairs.sdf",
       "ECHO P test;P Nmols;P status;P time,sec;P nAtoms;P nBonds;P MCS >%s\n",
       (std::string(path) + "_" + test + ".P.csv").c_str());
 
-  unsigned n = 1;
+  unsigned int n = 1;
   std::cout
       << "\n****** Load all molecules from SFD and PAIR SET test *********\n\n";
   for (; !suppl->atEnd(); n++) {
@@ -1372,7 +1372,7 @@ void testFileSDF_RandomSet(const char* test = "chembl13-10000-random-pairs.sdf",
   delete (suppl);
 
   std::cout << "\n****** RANDOM SET test *********\n\n";
-  const unsigned N_RandomTests = all_mols.size() * 7;
+  const unsigned int N_RandomTests = all_mols.size() * 7;
   srand(1);  // make stable pseudorandom sequence
   for (unsigned jn = 0; n <= N_RandomTests; jn++, n++) {
     char smiName[256];
@@ -1426,16 +1426,16 @@ void testFileSDF_RandomSet(const char* test = "chembl13-10000-random-pairs.sdf",
 
   std::cout << "\n****** BIG MCS RANDOM SET test *********\n\n";
 
-  unsigned maxMol = 0;
+  unsigned int maxMol = 0;
   for (auto& all_mol : all_mols) {
     if (maxMol < all_mol->getNumBonds()) {
       maxMol = all_mol->getNumBonds();
     }
   }
-  const unsigned N_BigRandomTests =
+  const unsigned int N_BigRandomTests =
       all_mols.size() > 2000 ? all_mols.size() / 2 : all_mols.size() * 2;
-  const unsigned N_BigRandomTestsAttempts = all_mols.size() * 130;
-  const unsigned SizeOfBigMCS_ForBigRandomTests =
+  const unsigned int N_BigRandomTestsAttempts = all_mols.size() * 130;
+  const unsigned int SizeOfBigMCS_ForBigRandomTests =
       maxMol < 24 ? maxMol * 2 / 3 : 21;
 
   fall = fopen((std::string(path) + "_ALL_BIG.P.bat").c_str(), "at");
@@ -1450,7 +1450,7 @@ void testFileSDF_RandomSet(const char* test = "chembl13-10000-random-pairs.sdf",
           "test;Nmols;status;t,sec;nAtoms;nBonds;C++ MCS; E status;E t,sec;E "
           "nAtoms;E nBonds;E C++ MCS\n");
 
-  const unsigned n1 = n;
+  const unsigned int n1 = n;
   fprintf(fcmd, "DEL %s\n",
           (std::string(path) + "_" + test + ".BIG_MCS.P.csv")
               .c_str());  // clear before append results
@@ -1469,7 +1469,7 @@ void testFileSDF_RandomSet(const char* test = "chembl13-10000-random-pairs.sdf",
     mols.clear();
     for (size_t i = 0; i < iN; i++) {  // load random set
       for (size_t ij = 0; ij < all_mols.size() / 2; ij++) {
-        unsigned mi = rand() % (all_mols.size() - 1);
+        unsigned int mi = rand() % (all_mols.size() - 1);
         if (all_mols[mi]->getNumBonds() < SizeOfBigMCS_ForBigRandomTests) {
           continue;
         }
@@ -1536,7 +1536,7 @@ void testFileSDF_RandomSet(const char* test = "chembl13-10000-random-pairs.sdf",
 void testFileSMILES(const char* test) {
   std::vector<ROMOL_SPTR> mols;
   char smiles[4096];
-  unsigned n = 0;
+  unsigned int n = 0;
   FILE* f = fopen(test, "rt");
   std::cout << "Loading SMILES ... \n";
   while (fgets(smiles, sizeof(smiles), f)) {

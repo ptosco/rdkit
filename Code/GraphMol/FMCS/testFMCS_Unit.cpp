@@ -76,7 +76,7 @@ std::string getSmilesOnly(
     const char* smiles,
     std::string* id = nullptr) {  // remove label, because RDKit parse FAILED
   const char* sp = strchr(smiles, ' ');
-  unsigned n = (sp ? sp - smiles + 1 : strlen(smiles));
+  unsigned int n = (sp ? sp - smiles + 1 : strlen(smiles));
   if (id) {
     *id = std::string(smiles + n);
   }
@@ -328,7 +328,7 @@ void test504() {
       "CHEMBL529994",
   };
   RWMol* qm = SmilesToMol(getSmilesOnly(smi[0]));
-  unsigned nq = qm->getNumAtoms();
+  unsigned int nq = qm->getNumAtoms();
   for (size_t ai = 0; ai < nq; ai++) {
     Atom* atom = qm->getAtomWithIdx(ai);
     atom->setProp("molAtomMapNumber", (int)ai);
@@ -367,7 +367,7 @@ void test18() {
       //# 18 .  20 20 0.04 sec. Python MCS: CC(c1ccccn1)N(CCCCN)Ccnccc
   };
   RWMol* qm = SmilesToMol(getSmilesOnly(smi[0]));
-  unsigned nq = qm->getNumAtoms();
+  unsigned int nq = qm->getNumAtoms();
   for (size_t ai = 0; ai < nq; ai++) {
     Atom* atom = qm->getAtomWithIdx(ai);
     atom->setProp("molAtomMapNumber", (int)ai);
@@ -534,7 +534,7 @@ void testTarget_no_10188_49064() {
 
 #define MCSTESTREPEATS 0  // To run MCS repeatedly to measure performance
 MCSResult checkMCS(const std::vector<ROMOL_SPTR> mols, const MCSParameters p,
-                   unsigned expectedAtoms, unsigned expectedBonds) {
+                   unsigned int expectedAtoms, unsigned int expectedBonds) {
   t0 = nanoClock();
   MCSResult res = findMCS(mols, &p);
   // std::shared_ptr<RWMol>
@@ -1461,7 +1461,7 @@ void testGithub2034() {
     bool maximizeBonds = true, verbose = false, matchValences = false,
          ringMatchesRingOnly = true;
     double threshold = 1.0;
-    unsigned timeout = 3000;
+    unsigned int timeout = 3000;
     MCSResult res = findMCS(mols, maximizeBonds, threshold, timeout, verbose,
                             matchValences, ringMatchesRingOnly);
     BOOST_LOG(rdInfoLog) << "MCS: " << res.SmartsString << " " << res.NumAtoms

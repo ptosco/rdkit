@@ -49,7 +49,7 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
   unsigned long long To;
   MCSProgressData Stat;
   MCSParameters Parameters;
-  unsigned ThresholdCount;  // min number of matching
+  unsigned int ThresholdCount;  // min number of matching
   std::vector<const ROMol*> Molecules;
 #ifdef FAST_SUBSTRUCT_CACHE
   std::vector<unsigned int> QueryAtomLabels;  // for code Morgan. Value based on
@@ -65,8 +65,8 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
   DuplicatedSeedCache DuplicateCache;
 #endif
   const ROMol* QueryMolecule;
-  unsigned QueryMoleculeMatchedBonds;
-  unsigned QueryMoleculeMatchedAtoms;
+  unsigned int QueryMoleculeMatchedBonds;
+  unsigned int QueryMoleculeMatchedAtoms;
   const Atom* QueryMoleculeSingleMatchedAtom;
   std::vector<Target> Targets;
   SeedSet Seeds;

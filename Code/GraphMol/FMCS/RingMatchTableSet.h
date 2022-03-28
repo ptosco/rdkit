@@ -25,7 +25,7 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
       MatchMatrix.clear();
       RingIndex.clear();
     }
-    inline void resize(unsigned s1, unsigned s2) {
+    inline void resize(unsigned int s1, unsigned int s2) {
       MatchMatrix.resize(s1, s2);
       for (size_t i = 0; i < s1; i++) {
         for (size_t j = 0; j < s2; j++) {
@@ -80,14 +80,14 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
     QueryRingIndex.clear();
   }
 
-  inline bool isQueryBondInRing(unsigned bi) const {
+  inline bool isQueryBondInRing(unsigned int bi) const {
     return (*QueryBondRingsIndeces)[bi].empty();
   }
-  inline const std::vector<size_t>& getQueryBondRings(unsigned bi) const {
+  inline const std::vector<size_t>& getQueryBondRings(unsigned int bi) const {
     return (*QueryBondRingsIndeces)[bi];
   }
 
-  inline bool isTargetBondInRing(const ROMol* target, unsigned bi) const {
+  inline bool isTargetBondInRing(const ROMol* target, unsigned int bi) const {
     std::map<const ROMol*, std::vector<std::vector<size_t>>>::const_iterator i =
         TargetBondRingsIndecesSet.find(target);
     if (TargetBondRingsIndecesSet.end() == i) {
@@ -96,7 +96,7 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
     return i->second[bi].empty();
   }
   inline const std::vector<size_t>& getTargetBondRings(const ROMol* target,
-                                                       unsigned bi) const {
+                                                       unsigned int bi) const {
     std::map<const ROMol*, std::vector<std::vector<size_t>>>::const_iterator i =
         TargetBondRingsIndecesSet.find(target);
     if (TargetBondRingsIndecesSet.end() == i) {
@@ -207,8 +207,8 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
       const Bond* bond = mol->getBondWithIdx(ring[i]);
       const Atom* atom1 = bond->getBeginAtom();
       const Atom* atom2 = bond->getEndAtom();
-      unsigned j1 = NotSet;
-      unsigned j2 = NotSet;
+      unsigned int j1 = NotSet;
+      unsigned int j2 = NotSet;
       std::map<const Atom*, unsigned>::const_iterator ai;
       ai = atomMap.find(atom1);
       if (atomMap.end() != ai) {
@@ -249,8 +249,8 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
     return mi->second;
   }
 
-  inline RingMatchTable& addTargetMatchMatrix(const ROMol* mol2, unsigned s1,
-                                              unsigned s2) {
+  inline RingMatchTable& addTargetMatchMatrix(const ROMol* mol2, unsigned int s1,
+                                              unsigned int s2) {
     RingMatchTable& m = MatchMatrixSet[mol2];
     m.resize(s1, s2);
     m.makeRingIndex(mol2);

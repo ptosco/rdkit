@@ -38,7 +38,7 @@ class Composition2N {  // generator of 2^N-1 possible bit combinations
   }
   bool is2Power() const {  // one bit is set only
     BitSet bits = getBitSet();
-    unsigned n = 0;
+    unsigned int n = 0;
     while (0 == (bits & 1uLL) &&
            ++n < sizeof(bits) * 8) {      // find lowest bitwise 1
       bits >>= 1u;                        // shift all zero lower bits

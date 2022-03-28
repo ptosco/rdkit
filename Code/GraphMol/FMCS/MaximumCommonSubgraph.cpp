@@ -29,10 +29,10 @@ namespace RDKit {
 namespace FMCS {
 
 struct LabelDefinition {
-  unsigned ItemIndex;  // item with this label value
-  unsigned Value;
+  unsigned int ItemIndex;  // item with this label value
+  unsigned int Value;
   LabelDefinition() : ItemIndex(NotSet), Value(NotSet) {}
-  LabelDefinition(unsigned i, unsigned value) : ItemIndex(i), Value(value) {}
+  LabelDefinition(unsigned i, unsigned int value) : ItemIndex(i), Value(value) {}
 };
 
 MaximumCommonSubgraph::MaximumCommonSubgraph(const MCSParameters* params) {
@@ -114,7 +114,7 @@ void MaximumCommonSubgraph::init() {
   }
   // Compute label values based on current functor and parameters for code
   // Morgan correct computation.
-  unsigned currentLabelValue = 1;
+  unsigned int currentLabelValue = 1;
   std::vector<LabelDefinition> labels;
   nq = QueryMolecule->getNumAtoms();
   QueryAtomLabels.resize(nq);
@@ -179,7 +179,7 @@ void MaximumCommonSubgraph::init() {
     } else if (MCSBondCompareOrder ==
                Parameters
                    .BondTyper) {  // predefined functor, ignore Aromatization
-      unsigned order = bond->getBondType();
+      unsigned int order = bond->getBondType();
       if (Bond::AROMATIC == order ||
           Bond::ONEANDAHALF == order) {  // ignore Aromatization
         order = Bond::SINGLE;
@@ -226,7 +226,7 @@ void MaximumCommonSubgraph::init() {
          b != Targets[i].Molecule->endBonds(); b++) {
       const Bond* bond = *b;
       unsigned ii = bond->getBeginAtomIdx();
-      unsigned jj = bond->getEndAtomIdx();
+      unsigned int jj = bond->getEndAtomIdx();
       Targets[i].Topology.addBond((*b)->getIdx(), ii, jj);
     }
 
@@ -274,7 +274,7 @@ void MaximumCommonSubgraph::init() {
 
 struct WeightedBond {
   const Bond* BondPtr{nullptr};
-  unsigned Weight{0};
+  unsigned int Weight{0};
   WeightedBond() {}
   WeightedBond(const Bond* bond)
       : BondPtr(bond), Weight(0) {
@@ -330,8 +330,8 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
       // add all matched atoms of the matched query fragment
       std::map<unsigned, unsigned> initialSeedToQueryAtom;
       for (const auto& msb : *ms) {
-        unsigned qai = msb.second;
-        unsigned sai = msb.first;
+        unsigned int qai = msb.second;
+        unsigned int sai = msb.first;
         seed.addAtom(QueryMolecule->getAtomWithIdx(qai));
         initialSeedToQueryAtom[sai] = qai;
       }
@@ -343,10 +343,10 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
         for (boost::tie(beg, end) = initialSeedMolecule->getAtomBonds(atom);
              beg != end; beg++) {
           const Bond& initialBond = *((*initialSeedMolecule)[*beg]);
-          unsigned qai1 =
+          unsigned int qai1 =
               initialSeedToQueryAtom.find(initialBond.getBeginAtomIdx())
                   ->second;
-          unsigned qai2 =
+          unsigned int qai2 =
               initialSeedToQueryAtom.find(initialBond.getEndAtomIdx())->second;
 
           const Bond* b = QueryMolecule->getBondBetweenAtoms(qai1, qai2);
@@ -475,20 +475,20 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
 namespace {
 
 void _DFS(const Graph& g, const boost::dynamic_bitset<>& ringBonds,
-          boost::dynamic_bitset<>& openBonds, unsigned vertex,
+          boost::dynamic_bitset<>& openBonds, unsigned int vertex,
           std::vector<unsigned int> apath, std::vector<unsigned int>& colors,
-          unsigned fromVertex) {
+          unsigned int fromVertex) {
   std::pair<Graph::out_edge_iterator, Graph::out_edge_iterator> bonds =
       boost::out_edges(vertex, g);
   colors[vertex] = 1;
   while (bonds.first != bonds.second) {
-    unsigned bIdx = g[*(bonds.first)];
+    unsigned int bIdx = g[*(bonds.first)];
     if (!ringBonds[bIdx]) {
       ++bonds.first;
       continue;
     }
     // find the other vertex:
-    unsigned oVertex = boost::source(*(bonds.first), g);
+    unsigned int oVertex = boost::source(*(bonds.first), g);
     if (oVertex == vertex) {
       oVertex = boost::target((*bonds.first), g);
     }
@@ -535,7 +535,7 @@ bool checkIfRingsAreClosed(const Seed& fs) {
   boost::dynamic_bitset<> openBonds = ringBonds;
   if (openBonds.any()) {
     std::vector<unsigned int> colors(om.getNumAtoms());
-    for (unsigned bi = 0; bi < openBonds.size(); ++bi) {
+    for (unsigned int bi = 0; bi < openBonds.size(); ++bi) {
       if (!openBonds[bi]) {
         continue;
       }
@@ -545,7 +545,7 @@ bool checkIfRingsAreClosed(const Seed& fs) {
         ++bonds.first;
       }
       CHECK_INVARIANT(bonds.first != bonds.second, "bond not found");
-      unsigned startVertex = boost::source(*(bonds.first), fs.Topology);
+      unsigned int startVertex = boost::source(*(bonds.first), fs.Topology);
       std::vector<unsigned int> apath = {startVertex};
       _DFS(fs.Topology, ringBonds, openBonds, startVertex, apath, colors,
            om.getNumAtoms() + 1);
@@ -584,7 +584,7 @@ bool checkNoLoneRingAtoms(const Seed& fs) {
 bool MaximumCommonSubgraph::growSeeds() {
   bool mcsFound = false;
   bool canceled = false;
-  unsigned steps = 99999;  // steps from last progress callback call. call
+  unsigned int steps = 99999;  // steps from last progress callback call. call
                            // it immediately in the beginning
 
   // Find MCS -- SDF Seed growing OPTIMISATION (it works in 3 times
@@ -682,8 +682,8 @@ bool MaximumCommonSubgraph::growSeeds() {
 }  // namespace FMCS
 
 struct AtomMatch {  // for each seed atom (matched)
-  unsigned QueryAtomIdx;
-  unsigned TargetAtomIdx;
+  unsigned int QueryAtomIdx;
+  unsigned int TargetAtomIdx;
   AtomMatch() : QueryAtomIdx(NotSet), TargetAtomIdx(NotSet) {}
 };
 typedef std::vector<AtomMatch> AtomMatchSet;
@@ -724,7 +724,7 @@ MaximumCommonSubgraph::generateResultSMARTSAndQueryMol(
       atomMatchResult[itarget].resize(seed.getNumAtoms());
       for (match_V_t::const_iterator mit = match.begin(); mit != match.end();
            mit++) {
-        unsigned ai = mit->first;  // SeedAtomIdx
+        unsigned int ai = mit->first;  // SeedAtomIdx
         atomMatchResult[itarget][ai].QueryAtomIdx = seed.Topology[mit->first];
         atomMatchResult[itarget][ai].TargetAtomIdx = tag->Topology[mit->second];
         const Atom* ta =
@@ -735,13 +735,13 @@ MaximumCommonSubgraph::generateResultSMARTSAndQueryMol(
         }
       }
       // AND BUILD BOND MATCH INFO
-      unsigned bi = 0;
+      unsigned int bi = 0;
       for (auto bond = mcsIdx.Bonds.begin(); bond != mcsIdx.Bonds.end();
            bond++, bi++) {
         unsigned i = atomIdxMap[(*bond)->getBeginAtomIdx()];
-        unsigned j = atomIdxMap[(*bond)->getEndAtomIdx()];
-        unsigned ti = atomMatchResult[itarget][i].TargetAtomIdx;
-        unsigned tj = atomMatchResult[itarget][j].TargetAtomIdx;
+        unsigned int j = atomIdxMap[(*bond)->getEndAtomIdx()];
+        unsigned int ti = atomMatchResult[itarget][i].TargetAtomIdx;
+        unsigned int tj = atomMatchResult[itarget][j].TargetAtomIdx;
         const Bond* tb = tag->Molecule->getBondBetweenAtoms(ti, tj);
         if (tb && (*bond)->getBondType() != tb->getBondType()) {
           bondMatchSet[bi][tb->getBondType()] = tb;  // add
@@ -755,7 +755,7 @@ MaximumCommonSubgraph::generateResultSMARTSAndQueryMol(
   // create molecule from MCS for MolToSmarts()
   auto* mol = new RWMol();
   const RingInfo* ri = mcsIdx.QueryMolecule->getRingInfo();
-  unsigned ai = 0;  // SeedAtomIdx
+  unsigned int ai = 0;  // SeedAtomIdx
   for (auto atom = mcsIdx.Atoms.begin(); atom != mcsIdx.Atoms.end();
        atom++, ai++) {
     QueryAtom a;
@@ -787,11 +787,11 @@ MaximumCommonSubgraph::generateResultSMARTSAndQueryMol(
     }
     mol->addAtom(&a, true, false);
   }
-  unsigned bi = 0;  // Seed Idx
+  unsigned int bi = 0;  // Seed Idx
   for (auto bond = mcsIdx.Bonds.begin(); bond != mcsIdx.Bonds.end();
        bond++, bi++) {
     QueryBond b;
-    unsigned beginAtomIdx = atomIdxMap[(*bond)->getBeginAtomIdx()];
+    unsigned int beginAtomIdx = atomIdxMap[(*bond)->getBeginAtomIdx()];
     unsigned endAtomIdx = atomIdxMap[(*bond)->getEndAtomIdx()];
     b.setBeginAtomIdx(beginAtomIdx);
     b.setEndAtomIdx(endAtomIdx);
@@ -821,7 +821,7 @@ MaximumCommonSubgraph::generateResultSMARTSAndQueryMol(
 bool MaximumCommonSubgraph::addFusedBondQueries(const MCS& mcsIdx,
                                                 RWMol* rwMol) const {
   const RingInfo* ri = mcsIdx.QueryMolecule->getRingInfo();
-  unsigned bi = 0;  // Seed Idx
+  unsigned int bi = 0;  // Seed Idx
   bool haveFusedBondQuery = false;
   std::map<int, std::set<size_t>> bondRingMembership;
   const VECT_INT_VECT& br = ri->bondRings();
@@ -891,7 +891,7 @@ bool MaximumCommonSubgraph::createSeedFromMCS(size_t newQueryTarget,
 
   for (match_V_t::const_iterator mit = match.begin(); mit != match.end();
        mit++) {
-    unsigned ai = mit->first;  // SeedAtomIdx in mcs seed
+    unsigned int ai = mit->first;  // SeedAtomIdx in mcs seed
     atomMatchResult[ai].QueryAtomIdx = mcs.Topology[mit->first];
     atomMatchResult[ai].TargetAtomIdx = newQuery.Topology[mit->second];
     const Atom* ta =
@@ -902,9 +902,9 @@ bool MaximumCommonSubgraph::createSeedFromMCS(size_t newQueryTarget,
   for (std::vector<const Bond*>::const_iterator bond = McsIdx.Bonds.begin();
        bond != McsIdx.Bonds.end(); bond++) {
     unsigned i = mcsAtomIdxMap[(*bond)->getBeginAtomIdx()];
-    unsigned j = mcsAtomIdxMap[(*bond)->getEndAtomIdx()];
-    unsigned ti = atomMatchResult[i].TargetAtomIdx;
-    unsigned tj = atomMatchResult[j].TargetAtomIdx;
+    unsigned int j = mcsAtomIdxMap[(*bond)->getEndAtomIdx()];
+    unsigned int ti = atomMatchResult[i].TargetAtomIdx;
+    unsigned int tj = atomMatchResult[j].TargetAtomIdx;
     const Bond* tb = newQuery.Molecule->getBondBetweenAtoms(ti, tj);
     newSeed.addBond(tb);
   }
@@ -1252,9 +1252,9 @@ bool MaximumCommonSubgraph::checkIfMatchAndAppend(Seed& seed) {
 }
 
 bool MaximumCommonSubgraph::match(Seed& seed) {
-  unsigned max_miss = Targets.size() - ThresholdCount;
-  unsigned missing = 0;
-  unsigned passed = 0;
+  unsigned int max_miss = Targets.size() - ThresholdCount;
+  unsigned int missing = 0;
+  unsigned int passed = 0;
   unsigned itarget = 0;
 
   for (std::vector<Target>::const_iterator tag = Targets.begin();
@@ -1326,20 +1326,20 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed& seed, unsigned itarget) {
   }
   */
   bool matched = false;
-  for (unsigned newBondSeedIdx = match.MatchedBondSize;
+  for (unsigned int newBondSeedIdx = match.MatchedBondSize;
        newBondSeedIdx < seed.getNumBonds(); newBondSeedIdx++) {
     matched = false;
     bool atomAdded = false;
     const Bond* newBond = seed.MoleculeFragment.Bonds[newBondSeedIdx];
-    unsigned newBondQueryIdx = seed.MoleculeFragment.BondsIdx[newBondSeedIdx];
+    unsigned int newBondQueryIdx = seed.MoleculeFragment.BondsIdx[newBondSeedIdx];
 
-    unsigned newBondSourceAtomSeedIdx;   // seed's index of atom from which
+    unsigned int newBondSourceAtomSeedIdx;   // seed's index of atom from which
                                          // new bond was added
-    unsigned newBondAnotherAtomSeedIdx;  // seed's index of atom on
+    unsigned int newBondAnotherAtomSeedIdx;  // seed's index of atom on
                                          // another end of the bond
     unsigned i =
         seed.MoleculeFragment.SeedAtomIdxMap[newBond->getBeginAtomIdx()];
-    unsigned j = seed.MoleculeFragment.SeedAtomIdxMap[newBond->getEndAtomIdx()];
+    unsigned int j = seed.MoleculeFragment.SeedAtomIdxMap[newBond->getEndAtomIdx()];
     if (i >= match.MatchedAtomSize) {  // this is new atom in the seed
       newBondSourceAtomSeedIdx = j;
       newBondAnotherAtomSeedIdx = i;
@@ -1347,17 +1347,17 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed& seed, unsigned itarget) {
       newBondSourceAtomSeedIdx = i;
       newBondAnotherAtomSeedIdx = j;
     }
-    unsigned newBondAnotherAtomQueryIdx =
+    unsigned int newBondAnotherAtomQueryIdx =
         seed.MoleculeFragment.AtomsIdx[newBondAnotherAtomSeedIdx];
-    unsigned newBondSourceAtomQueryIdx =
+    unsigned int newBondSourceAtomQueryIdx =
         seed.MoleculeFragment.AtomsIdx[newBondSourceAtomSeedIdx];
-    unsigned newBondSourceAtomTargetIdx =
+    unsigned int newBondSourceAtomTargetIdx =
         match.TargetAtomIdx
             [newBondSourceAtomQueryIdx];  // matched to
                                           // newBondSourceAtomSeedIdx
 
     const Bond* tb = nullptr;
-    unsigned newBondAnotherAtomTargetIdx = NotSet;
+    unsigned int newBondAnotherAtomTargetIdx = NotSet;
 
     if (newBondAnotherAtomSeedIdx <
         match.MatchedAtomSize) {  // new bond between old atoms - both are
@@ -1369,8 +1369,8 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed& seed, unsigned itarget) {
           newBondAnotherAtomTargetIdx);  // target bond between Source and
                                          // Another atoms
       if (tb) {  // bond exists, check match with query molecule
-        unsigned tbi = tb->getIdx();
-        unsigned qbi = seed.MoleculeFragment.BondsIdx[newBondSeedIdx];
+        unsigned int tbi = tb->getIdx();
+        unsigned int qbi = seed.MoleculeFragment.BondsIdx[newBondSeedIdx];
         if (!match.VisitedTargetBonds[tbi]) {  // false if target bond is
                                                // already matched
           matched = target.BondMatchTable.at(qbi, tbi);
@@ -1451,7 +1451,7 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed& seed, unsigned itarget) {
     c1.reserve(4096);
     std::vector<std::uint32_t> c2;
     c2.reserve(4096);
-    for (unsigned si = 0; si < seed.getNumAtoms();
+    for (unsigned int si = 0; si < seed.getNumAtoms();
          si++) {  // index in the seed topology
       c1.push_back(si);
       c2.push_back(match.TargetAtomIdx[seed.Topology[si]]);

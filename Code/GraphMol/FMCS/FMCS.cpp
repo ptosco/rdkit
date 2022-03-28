@@ -153,7 +153,7 @@ MCSResult findMCS_P(const std::vector<ROMOL_SPTR>& mols,
 }
 
 MCSResult findMCS(const std::vector<ROMOL_SPTR>& mols, bool maximizeBonds,
-                  double threshold, unsigned timeout, bool verbose,
+                  double threshold, unsigned int timeout, bool verbose,
                   bool matchValences, bool ringMatchesRingOnly,
                   bool completeRingsOnly, bool matchChiralTag,
                   AtomComparator atomComp, BondComparator bondComp) {
@@ -163,7 +163,7 @@ MCSResult findMCS(const std::vector<ROMOL_SPTR>& mols, bool maximizeBonds,
 }
 
 MCSResult findMCS(const std::vector<ROMOL_SPTR>& mols, bool maximizeBonds,
-                  double threshold, unsigned timeout, bool verbose,
+                  double threshold, unsigned int timeout, bool verbose,
                   bool matchValences, bool ringMatchesRingOnly,
                   bool completeRingsOnly, bool matchChiralTag,
                   AtomComparator atomComp, BondComparator bondComp,
@@ -359,7 +359,7 @@ class BondMatchOrderMatrix {
           MatchMatrix[Bond::FIVEANDAHALF][Bond::QUINTUPLE] = true;
     }
   }
-  inline bool isEqual(unsigned i, unsigned j) const {
+  inline bool isEqual(unsigned i, unsigned int j) const {
     return MatchMatrix[i][j];
   }
 };
@@ -659,7 +659,7 @@ bool FinalChiralityCheckFunction(const std::uint32_t c1[],
                  return false; // both atoms must be chiral or not without a
        query priority
     */
-    const unsigned a1Degree =
+    const unsigned int a1Degree =
         boost::out_degree(c1[i], query);  // a1.getDegree();
     // number of all connected atoms in a seed
     if (a1Degree > a2.getDegree()) {  //#688 was != . // FIX issue 631
@@ -806,8 +806,8 @@ bool FinalChiralityCheckFunction(const std::uint32_t c1[],
   return true;
 }
 
-bool FinalChiralityCheckFunction_1(const short unsigned c1[],
-                                   const short unsigned c2[], const ROMol& mol1,
+bool FinalChiralityCheckFunction_1(const short unsigned int c1[],
+                                   const short unsigned int c2[], const ROMol& mol1,
                                    const FMCS::Graph& query, const ROMol& mol2,
                                    const FMCS::Graph& target,
                                    const MCSParameters*) {
@@ -829,7 +829,7 @@ bool FinalChiralityCheckFunction_1(const short unsigned c1[],
     // chiral
     ////                return false;
     // both atoms are chiral:
-    const unsigned a1Degree =
+    const unsigned int a1Degree =
         boost::out_degree(c1[i], query);  // a1.getDegree();
     if (a1Degree != a2.getDegree()) {  // number of all connected atoms in seed
       return false;                    // ???

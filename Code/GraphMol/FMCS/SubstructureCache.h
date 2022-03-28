@@ -56,7 +56,7 @@ class RDKIT_FMCS_EXPORT SubstructureCache {
         nIterations = 5;
       }
 
-      for (unsigned seedAtomIdx = 0; seedAtomIdx < seed.getNumAtoms();
+      for (unsigned int seedAtomIdx = 0; seedAtomIdx < seed.getNumAtoms();
            seedAtomIdx++) {
         currCodes[seedAtomIdx] =
             queryAtomLabels[seed.MoleculeFragment.AtomsIdx[seedAtomIdx]];
@@ -69,16 +69,16 @@ class RDKIT_FMCS_EXPORT SubstructureCache {
 
         for (size_t seedBondIdx = 0; seedBondIdx < ne; seedBondIdx++) {
           const Bond* bond = seed.MoleculeFragment.Bonds[seedBondIdx];
-          unsigned order =
+          unsigned int order =
               queryBondLabels[seed.MoleculeFragment.BondsIdx[seedBondIdx]];
-          unsigned atom1 = seed.MoleculeFragment.SeedAtomIdxMap
+          unsigned int atom1 = seed.MoleculeFragment.SeedAtomIdxMap
                                .find(bond->getBeginAtomIdx())
                                ->second;
-          unsigned atom2 =
+          unsigned int atom2 =
               seed.MoleculeFragment.SeedAtomIdxMap.find(bond->getEndAtomIdx())
                   ->second;
-          unsigned v1 = prevCodes[atom1];
-          unsigned v2 = prevCodes[atom2];
+          unsigned int v1 = prevCodes[atom1];
+          unsigned int v2 = prevCodes[atom2];
 
           currCodes[atom1] += v2 * v2 + (v2 + 23) * (order + 1721);
           currCodes[atom2] += v1 * v1 + (v1 + 23) * (order + 1721);
@@ -86,7 +86,7 @@ class RDKIT_FMCS_EXPORT SubstructureCache {
       }
 
       KeyNumericMetrics::TValue result = 0;
-      for (unsigned seedAtomIdx = 0; seedAtomIdx < nv; seedAtomIdx++) {
+      for (unsigned int seedAtomIdx = 0; seedAtomIdx < nv; seedAtomIdx++) {
         unsigned long code = currCodes[seedAtomIdx];
         result += code * (code + 6849) + 29;
       }

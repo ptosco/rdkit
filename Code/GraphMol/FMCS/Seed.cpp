@@ -21,9 +21,9 @@
 namespace RDKit {
 namespace FMCS {
 
-unsigned Seed::addAtom(const Atom* atom) {
+unsigned int Seed::addAtom(const Atom* atom) {
   unsigned i = MoleculeFragment.AtomsIdx.size();
-  unsigned aqi = atom->getIdx();
+  unsigned int aqi = atom->getIdx();
   MoleculeFragment.Atoms.push_back(atom);
   MoleculeFragment.AtomsIdx.push_back(aqi);
   MoleculeFragment.SeedAtomIdxMap[aqi] = i;
@@ -34,8 +34,8 @@ unsigned Seed::addAtom(const Atom* atom) {
   return i;
 }
 
-unsigned Seed::addBond(const Bond* bond) {
-  unsigned b = bond->getIdx();
+unsigned int Seed::addBond(const Bond* bond) {
+  unsigned int b = bond->getIdx();
   if (ExcludedBonds[b]) {
     throw -1;  // never, check the implementation
   }
@@ -44,7 +44,7 @@ unsigned Seed::addBond(const Bond* bond) {
   MoleculeFragment.Bonds.push_back(bond);
   // remap idx to seed's indices:
   unsigned i = MoleculeFragment.SeedAtomIdxMap[bond->getBeginAtomIdx()];
-  unsigned j = MoleculeFragment.SeedAtomIdxMap[bond->getEndAtomIdx()];
+  unsigned int j = MoleculeFragment.SeedAtomIdxMap[bond->getEndAtomIdx()];
   Topology.addBond(b, i, j);
 #ifdef DUP_SUBSTRUCT_CACHE
   DupCacheKey.addBond(b);
@@ -54,7 +54,7 @@ unsigned Seed::addBond(const Bond* bond) {
 
 void Seed::fillNewBonds(const ROMol& qmol) {
   auto excludedBonds = ExcludedBonds;
-  for (unsigned srcAtomIdx = LastAddedAtomsBeginIdx; srcAtomIdx < getNumAtoms();
+  for (unsigned int srcAtomIdx = LastAddedAtomsBeginIdx; srcAtomIdx < getNumAtoms();
        srcAtomIdx++) {  // all atoms added on previous growing only
     const Atom* atom = MoleculeFragment.Atoms[srcAtomIdx];
     ROMol::OEDGE_ITER beg, end;
@@ -64,7 +64,7 @@ void Seed::fillNewBonds(const ROMol& qmol) {
       if (!excludedBonds.test(bond->getIdx())) {
         // already in the seed or NewBonds list from another atom in a RING
         excludedBonds.set(bond->getIdx());
-        unsigned ai = (atom == bond->getBeginAtom()) ? bond->getEndAtomIdx()
+        unsigned int ai = (atom == bond->getBeginAtom()) ? bond->getEndAtomIdx()
                                                      : bond->getBeginAtomIdx();
         const Atom* end_atom = qmol.getAtomWithIdx(ai);
         unsigned end_atom_idx = NotSet;
@@ -117,7 +117,7 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
 #endif
     for (std::vector<NewBond>::const_iterator nbi = NewBonds.begin();
          nbi != NewBonds.end(); nbi++) {
-      unsigned aIdx = nbi->EndAtomIdx;
+      unsigned int aIdx = nbi->EndAtomIdx;
       if (NotSet == aIdx) {  // new atom
         // check if new bonds simultaneously close a ring
         if (newAtomsSet.find(nbi->NewAtomIdx) == newAtomsSet.end()) {
@@ -175,7 +175,7 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
   // OPTIMISATION:
   // check each single bond first: if (this seed + single bond) does not exist
   // in MCS, exclude this new bond from growing this seed.
-  unsigned numErasedNewBonds = 0;
+  unsigned int numErasedNewBonds = 0;
   for (auto& nbi : NewBonds) {
 #ifdef VERBOSE_STATISTICS_ON
     { ++mcs.VerboseStatistics.Seed; }
@@ -184,7 +184,7 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     seed.createFromParent(this);
 
     // existed in this parent seed (ring) or -1
-    unsigned aIdx = nbi.EndAtomIdx;
+    unsigned int aIdx = nbi.EndAtomIdx;
     if (NotSet == aIdx) {  // new atom
       const Atom* end_atom = nbi.NewAtom;
       aIdx = seed.addAtom(end_atom);
@@ -298,7 +298,7 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
       for (unsigned i = 0; i < NewBonds.size(); i++) {
         if (composition.isSet(i)) {
           const NewBond* nbi = &NewBonds[i];
-          unsigned aIdx =
+          unsigned int aIdx =
               nbi->EndAtomIdx;   // existed in this parent seed (ring) or -1
           if (NotSet == aIdx) {  // new atom
             if (newAtomsSet.find(nbi->NewAtomIdx) == newAtomsSet.end()) {
@@ -355,7 +355,7 @@ void Seed::computeRemainingSize(const ROMol& qmol) {
 
   // SDF all paths
   // 1. direct neighbours
-  for (unsigned seedAtomIdx = LastAddedAtomsBeginIdx;
+  for (unsigned int seedAtomIdx = LastAddedAtomsBeginIdx;
        seedAtomIdx < getNumAtoms();
        seedAtomIdx++) {  // just now added new border vertices (candidates for
                          // future growing)
@@ -381,7 +381,7 @@ void Seed::computeRemainingSize(const ROMol& qmol) {
   }
   // 2. go deep
   while (!end_atom_stack.empty()) {
-    unsigned ai = end_atom_stack.back();
+    unsigned int ai = end_atom_stack.back();
     end_atom_stack.pop_back();
     const Atom* atom = qmol.getAtomWithIdx(ai);
     ROMol::OEDGE_ITER beg, end;

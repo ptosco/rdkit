@@ -554,7 +554,7 @@ class PyMCSParameters {
 };
 
 MCSResult *FindMCSWrapper(python::object mols, bool maximizeBonds,
-                          double threshold, unsigned timeout, bool verbose,
+                          double threshold, unsigned int timeout, bool verbose,
                           bool matchValences, bool ringMatchesRingOnly,
                           bool completeRingsOnly, bool matchChiralTag,
                           AtomComparator atomComp, BondComparator bondComp,

@@ -162,7 +162,7 @@ class BondLabelFunctor {
                   FMCS::Graph::edge_descriptor j) const {
     unsigned ii = QueryTopology[i];   // take actual Idx value for full source
                                       // query molecule from index list
-    unsigned jj = TargetTopology[j];  // the same Idx
+    unsigned int jj = TargetTopology[j];  // the same Idx
     return BondCompare(Parameters, d_query, ii, d_mol, jj, UserData);
   }
 };
