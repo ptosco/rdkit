@@ -23,7 +23,7 @@
 #include <boost/dynamic_bitset.hpp>
 #include <RDGeneral/BoostEndInclude.h>
 
-//#define DEBUG_FMCS 1
+#define DEBUG_FMCS 1
 
 namespace RDKit {
 namespace FMCS {
@@ -435,9 +435,6 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
         if (tag.AtomMatchTable.at(i, aj)) {
           const auto targetMolAtom = tag.Molecule->getAtomWithIdx(aj);
           bool isTargetMolAtomInRing = queryIsAtomInRing(targetMolAtom);
-#ifdef DEBUG_FMCS
-          std::cerr << "i " << i << " aj " << aj << " isQueryMolAtomInRing " << isQueryMolAtomInRing << " isTargetMolAtomInRing " << isTargetMolAtomInRing << std::endl;
-#endif
           ++matched;
           if (!(Parameters.BondCompareParameters.CompleteRingsOnly &&
                 (isQueryMolAtomInRing || isTargetMolAtomInRing))) {
@@ -508,22 +505,22 @@ void _DFS(const Graph& g, const boost::dynamic_bitset<>& ringBonds,
       CHECK_INVARIANT(epair.second, "edge not found");
       openBonds.reset(g[epair.first]);
     } else if (colors[oVertex] == 0) {
-      std::vector<unsigned int> napath = apath;
+      auto napath = apath;
       napath.push_back(oVertex);
       _DFS(g, ringBonds, openBonds, oVertex, napath, colors, vertex);
     }
   }
   colors[vertex] = 2;
-  return;
 }
 
-bool checkIfRingsAreClosed(const Seed& fs) {
+bool checkIfRingsAreClosed(const Seed& fs, std::vector<unsigned int> &resVector) {
   if (!fs.MoleculeFragment.Bonds.size()) {
     return true;
   }
 
   bool res = true;
   const auto& om = fs.MoleculeFragment.Bonds[0]->getOwningMol();
+  std::cerr << "checkIfRingsAreClosed om " << MolToSmiles(om) << " om.getNumAtoms() " << om.getNumAtoms() << std::endl;
   const auto ri = om.getRingInfo();
   boost::dynamic_bitset<> ringBonds(om.getNumBonds());
   for (const auto bond : fs.MoleculeFragment.Bonds) {
@@ -550,6 +547,15 @@ bool checkIfRingsAreClosed(const Seed& fs) {
            om.getNumAtoms() + 1);
     }
     res = openBonds.none();
+    std::set<unsigned int> atomIdxOpenBonds;
+    for (unsigned int bi = 0; bi < openBonds.size(); ++bi) {
+      if (openBonds.test(bi)) {
+        atomIdxOpenBonds.insert(om.getBondWithIdx(bi)->getBeginAtomIdx());
+        atomIdxOpenBonds.insert(om.getBondWithIdx(bi)->getEndAtomIdx());
+      }
+    }
+    resVector = std::vector<unsigned int>(atomIdxOpenBonds.begin(), atomIdxOpenBonds.end());
+    std::sort(resVector.begin(), resVector.end());
   }
   return res;
 }
@@ -620,12 +626,11 @@ bool MaximumCommonSubgraph::growSeeds() {
         }
         // #945: test here to see if the MCS actually has all rings closed
         if (possibleMCS && Parameters.BondCompareParameters.CompleteRingsOnly) {
-          possibleMCS = checkIfRingsAreClosed(fs);
+          std::vector<unsigned int> resVector;
+          possibleMCS = checkIfRingsAreClosed(fs, resVector);
 #ifdef DEBUG_FMCS
           std::cerr << "1) possibleMCS fs.getNumAtoms() " << fs.getNumAtoms() << " possibleMCS " << possibleMCS << " fs.getNumBonds() " << fs.getNumBonds() << " atomIdx ";
-          std::vector<unsigned int> sorted = fs.MoleculeFragment.AtomsIdx;
-          std::sort(sorted.begin(), sorted.end());
-          std::copy(sorted.begin(), sorted.end(), std::ostream_iterator<unsigned int>(std::cout, ","));
+          std::copy(resVector.begin(), resVector.end(), std::ostream_iterator<unsigned int>(std::cerr, ","));
           std::cerr << std::endl;
 #endif
         }
