@@ -45,7 +45,6 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
     const ROMol* QueryMolecule;
     std::vector<Target> Targets;
   };
-
   unsigned long long To;
   MCSProgressData Stat;
   MCSParameters Parameters;
