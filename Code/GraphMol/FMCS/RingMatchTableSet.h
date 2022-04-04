@@ -36,10 +36,9 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
     inline void makeRingIndex(const ROMol* mol2) {
       unsigned int i = 0;
       // for each TARGET ring
-      const RingInfo::VECT_INT_VECT& rings2 = mol2->getRingInfo()->bondRings();
-      for (RingInfo::VECT_INT_VECT::const_iterator r2 = rings2.begin();
-           r2 != rings2.end(); r2++) {
-        RingIndex[&*r2] = i++;
+      const auto& rings2 = mol2->getRingInfo()->bondRings();
+      for (const auto &r2 : rings2) {
+        RingIndex[&r2] = i++;
       }
     }
     inline bool isEqual(unsigned int i, const INT_VECT* r2) const {
@@ -51,11 +50,8 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
 
    private:
     inline unsigned int getRingIndex(const INT_VECT* r2) const {
-      std::map<const INT_VECT*, unsigned int>::const_iterator j =
-          RingIndex.find(r2);
-      if (RingIndex.end() == j) {
-        throw -1;
-      }
+      auto j = RingIndex.find(r2);
+      CHECK_INVARIANT(j != RingIndex.end(), "Failed to find ring in RingIndex");
       return j->second;
     }
   };
@@ -81,27 +77,20 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
   }
 
   inline bool isQueryBondInRing(unsigned int bi) const {
-    return (*QueryBondRingsIndeces)[bi].empty();
+    return getQueryBondRings(bi).empty();
   }
   inline const std::vector<size_t>& getQueryBondRings(unsigned int bi) const {
     return (*QueryBondRingsIndeces)[bi];
   }
 
   inline bool isTargetBondInRing(const ROMol* target, unsigned int bi) const {
-    std::map<const ROMol*, std::vector<std::vector<size_t>>>::const_iterator i =
-        TargetBondRingsIndecesSet.find(target);
-    if (TargetBondRingsIndecesSet.end() == i) {
-      throw -1;  // never
-    }
-    return i->second[bi].empty();
+    return getTargetBondRings(target, bi).empty();
   }
+
   inline const std::vector<size_t>& getTargetBondRings(const ROMol* target,
                                                        unsigned int bi) const {
-    std::map<const ROMol*, std::vector<std::vector<size_t>>>::const_iterator i =
-        TargetBondRingsIndecesSet.find(target);
-    if (TargetBondRingsIndecesSet.end() == i) {
-      throw -1;  // never
-    }
+    auto i = TargetBondRingsIndecesSet.find(target);
+    CHECK_INVARIANT(i != TargetBondRingsIndecesSet.end(), "Failed to find target in TargetBondRingsIndecesSet");
     return i->second[bi];
   }
 
@@ -116,34 +105,29 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
     MatchMatrixSet.clear();
     // fill out QueryRingIndex
     unsigned int i = 0;
-    const RingInfo::VECT_INT_VECT& rings = query->getRingInfo()->bondRings();
-    for (RingInfo::VECT_INT_VECT::const_iterator r = rings.begin();
-         r != rings.end(); r++) {
-      QueryRingIndex[&*r] = i++;
+    const auto& rings = query->getRingInfo()->bondRings();
+    for (const auto &r : rings) {
+      QueryRingIndex[&r] = i++;
     }
     TargetBondRingsIndecesSet.clear();
     QueryBondRingsIndeces = &TargetBondRingsIndecesSet[query];
     QueryBondRingsIndeces->resize(query->getNumBonds());
     size_t ri = 0;
-    for (RingInfo::VECT_INT_VECT::const_iterator r = rings.begin();
-         r != rings.end(); r++, ri++) {
-      for (INT_VECT::const_iterator bi = r->begin(); bi != r->end();
-           bi++) {  // all bonds in the ring
-        (*QueryBondRingsIndeces)[*bi].push_back(ri);
+    for (auto r = rings.begin(); r != rings.end(); r++, ri++) {
+      for (auto bi : *r) {  // all bonds in the ring
+        (*QueryBondRingsIndeces)[bi].push_back(ri);
       }
     }
   }
   inline void addTargetBondRingsIndeces(const ROMol* mol2) {
-    std::vector<std::vector<size_t>>& m = TargetBondRingsIndecesSet[mol2];
+    auto &m = TargetBondRingsIndecesSet[mol2];
     m.resize(mol2->getNumBonds());
 
     size_t ri = 0;
-    const RingInfo::VECT_INT_VECT& rings = mol2->getRingInfo()->bondRings();
-    for (RingInfo::VECT_INT_VECT::const_iterator r = rings.begin();
-         r != rings.end(); r++, ri++) {
-      for (INT_VECT::const_iterator bi = r->begin(); bi != r->end();
-           bi++) {  // all bonds in the ring
-        m[*bi].push_back(ri);
+    const auto &rings = mol2->getRingInfo()->bondRings();
+    for (auto r = rings.begin(); r != rings.end(); r++, ri++) {
+      for (auto bi : *r) {  // all bonds in the ring
+        m[bi].push_back(ri);
       }
     }
   }
@@ -151,29 +135,23 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
   void computeRingMatchTable(
       const ROMol* query, const ROMol* targetMolecule,
       const MCSParameters& parameters) {  // call it for all targets
-    const RingInfo::VECT_INT_VECT& rings1 = query->getRingInfo()->bondRings();
-    const RingInfo::VECT_INT_VECT& rings2 =
-        targetMolecule->getRingInfo()->bondRings();
-    RingMatchTable& m =
-        addTargetMatchMatrix(targetMolecule, rings1.size(), rings2.size());
+    const auto& rings1 = query->getRingInfo()->bondRings();
+    const auto& rings2 = targetMolecule->getRingInfo()->bondRings();
+    auto &m = addTargetMatchMatrix(targetMolecule, rings1.size(), rings2.size());
     unsigned int i = 0;
     // for each query ring
-    for (RingInfo::VECT_INT_VECT::const_iterator r1 = rings1.begin();
-         r1 != rings1.end(); r1++, i++) {
+    for (auto r1 = rings1.begin(); r1 != rings1.end(); r1++, i++) {
       FMCS::Graph graph1;
-      makeRingGraph(graph1, *r1,
-                    query);  // for each query ring bond ADD all atoms and bonds
+      makeRingGraph(graph1, *r1, query);  // for each query ring bond ADD all atoms and bonds
 
       // for each TARGET ring
-      for (RingInfo::VECT_INT_VECT::const_iterator r2 = rings2.begin();
-           r2 != rings2.end(); r2++) {
-        if (r1->size() != r2->size()) {  // rings are different
+      for (auto r2 : rings2) {
+        if (r1->size() != r2.size()) {  // rings are different
           continue;
         }
         FMCS::Graph graph2;
-        makeRingGraph(
-            graph2, *r2,
-            targetMolecule);  // for each TAG ring bond ADD all atoms and bonds
+        // for each TAG ring bond ADD all atoms and bonds
+        makeRingGraph(graph2, r2, targetMolecule);
 
         // check ring substruct match
         MCSBondCompareParameters bp = parameters.BondCompareParameters;
@@ -192,7 +170,7 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
                 bp, parameters.CompareFunctionsUserData);
 #endif
         if (match) {
-          m.setMatch(i, &*r2);
+          m.setMatch(i, &r2);
         }
       }
     }
@@ -204,13 +182,12 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
     std::map<const Atom*, unsigned int> atomMap;
 
     for (size_t i = 0; i < ring.size(); i++) {
-      const Bond* bond = mol->getBondWithIdx(ring[i]);
-      const Atom* atom1 = bond->getBeginAtom();
-      const Atom* atom2 = bond->getEndAtom();
+      const auto bond = mol->getBondWithIdx(ring[i]);
+      const auto atom1 = bond->getBeginAtom();
+      const auto atom2 = bond->getEndAtom();
       unsigned int j1 = NotSet;
       unsigned int j2 = NotSet;
-      std::map<const Atom*, unsigned int>::const_iterator ai;
-      ai = atomMap.find(atom1);
+      auto ai = atomMap.find(atom1);
       if (atomMap.end() != ai) {
         j1 = ai->second;
       }
@@ -235,17 +212,13 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
   inline unsigned int getQueryRingIndex(const INT_VECT* r1) const {
     std::map<const INT_VECT*, unsigned int>::const_iterator i =
         QueryRingIndex.find(r1);
-    if (QueryRingIndex.end() == i) {
-      throw -1;  // never
-    }
+    CHECK_INVARIANT(i != QueryRingIndex.end(), "Failed to find ring index in QueryRingIndex");
     return i->second;
   }
   inline const RingMatchTable& getTargetMatchMatrix(const ROMol* mol2) const {
     std::map<const ROMol*, RingMatchTable>::const_iterator mi =
         MatchMatrixSet.find(mol2);
-    if (MatchMatrixSet.end() == mi) {
-      throw -1;  // never
-    }
+    CHECK_INVARIANT(mi != MatchMatrixSet.end(), "Failed to find mol2 in MatchMatrixSet");
     return mi->second;
   }
 

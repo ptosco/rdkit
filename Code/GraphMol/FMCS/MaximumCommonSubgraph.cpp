@@ -338,16 +338,14 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
       // add all bonds (existed in initial seed !!!) between all matched
       // atoms in query
       for (const auto& msb : *ms) {
-        const Atom* atom = initialSeedMolecule->getAtomWithIdx(msb.first);
-        ROMol::OEDGE_ITER beg, end;
-        for (boost::tie(beg, end) = initialSeedMolecule->getAtomBonds(atom);
-             beg != end; beg++) {
-          const Bond& initialBond = *((*initialSeedMolecule)[*beg]);
+        const auto atom = initialSeedMolecule->getAtomWithIdx(msb.first);
+        for (const auto &nbri : boost::make_iterator_range(initialSeedMolecule->getAtomBonds(atom))) {
+          const auto initialBond = (*initialSeedMolecule)[nbri];
           unsigned int qai1 =
-              initialSeedToQueryAtom.find(initialBond.getBeginAtomIdx())
+              initialSeedToQueryAtom.find(initialBond->getBeginAtomIdx())
                   ->second;
           unsigned int qai2 =
-              initialSeedToQueryAtom.find(initialBond.getEndAtomIdx())->second;
+              initialSeedToQueryAtom.find(initialBond->getEndAtomIdx())->second;
 
           const Bond* b = QueryMolecule->getBondBetweenAtoms(qai1, qai2);
           if (!seed.ExcludedBonds[b->getIdx()]) {
@@ -468,7 +466,9 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
   }
 }
 
-bool checkIfRingsAreClosed2(const Seed& fs, bool noLoneRingAtoms) {
+namespace {
+
+bool checkIfRingsAreClosed(const Seed& fs, bool noLoneRingAtoms) {
   if (fs.MoleculeFragment.Bonds.empty() && fs.MoleculeFragment.Atoms.empty()) {
     return true;
   }
@@ -518,101 +518,6 @@ bool checkIfRingsAreClosed2(const Seed& fs, bool noLoneRingAtoms) {
   return true;
 }
 
-
-namespace {
-
-void _DFS(const Graph& g, const boost::dynamic_bitset<>& ringBonds,
-          boost::dynamic_bitset<>& openBonds, unsigned int vertex,
-          std::vector<unsigned int> apath, std::vector<unsigned int>& colors,
-          unsigned int fromVertex) {
-  std::pair<Graph::out_edge_iterator, Graph::out_edge_iterator> bonds =
-      boost::out_edges(vertex, g);
-  colors[vertex] = 1;
-  while (bonds.first != bonds.second) {
-    unsigned int bIdx = g[*(bonds.first)];
-    if (!ringBonds[bIdx]) {
-      ++bonds.first;
-      continue;
-    }
-    // find the other vertex:
-    unsigned int oVertex = boost::source(*(bonds.first), g);
-    if (oVertex == vertex) {
-      oVertex = boost::target((*bonds.first), g);
-    }
-    ++bonds.first;
-
-    if (oVertex == fromVertex) {
-      continue;
-    }
-    if (colors[oVertex] == 1) {
-      // closing a cycle
-      for (auto ai = apath.rbegin(); ai != apath.rend() && *ai != oVertex;
-           ++ai) {
-        auto epair = boost::edge(*ai, *(ai + 1), g);
-        CHECK_INVARIANT(epair.second, "edge not found");
-        openBonds.reset(g[epair.first]);
-      }
-      auto epair = boost::edge(oVertex, *apath.rbegin(), g);
-      CHECK_INVARIANT(epair.second, "edge not found");
-      openBonds.reset(g[epair.first]);
-    } else if (colors[oVertex] == 0) {
-      auto napath = apath;
-      napath.push_back(oVertex);
-      _DFS(g, ringBonds, openBonds, oVertex, napath, colors, vertex);
-    }
-  }
-  colors[vertex] = 2;
-}
-
-bool checkIfRingsAreClosed(const Seed& fs, std::vector<unsigned int> &resVector) {
-  if (!fs.MoleculeFragment.Bonds.size()) {
-    return true;
-  }
-
-  bool res = true;
-  const auto& om = fs.MoleculeFragment.Bonds[0]->getOwningMol();
-#ifdef DEBUG_FMCS
-  std::cerr << "checkIfRingsAreClosed om " << MolToSmiles(om) << " om.getNumAtoms() " << om.getNumAtoms() << std::endl;
-#endif
-  const auto ri = om.getRingInfo();
-  boost::dynamic_bitset<> ringBonds(om.getNumBonds());
-  for (const auto bond : fs.MoleculeFragment.Bonds) {
-    if (ri->numBondRings(bond->getIdx())) {
-      ringBonds.set(bond->getIdx());
-    }
-  }
-  boost::dynamic_bitset<> openBonds = ringBonds;
-  if (openBonds.any()) {
-    std::vector<unsigned int> colors(om.getNumAtoms());
-    for (unsigned int bi = 0; bi < openBonds.size(); ++bi) {
-      if (!openBonds[bi]) {
-        continue;
-      }
-      std::pair<Graph::edge_iterator, Graph::edge_iterator> bonds =
-          boost::edges(fs.Topology);
-      while (bonds.first != bonds.second && fs.Topology[*(bonds.first)] != bi) {
-        ++bonds.first;
-      }
-      CHECK_INVARIANT(bonds.first != bonds.second, "bond not found");
-      unsigned int startVertex = boost::source(*(bonds.first), fs.Topology);
-      std::vector<unsigned int> apath = {startVertex};
-      _DFS(fs.Topology, ringBonds, openBonds, startVertex, apath, colors,
-           om.getNumAtoms() + 1);
-    }
-    res = openBonds.none();
-    std::set<unsigned int> atomIdxOpenBonds;
-    for (unsigned int bi = 0; bi < openBonds.size(); ++bi) {
-      if (openBonds.test(bi)) {
-        atomIdxOpenBonds.insert(om.getBondWithIdx(bi)->getBeginAtomIdx());
-        atomIdxOpenBonds.insert(om.getBondWithIdx(bi)->getEndAtomIdx());
-      }
-    }
-    resVector = std::vector<unsigned int>(atomIdxOpenBonds.begin(), atomIdxOpenBonds.end());
-    std::sort(resVector.begin(), resVector.end());
-  }
-  return res;
-}
-
 }  // namespace
 bool MaximumCommonSubgraph::growSeeds() {
   bool mcsFound = false;
@@ -655,7 +560,7 @@ bool MaximumCommonSubgraph::growSeeds() {
         // #945: test here to see if the MCS actually has all rings closed
         if (possibleMCS && Parameters.BondCompareParameters.CompleteRingsOnly) {
           std::vector<unsigned int> resVector;
-          possibleMCS = checkIfRingsAreClosed2(fs, Parameters.AtomCompareParameters.CompleteRingsOnly);
+          possibleMCS = checkIfRingsAreClosed(fs, Parameters.AtomCompareParameters.CompleteRingsOnly);
 #ifdef DEBUG_FMCS
           std::cerr << "1) possibleMCS fs.getNumAtoms() " << fs.getNumAtoms() << " possibleMCS " << possibleMCS << " fs.getNumBonds() " << fs.getNumBonds() << " openAtomIdx ";
           std::copy(resVector.begin(), resVector.end(), std::ostream_iterator<unsigned int>(std::cerr, ","));
@@ -1300,8 +1205,7 @@ bool MaximumCommonSubgraph::match(Seed& seed) {
   unsigned int passed = 0;
   unsigned int itarget = 0;
 
-  for (std::vector<Target>::const_iterator tag = Targets.begin();
-       tag != Targets.end(); tag++, itarget++) {
+  for (auto tag = Targets.begin(); tag != Targets.end(); tag++, itarget++) {
 #ifdef VERBOSE_STATISTICS_ON
     { ++VerboseStatistics.MatchCall; }
 #endif
@@ -1355,8 +1259,8 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed& seed, unsigned int itarge
 #ifdef VERBOSE_STATISTICS_ON
   { ++VerboseStatistics.FastMatchCall; }
 #endif
-  const Target& target = Targets[itarget];
-  TargetMatch& match = seed.MatchResult[itarget];
+  const auto &target = Targets[itarget];
+  auto &match = seed.MatchResult[itarget];
   if (match.empty()) {
     return false;
   }
@@ -1373,25 +1277,26 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed& seed, unsigned int itarge
        newBondSeedIdx < seed.getNumBonds(); newBondSeedIdx++) {
     matched = false;
     bool atomAdded = false;
-    const Bond* newBond = seed.MoleculeFragment.Bonds[newBondSeedIdx];
+    const auto newBond = seed.MoleculeFragment.Bonds[newBondSeedIdx];
     unsigned int newBondQueryIdx = seed.MoleculeFragment.BondsIdx[newBondSeedIdx];
 
-    unsigned int newBondSourceAtomSeedIdx;   // seed's index of atom from which
-                                         // new bond was added
-    unsigned int newBondAnotherAtomSeedIdx;  // seed's index of atom on
-                                         // another end of the bond
+    // seed's index of atom from which new bond was added
+    unsigned int newBondSourceAtomSeedIdx;   
+    // seed's index of atom onother end of the bond
+    unsigned int newBondOtherAtomSeedIdx;  
     unsigned int i =
         seed.MoleculeFragment.SeedAtomIdxMap[newBond->getBeginAtomIdx()];
     unsigned int j = seed.MoleculeFragment.SeedAtomIdxMap[newBond->getEndAtomIdx()];
-    if (i >= match.MatchedAtomSize) {  // this is new atom in the seed
+    if (i >= match.MatchedAtomSize) {
+      // this is new atom in the seed
       newBondSourceAtomSeedIdx = j;
-      newBondAnotherAtomSeedIdx = i;
+      newBondOtherAtomSeedIdx = i;
     } else {
       newBondSourceAtomSeedIdx = i;
-      newBondAnotherAtomSeedIdx = j;
+      newBondOtherAtomSeedIdx = j;
     }
-    unsigned int newBondAnotherAtomQueryIdx =
-        seed.MoleculeFragment.AtomsIdx[newBondAnotherAtomSeedIdx];
+    unsigned int newBondOtherAtomQueryIdx =
+        seed.MoleculeFragment.AtomsIdx[newBondOtherAtomSeedIdx];
     unsigned int newBondSourceAtomQueryIdx =
         seed.MoleculeFragment.AtomsIdx[newBondSourceAtomSeedIdx];
     unsigned int newBondSourceAtomTargetIdx =
@@ -1400,16 +1305,17 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed& seed, unsigned int itarge
                                           // newBondSourceAtomSeedIdx
 
     const Bond* tb = nullptr;
-    unsigned int newBondAnotherAtomTargetIdx = NotSet;
+    unsigned int newBondOtherAtomTargetIdx = NotSet;
 
-    if (newBondAnotherAtomSeedIdx <
-        match.MatchedAtomSize) {  // new bond between old atoms - both are
-                                  // matched to exact atoms in the target
-      newBondAnotherAtomTargetIdx =
-          match.TargetAtomIdx[newBondAnotherAtomQueryIdx];
+    if (newBondOtherAtomSeedIdx <
+        match.MatchedAtomSize) {
+      // new bond between old atoms - both are
+      // matched to exact atoms in the target
+      newBondOtherAtomTargetIdx =
+          match.TargetAtomIdx[newBondOtherAtomQueryIdx];
       tb = target.Molecule->getBondBetweenAtoms(
           newBondSourceAtomTargetIdx,
-          newBondAnotherAtomTargetIdx);  // target bond between Source and
+          newBondOtherAtomTargetIdx);  // target bond between Source and
                                          // Another atoms
       if (tb) {  // bond exists, check match with query molecule
         unsigned int tbi = tb->getIdx();
@@ -1422,39 +1328,37 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed& seed, unsigned int itarge
     } else {  // enumerate all bonds from source atom in the target
       const Atom* atom =
           target.Molecule->getAtomWithIdx(newBondSourceAtomTargetIdx);
-      ROMol::OEDGE_ITER beg, end;
-      for (boost::tie(beg, end) = target.Molecule->getAtomBonds(atom);
-           beg != end; beg++) {
-        tb = &*((*target.Molecule)[*beg]);
+      for (const auto &nbri : boost::make_iterator_range(target.Molecule->getAtomBonds(atom))) {
+        auto tb = (*target.Molecule)[nbri];
         if (!match.VisitedTargetBonds[tb->getIdx()]) {
-          newBondAnotherAtomTargetIdx = tb->getBeginAtomIdx();
-          if (newBondSourceAtomTargetIdx == newBondAnotherAtomTargetIdx) {
-            newBondAnotherAtomTargetIdx = tb->getEndAtomIdx();
+          newBondOtherAtomTargetIdx = tb->getBeginAtomIdx();
+          if (newBondSourceAtomTargetIdx == newBondOtherAtomTargetIdx) {
+            newBondOtherAtomTargetIdx = tb->getEndAtomIdx();
           }
 
-          if (newBondAnotherAtomSeedIdx <
+          if (newBondOtherAtomSeedIdx <
                   seed.LastAddedAtomsBeginIdx  // RING: old atom, new atom
                                                // in matched substructure
                                                // must be new in seed
               || std::find(seed.MoleculeFragment.AtomsIdx.begin() +
                                seed.LastAddedAtomsBeginIdx,
                            seed.MoleculeFragment.AtomsIdx.begin() +
-                               newBondAnotherAtomSeedIdx,
-                           newBondAnotherAtomQueryIdx) ==
+                               newBondOtherAtomSeedIdx,
+                           newBondOtherAtomQueryIdx) ==
                      seed.MoleculeFragment.AtomsIdx.end()) {
-            if (!match.VisitedTargetAtoms[newBondAnotherAtomTargetIdx]) {
+            if (!match.VisitedTargetAtoms[newBondOtherAtomTargetIdx]) {
               continue;
             }
           } else {
-            if (match.VisitedTargetAtoms[newBondAnotherAtomTargetIdx]) {
+            if (match.VisitedTargetAtoms[newBondOtherAtomTargetIdx]) {
               continue;
             }
           }
 
           // check AnotherAtom and bond
           matched =
-              target.AtomMatchTable.at(newBondAnotherAtomQueryIdx,
-                                       newBondAnotherAtomTargetIdx) &&
+              target.AtomMatchTable.at(newBondOtherAtomQueryIdx,
+                                       newBondOtherAtomTargetIdx) &&
               target.BondMatchTable.at(
                   seed.MoleculeFragment.BondsIdx[newBondSeedIdx], tb->getIdx());
 
@@ -1469,9 +1373,9 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed& seed, unsigned int itarge
     if (matched) {      // update match history
       if (atomAdded) {  // new atom has been added
         match.MatchedAtomSize++;
-        match.TargetAtomIdx[newBondAnotherAtomQueryIdx] =
-            newBondAnotherAtomTargetIdx;
-        match.VisitedTargetAtoms[newBondAnotherAtomTargetIdx] = true;
+        match.TargetAtomIdx[newBondOtherAtomQueryIdx] =
+            newBondOtherAtomTargetIdx;
+        match.VisitedTargetAtoms[newBondOtherAtomTargetIdx] = true;
       }
       match.MatchedBondSize++;
       match.TargetBondIdx[newBondQueryIdx] = tb->getIdx();
