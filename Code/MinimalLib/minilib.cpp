@@ -387,6 +387,25 @@ void JSMol::straighten_depiction() {
   RDDepict::straightenDepiction(*d_mol, -1);
 }
 
+std::string JSMol::compute_hash() {
+  std::unique_ptr<ROMol> hashMol(new ROMol(*d_mol));
+  auto smi = MolToSmiles(*hashMol);
+  if (hashMol->hasProp(common_properties::_smilesAtomOutputOrder)) {
+    std::vector<unsigned int> atomOrder;
+    hashMol->getProp(common_properties::_smilesAtomOutputOrder, atomOrder);
+    hashMol.reset(MolOps::renumberAtoms(*hashMol, atomOrder));
+  }
+  if (hashMol->getNumConformers()) {
+    boost::hash<std::string> coordHash;
+    const auto &pos = hashMol->getConformer().getPositions();
+    std::string approxCoords = std::accumulate(pos.begin(), pos.end(), std::string(), [](std::string growing, const RDGeom::Point3D &p) {
+        return std::move(growing) + std::to_string(static_cast<int>(p.x * 10. + 0.5)) + std::to_string(static_cast<int>(p.y * 10. + 0.5));
+    });
+    smi += " " + std::to_string(coordHash(approxCoords));
+  }
+  return smi;
+}
+
 JSSubstructLibrary::JSSubstructLibrary(unsigned int num_bits)
     : d_sslib(new SubstructLibrary(
           boost::shared_ptr<CachedTrustedSmilesMolHolder>(

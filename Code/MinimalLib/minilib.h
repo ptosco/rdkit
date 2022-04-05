@@ -90,6 +90,7 @@ class JSMol {
   }
   double normalize_depiction() { return normalize_depiction(1, -1.); }
   void straighten_depiction();
+  std::string compute_hash();
 
   std::unique_ptr<RDKit::RWMol> d_mol;
   static constexpr int d_defaultWidth = 250;
