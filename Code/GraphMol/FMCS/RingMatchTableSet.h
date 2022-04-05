@@ -42,17 +42,19 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
       }
     }
     inline bool isEqual(unsigned int i, const INT_VECT* r2) const {
-      return MatchMatrix.at(i, getRingIndex(r2));
+      auto ri = getRingIndex(r2);
+      return (ri == -1 ? false : MatchMatrix.at(i, ri));
     }
     inline void setMatch(unsigned int i, const INT_VECT* r2) {
-      MatchMatrix.set(i, getRingIndex(r2), true);
+      auto ri = getRingIndex(r2);
+      CHECK_INVARIANT(ri != -1, "Failed to find ring in RingIndex");
+      MatchMatrix.set(i, ri, true);
     }
 
    private:
-    inline unsigned int getRingIndex(const INT_VECT* r2) const {
+    inline int getRingIndex(const INT_VECT* r2) const {
       auto j = RingIndex.find(r2);
-      CHECK_INVARIANT(j != RingIndex.end(), "Failed to find ring in RingIndex");
-      return j->second;
+      return (j == RingIndex.end() ? -1 : j->second);
     }
   };
 
@@ -97,8 +99,8 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
   inline bool isEqual(const INT_VECT* r1, const INT_VECT* r2,
                       const ROMol* mol2) const {
     const RingMatchTable& m = getTargetMatchMatrix(mol2);
-    unsigned int i = getQueryRingIndex(r1);
-    return m.isEqual(i, r2);
+    auto i = getQueryRingIndex(r1);
+    return (i == -1 ? false : m.isEqual(i, r2));
   }
 
   void init(const ROMol* query) {
@@ -209,22 +211,19 @@ class RDKIT_FMCS_EXPORT RingMatchTableSet {
     }
   }
 
-  inline unsigned int getQueryRingIndex(const INT_VECT* r1) const {
-    std::map<const INT_VECT*, unsigned int>::const_iterator i =
-        QueryRingIndex.find(r1);
-    CHECK_INVARIANT(i != QueryRingIndex.end(), "Failed to find ring index in QueryRingIndex");
-    return i->second;
+  inline int getQueryRingIndex(const INT_VECT* r1) const {
+    auto i = QueryRingIndex.find(r1);
+    return (i == QueryRingIndex.end() ? -1 : i->second);
   }
   inline const RingMatchTable& getTargetMatchMatrix(const ROMol* mol2) const {
-    std::map<const ROMol*, RingMatchTable>::const_iterator mi =
-        MatchMatrixSet.find(mol2);
+    auto mi = MatchMatrixSet.find(mol2);
     CHECK_INVARIANT(mi != MatchMatrixSet.end(), "Failed to find mol2 in MatchMatrixSet");
     return mi->second;
   }
 
   inline RingMatchTable& addTargetMatchMatrix(const ROMol* mol2, unsigned int s1,
                                               unsigned int s2) {
-    RingMatchTable& m = MatchMatrixSet[mol2];
+    auto &m = MatchMatrixSet[mol2];
     m.resize(s1, s2);
     m.makeRingIndex(mol2);
     return m;

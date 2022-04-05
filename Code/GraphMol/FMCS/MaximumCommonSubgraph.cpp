@@ -162,7 +162,7 @@ void MaximumCommonSubgraph::init() {
   nq = QueryMolecule->getNumBonds();
   QueryBondLabels.resize(nq);
   for (size_t aj = 0; aj < nq; aj++) {
-    const Bond* bond = QueryMolecule->getBondWithIdx(aj);
+    const auto bond = QueryMolecule->getBondWithIdx(aj);
     unsigned int ring = 0;
     if (!userData && (Parameters.BondCompareParameters.CompleteRingsOnly ||
                       Parameters.BondCompareParameters.RingMatchesRingOnly)) {
@@ -217,16 +217,16 @@ void MaximumCommonSubgraph::init() {
     Targets[i].Molecule = *it;
     // build Target Topology ADD ATOMs
     size_t j = 0;  // current item
-    for (ROMol::ConstAtomIterator a = Targets[i].Molecule->beginAtoms();
+    for (auto a = Targets[i].Molecule->beginAtoms();
          a != Targets[i].Molecule->endAtoms(); a++, j++) {
       Targets[i].Topology.addAtom((*a)->getIdx());
     }
     // build Target Topology ADD BONDs
-    for (ROMol::ConstBondIterator b = Targets[i].Molecule->beginBonds();
+    for (auto b = Targets[i].Molecule->beginBonds();
          b != Targets[i].Molecule->endBonds(); b++) {
-      const Bond* bond = *b;
-      unsigned int ii = bond->getBeginAtomIdx();
-      unsigned int jj = bond->getEndAtomIdx();
+      const auto bond = *b;
+      auto ii = bond->getBeginAtomIdx();
+      auto jj = bond->getEndAtomIdx();
       Targets[i].Topology.addBond((*b)->getIdx(), ii, jj);
     }
 
@@ -239,6 +239,20 @@ void MaximumCommonSubgraph::init() {
       RingMatchTables.addTargetBondRingsIndeces(Targets[i].Molecule);
       RingMatchTables.computeRingMatchTable(QueryMolecule, Targets[i].Molecule,
                                             Parameters);
+      unsigned int queryRingIdx = 0;
+      unsigned int targetRingIdx = 0;
+      std::cerr << "  | ";
+      for (const auto &targetRing : Targets[i].Molecule->getRingInfo()->bondRings()) {
+        std::cerr << targetRingIdx++ << " ";
+      }
+      std::cerr << "\n---------------------------------" << std::endl;
+      for (const auto &queryRing : QueryMolecule->getRingInfo()->bondRings()) {
+        std::cerr << queryRingIdx++ << " | ";
+        for (const auto &targetRing : Targets[i].Molecule->getRingInfo()->bondRings()) {
+          std::cerr << (RingMatchTables.isEqual(&queryRing, &targetRing, Targets[i].Molecule) ? 1 : 0) << " ";
+        }
+        std::cerr << std::endl;
+      }
     }
 #endif
 
