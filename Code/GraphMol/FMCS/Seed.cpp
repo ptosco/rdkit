@@ -16,8 +16,6 @@
 
 #include <set>
 
-//#define DEBUG_FMCS 1
-
 namespace RDKit {
 namespace FMCS {
 
@@ -110,9 +108,6 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     Seed seed;
     seed.createFromParent(this);
 
-#ifdef DEBUG_FMCS
-    std::cerr << "Seed::grow NewBonds.size() " << NewBonds.size() << std::endl;
-#endif
     for (const auto &newBond : NewBonds) {
       unsigned int aIdx = newBond.EndAtomIdx;
       if (NotSet == aIdx) {  // new atom
@@ -133,9 +128,6 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     seed.RemainingAtoms =
         RemainingAtoms - newAtomsSet.size();  // new atoms added to seed
 
-#ifdef DEBUG_FMCS
-    std::cerr << "Seed::grow seed.RemainingBonds " << seed.RemainingBonds << " seed.RemainingAtoms " << seed.RemainingAtoms << std::endl;
-#endif
     // prune() Best Sizes
     if (!seed.canGrowBiggerThan(mcs.getMaxNumberBonds(),
                                 mcs.getMaxNumberAtoms())) {
@@ -149,24 +141,15 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     seed.MatchResult = MatchResult;
     // this seed + all extern bonds is a part of MCS
     bool allMatched = mcs.checkIfMatchAndAppend(seed);
-#ifdef DEBUG_FMCS
-    std::cerr << "Seed::grow allMatched " << allMatched << std::endl;
-#endif
 
     GrowingStage = 1;
     if (allMatched && NewBonds.size() > 1) {
-#ifdef DEBUG_FMCS
-      std::cerr << "1) Seed::grow return" << std::endl;
-#endif
       return;  // grow deep first. postpone next growing steps
     }
   }
   // 2. Check and add all 2^N-1-1 other possible seeds:
   if (1 == NewBonds.size()) {
     GrowingStage = NotSet;
-#ifdef DEBUG_FMCS
-    std::cerr << "2) Seed::grow return" << std::endl;
-#endif
     return;  // everything has been done
   }
   // OPTIMISATION:
@@ -193,15 +176,9 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     if (seed.canGrowBiggerThan(mcs.getMaxNumberBonds(),
                                mcs.getMaxNumberAtoms())) {  // prune()
       if (!MatchResult.empty()) {
-#ifdef DEBUG_FMCS
-        std::cerr << "3) Seed::grow here" << std::endl;
-#endif
         seed.MatchResult = MatchResult;
       }
       if (!mcs.checkIfMatchAndAppend(seed)) {
-#ifdef DEBUG_FMCS
-        std::cerr << "4) Seed::grow here" << std::endl;
-#endif
         nbi.BondIdx = NotSet;  // exclude this new bond from growing this seed
                                // - decrease 2^^N-1 to 2^^k-1, k<N.
         ++numErasedNewBonds;
@@ -215,14 +192,8 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
 #endif
     }
   }
-#ifdef DEBUG_FMCS
-  std::cerr << "5) Seed::grow here" << std::endl;
-#endif
 
   if (numErasedNewBonds > 0) {
-#ifdef DEBUG_FMCS
-    std::cerr << "6) Seed::grow numErasedNewBonds " << numErasedNewBonds << std::endl;
-#endif
     std::vector<NewBond> dirtyNewBonds;
     dirtyNewBonds.reserve(NewBonds.size());
     dirtyNewBonds.swap(NewBonds);
@@ -239,9 +210,6 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
       throw std::runtime_error(
           "Max number of new external bonds of a seed more than 64");
     }
-#ifdef DEBUG_FMCS
-    std::cerr << "7) Seed::grow NewBonds.size() " << NewBonds.size() << std::endl;
-#endif
     BitSet maxCompositionValue;
     Composition2N::compute2N(NewBonds.size(), maxCompositionValue);
     --maxCompositionValue;  // 2^N-1
@@ -332,9 +300,6 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
       }
     }
   }
-#ifdef DEBUG_FMCS
-  std::cerr << "8) Seed::grow here" << std::endl;
-#endif
   GrowingStage = NotSet;  // finished
 }
 
