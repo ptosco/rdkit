@@ -68,7 +68,6 @@ void MaximumCommonSubgraph::init() {
   QueryBondLabels.clear();
   QueryAtomMatchTable.clear();
   QueryBondMatchTable.clear();
-  RingMatchTables.clear();
 #endif
 #ifdef DUP_SUBSTRUCT_CACHE
   DuplicateCache.clear();
@@ -77,18 +76,6 @@ void MaximumCommonSubgraph::init() {
 
   size_t nq = 0;
 #ifdef FAST_SUBSTRUCT_CACHE
-  // fill out RingMatchTables to check cache Hash collision by checking match a
-  // part of Query to Query
-  if (!userData  // predefined functor - compute RingMatchTable for all targets
-      && (Parameters.BondCompareParameters.CompleteRingsOnly ||
-          Parameters.BondCompareParameters.RingMatchesRingOnly ||
-          Parameters.AtomCompareParameters.RingMatchesRingOnly)) {
-    RingMatchTables.init(QueryMolecule);
-    Parameters.CompareFunctionsUserData = &RingMatchTables;
-    RingMatchTables.computeRingMatchTable(QueryMolecule, QueryMolecule,
-                                          Parameters);
-  }
-
   // fill out match tables
   nq = QueryMolecule->getNumAtoms();
   QueryAtomMatchTable.resize(nq, nq);
@@ -166,7 +153,8 @@ void MaximumCommonSubgraph::init() {
     unsigned int ring = 0;
     if (!userData && (Parameters.BondCompareParameters.CompleteRingsOnly ||
                       Parameters.BondCompareParameters.RingMatchesRingOnly)) {
-      ring = RingMatchTables.isQueryBondInRing(aj) ? 0 : 1;  // is bond in ring
+      // is bond in ring
+      ring = QueryMolecule->getRingInfo()->bondMembers(aj).size() ? 0 : 1;
     }
     if (MCSBondCompareAny ==
         Parameters.BondTyper) {  // predefined functor without atom compare
@@ -230,32 +218,6 @@ void MaximumCommonSubgraph::init() {
       Targets[i].Topology.addBond((*b)->getIdx(), ii, jj);
     }
 
-#ifdef FAST_SUBSTRUCT_CACHE
-    // fill out RingMatchTables
-    if (!userData  // predefined functor - compute RingMatchTable for all
-                   // targets
-        && (Parameters.BondCompareParameters.CompleteRingsOnly ||
-            Parameters.BondCompareParameters.RingMatchesRingOnly)) {
-      RingMatchTables.addTargetBondRingsIndeces(Targets[i].Molecule);
-      RingMatchTables.computeRingMatchTable(QueryMolecule, Targets[i].Molecule,
-                                            Parameters);
-      unsigned int queryRingIdx = 0;
-      unsigned int targetRingIdx = 0;
-      std::cerr << "  | ";
-      for (const auto &targetRing : Targets[i].Molecule->getRingInfo()->bondRings()) {
-        std::cerr << targetRingIdx++ << " ";
-      }
-      std::cerr << "\n---------------------------------" << std::endl;
-      for (const auto &queryRing : QueryMolecule->getRingInfo()->bondRings()) {
-        std::cerr << queryRingIdx++ << " | ";
-        for (const auto &targetRing : Targets[i].Molecule->getRingInfo()->bondRings()) {
-          std::cerr << (RingMatchTables.isEqual(&queryRing, &targetRing, Targets[i].Molecule) ? 1 : 0) << " ";
-        }
-        std::cerr << std::endl;
-      }
-    }
-#endif
-
     // fill out match tables
     size_t nq = QueryMolecule->getNumAtoms();
     size_t nt = (*it)->getNumAtoms();
@@ -312,9 +274,6 @@ struct WeightedBond {
 void MaximumCommonSubgraph::makeInitialSeeds() {
   // build a set of initial seeds as "all" single bonds from query
   // molecule
-#ifdef DEBUG_FMCS
-  std::cerr << "MaximumCommonSubgraph::makeInitialSeeds" << std::endl;
-#endif
   boost::dynamic_bitset<> excludedBonds(QueryMolecule->getNumBonds());
 
   Seeds.clear();
@@ -433,9 +392,6 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
       }
     }
   }
-#ifdef DEBUG_FMCS
-  std::cerr << "Seeds.size() " << Seeds.size() << std::endl;
-#endif
   auto nq = QueryMolecule->getNumAtoms();
   for (size_t i = 0; i < nq; i++) {  // all query's atoms
     const auto queryMolAtom = QueryMolecule->getAtomWithIdx(i);
@@ -474,9 +430,6 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
     if (matched >= ThresholdCount) {
       ++QueryMoleculeMatchedAtoms;
     }
-#ifdef DEBUG_FMCS
-    std::cerr << "matched " << matched << " ThresholdCount " << ThresholdCount << " QueryMoleculeMatchedAtoms " << QueryMoleculeMatchedAtoms << std::endl;
-#endif
   }
 }
 
@@ -506,7 +459,7 @@ bool checkIfRingsAreClosed(const Seed& fs, bool noLoneRingAtoms) {
     }
     for (auto bi : ri->bondRings().at(ringIdx)) {
       bool keepBond = false;
-      for (auto memberOf : ri->bondMembers(bi)) {
+      for (unsigned int memberOf : ri->bondMembers(bi)) {
         if (memberOf == ringIdx) {
           keepBond = true;
         } else if (fragmentRings.test(memberOf)) {
@@ -542,9 +495,6 @@ bool MaximumCommonSubgraph::growSeeds() {
   // Find MCS -- SDF Seed growing OPTIMISATION (it works in 3 times
   // faster)
   while (!Seeds.empty()) {
-#ifdef DEBUG_FMCS
-    std::cerr << "Seeds.size() " << Seeds.size() << std::endl;
-#endif
     if (getMaxNumberBonds() == QueryMoleculeMatchedBonds) {  // MCS == Query
       break;
     }
@@ -573,32 +523,40 @@ bool MaximumCommonSubgraph::growSeeds() {
         }
         // #945: test here to see if the MCS actually has all rings closed
         if (possibleMCS && Parameters.BondCompareParameters.CompleteRingsOnly) {
-          std::vector<unsigned int> resVector;
-          possibleMCS = checkIfRingsAreClosed(fs, Parameters.AtomCompareParameters.CompleteRingsOnly);
 #ifdef DEBUG_FMCS
-          std::cerr << "1) possibleMCS fs.getNumAtoms() " << fs.getNumAtoms() << " possibleMCS " << possibleMCS << " fs.getNumBonds() " << fs.getNumBonds() << " openAtomIdx ";
-          std::copy(resVector.begin(), resVector.end(), std::ostream_iterator<unsigned int>(std::cerr, ","));
-          std::cerr << " fsAtomIdx ";
-          std::set<unsigned int> atomIdxSet;
-          std::set<unsigned int> bondIdxSet;
-          for (const auto bond : fs.MoleculeFragment.Bonds) {
-            atomIdxSet.insert(bond->getBeginAtomIdx());
-            atomIdxSet.insert(bond->getEndAtomIdx());
-            bondIdxSet.insert(bond->getIdx());
-          }
-          std::vector<unsigned int> atomIdxVector(atomIdxSet.begin(), atomIdxSet.end());
-          std::sort(atomIdxVector.begin(), atomIdxVector.end());
-          std::copy(atomIdxVector.begin(), atomIdxVector.end(), std::ostream_iterator<unsigned int>(std::cerr, ","));
-          std::vector<unsigned int> bondIdxVector(bondIdxSet.begin(), bondIdxSet.end());
-          std::sort(bondIdxVector.begin(), bondIdxVector.end());
-          std::cerr << " fsBondIdx ";
-          std::copy(bondIdxVector.begin(), bondIdxVector.end(), std::ostream_iterator<unsigned int>(std::cerr, ","));
+          std::cerr << "1) possibleMCS"
+          //<< " fs.getNumAtoms() " << fs.getNumAtoms()
+          << " fs.getNumBonds() " << fs.getNumBonds()
+          //<< " atomIdx "
+          ;
+          auto as(fs.MoleculeFragment.AtomsIdx);
+          std::sort(as.begin(), as.end());
+          auto bs(fs.MoleculeFragment.BondsIdx);
+          std::sort(bs.begin(), bs.end());
+          //std::copy(as.begin(), as.end(), std::ostream_iterator<int>(std::cerr, " "));
+          std::cerr << " bondIdx "
+          ;
+          std::copy(bs.begin(), bs.end(), std::ostream_iterator<int>(std::cerr, " "));
           std::cerr << std::endl;
 #endif
+          possibleMCS = checkIfRingsAreClosed(fs, Parameters.AtomCompareParameters.CompleteRingsOnly);
         }
         if (possibleMCS) {
 #ifdef DEBUG_FMCS
-          std::cerr << "2) possibleMCS " << possibleMCS << std::endl;
+          std::cerr << "2) possibleMCS"
+          //<< " fs.getNumAtoms() " << fs.getNumAtoms()
+          << " fs.getNumBonds() " << fs.getNumBonds()
+          //<< " atomIdx "
+          ;
+          auto as(fs.MoleculeFragment.AtomsIdx);
+          std::sort(as.begin(), as.end());
+          auto bs(fs.MoleculeFragment.BondsIdx);
+          std::sort(bs.begin(), bs.end());
+          //std::copy(as.begin(), as.end(), std::ostream_iterator<int>(std::cerr, " "));
+          std::cerr << " bondIdx "
+          ;
+          std::copy(bs.begin(), bs.end(), std::ostream_iterator<int>(std::cerr, " "));
+          std::cerr << std::endl;
 #endif
           mcsFound = true;
 #ifdef VERBOSE_STATISTICS_ON
@@ -954,13 +912,7 @@ MCSResult MaximumCommonSubgraph::find(const std::vector<ROMOL_SPTR>& src_mols) {
     }
 
     areSeedsEmpty = Seeds.empty();
-#ifdef DEBUG_FMCS
-    std::cerr << "before growSeeds" << std::endl;
-#endif
     res.Canceled = !(areSeedsEmpty || growSeeds());
-#ifdef DEBUG_FMCS
-    std::cerr << "after growSeeds" << std::endl;
-#endif
     // verify what MCS is equal to one of initial seed for chirality match
     if ((FinalMatchCheckFunction == Parameters.FinalMatchChecker &&
          1 == getMaxNumberBonds()) ||
@@ -1142,8 +1094,7 @@ bool MaximumCommonSubgraph::checkIfMatchAndAppend(Seed& seed) {
         ++VerboseStatistics.HashKeyFoundInCache;
 #endif
         // check hash collisions (time +3%):
-        for (SubstructureCache::TIndexEntry::const_iterator g =
-                 cacheEntry->begin();
+        for (auto g = cacheEntry->begin();
              !foundInCache && g != cacheEntry->end(); g++) {
           if (g->m_vertices.size() != seed.getNumAtoms() ||
               g->m_edges.size() != seed.getNumBonds()) {
@@ -1154,7 +1105,7 @@ bool MaximumCommonSubgraph::checkIfMatchAndAppend(Seed& seed) {
 #endif
           // EXACT MATCH
           foundInCache = SubstructMatchCustomTable(
-              (*g), *QueryMolecule, seed.Topology, *QueryMolecule,
+              *g, *QueryMolecule, seed.Topology, *QueryMolecule,
               QueryAtomMatchTable, QueryBondMatchTable, &Parameters);
 #ifdef VERBOSE_STATISTICS_ON
           if (foundInCache) {
@@ -1343,7 +1294,7 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed& seed, unsigned int itarge
       const Atom* atom =
           target.Molecule->getAtomWithIdx(newBondSourceAtomTargetIdx);
       for (const auto &nbri : boost::make_iterator_range(target.Molecule->getAtomBonds(atom))) {
-        auto tb = (*target.Molecule)[nbri];
+        tb = (*target.Molecule)[nbri];
         if (!match.VisitedTargetBonds[tb->getIdx()]) {
           newBondOtherAtomTargetIdx = tb->getBeginAtomIdx();
           if (newBondSourceAtomTargetIdx == newBondOtherAtomTargetIdx) {
@@ -1369,7 +1320,7 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed& seed, unsigned int itarge
             }
           }
 
-          // check AnotherAtom and bond
+          // check OtherAtom and bond
           matched =
               target.AtomMatchTable.at(newBondOtherAtomQueryIdx,
                                        newBondOtherAtomTargetIdx) &&

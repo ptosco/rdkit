@@ -16,6 +16,7 @@
 #include "Graph.h"
 
 namespace RDKit {
+
 struct MCSParameters;
 
 typedef enum {
@@ -102,10 +103,15 @@ RDKIT_FMCS_EXPORT bool MCSAtomCompareIsotopes(
 RDKIT_FMCS_EXPORT bool checkBondStereo(const MCSBondCompareParameters& p,
                                        const ROMol& mol1, unsigned int bond1,
                                        const ROMol& mol2, unsigned int bond2);
+
+RDKIT_FMCS_EXPORT bool havePairOfCompatibleRings(
+  const MCSBondCompareParameters& p,
+  const ROMol &mol1, unsigned int bond1,
+  const ROMol &mol2, unsigned int bond2);
+
 RDKIT_FMCS_EXPORT bool checkBondRingMatch(const MCSBondCompareParameters& p,
                                           const ROMol& mol1, unsigned int bond1,
-                                          const ROMol& mol2, unsigned int bond2,
-                                          void* v_ringMatchMatrixSet);
+                                          const ROMol& mol2, unsigned int bond2);
 
 RDKIT_FMCS_EXPORT bool MCSBondCompareAny(const MCSBondCompareParameters& p,
                                          const ROMol& mol1, unsigned int bond1,

@@ -21,7 +21,6 @@
 #include "DuplicatedSeedCache.h"
 #include "MatchTable.h"
 #include "TargetMatch.h"
-#include "RingMatchTableSet.h"
 
 namespace RDKit {
 
@@ -58,7 +57,6 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
   SubstructureCache HashCache;
   MatchTable QueryAtomMatchTable;
   MatchTable QueryBondMatchTable;
-  RingMatchTableSet RingMatchTables;
 #endif
 #ifdef DUP_SUBSTRUCT_CACHE
   DuplicatedSeedCache DuplicateCache;

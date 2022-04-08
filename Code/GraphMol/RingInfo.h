@@ -13,10 +13,13 @@
 
 #include <map>
 #include <vector>
-#ifdef RDK_USE_URF
 #include <RDGeneral/BoostStartInclude.h>
+#include <boost/dynamic_bitset.hpp>
+#ifdef RDK_USE_URF
 #include <boost/shared_ptr.hpp>
+#endif
 #include <RDGeneral/BoostEndInclude.h>
+#ifdef RDK_USE_URF
 #include <RingDecomposerLib.h>
 #endif
 
@@ -205,6 +208,9 @@ class RDKIT_GRAPHMOL_EXPORT RingInfo {
   bool areBondsInSameRingOfSize(unsigned int idx1, unsigned int idx2,
                                 unsigned int size) const;
 
+  bool isRingFused(unsigned int ringIdx);
+  bool areRingsFused(unsigned int ring1Idx, unsigned int ring2Idx);
+
 #ifdef RDK_USE_URF
   //! adds a ring family to our data
   /*!
@@ -259,10 +265,12 @@ class RDKIT_GRAPHMOL_EXPORT RingInfo {
  private:
   //! pre-allocates some memory to save time later
   void preallocate(unsigned int numAtoms, unsigned int numBonds);
+  void initFusedRings();
   bool df_init{false};
   DataType d_atomMembers, d_bondMembers;
   VECT_INT_VECT d_atomRings, d_bondRings;
   VECT_INT_VECT d_atomRingFamilies, d_bondRingFamilies;
+  std::vector<boost::dynamic_bitset<>> d_fusedRings;
 
 #ifdef RDK_USE_URF
  public:

@@ -21,6 +21,7 @@
 #include "SubstructMatchCustom.h"
 #include "MaximumCommonSubgraph.h"
 #include <GraphMol/QueryOps.h>
+#include "GraphMol/SmilesParse/SmilesWrite.h"
 
 namespace RDKit {
 
@@ -381,41 +382,69 @@ bool checkBondStereo(const MCSBondCompareParameters&, const ROMol& mol1,
   return true;
 }
 
-bool checkBondRingMatch(const MCSBondCompareParameters&, const ROMol&,
-                        unsigned int bond1, const ROMol& mol2,
-                        unsigned int bond2, void* v_ringMatchMatrixSet) {
-  if (!v_ringMatchMatrixSet) {
-    throw "v_ringMatchMatrixSet is NULL";  // never
+bool havePairOfCompatibleRings(const MCSBondCompareParameters&,
+  const ROMol &mol1, unsigned int bond1,
+  const ROMol &mol2, unsigned int bond2) {
+  const auto ringInfo1 = mol1.getRingInfo();
+  const auto ringInfo2 = mol2.getRingInfo();
+  const auto &bondRings1 = ringInfo1->bondRings();
+  const auto &bondRings2 = ringInfo2->bondRings();
+  for (unsigned int ringIdx1 : ringInfo1->bondMembers(bond1)) {
+    const auto &r1 = bondRings1.at(ringIdx1);
+    bool isRing1Fused = ringInfo1->isRingFused(ringIdx1);
+    for (unsigned int ringIdx2 : ringInfo2->bondMembers(bond2)) {
+      const auto &r2 = bondRings2.at(ringIdx2);
+      if (r1.size() == r2.size()) {
+        return true;
+      }
+      bool isRing2Fused = ringInfo2->isRingFused(ringIdx2);
+      if ((isRing1Fused && r2.size() > r1.size()) ||
+        (isRing2Fused && r1.size() > r2.size())) {
+        return true;
+      }
+    }
   }
-  auto* ringMatchMatrixSet =
-      static_cast<FMCS::RingMatchTableSet*>(v_ringMatchMatrixSet);
+  return false;
+}
 
-  const std::vector<size_t>& ringsIdx1 =
-      ringMatchMatrixSet->getQueryBondRings(bond1);  // indices of rings
-  const std::vector<size_t>& ringsIdx2 =
-      ringMatchMatrixSet->getTargetBondRings(&mol2, bond2);  // indices of rings
-  bool bond1inRing = !ringsIdx1.empty();
-  bool bond2inRing = !ringsIdx2.empty();
+bool checkBondRingMatch(const MCSBondCompareParameters& p, const ROMol& mol1,
+                        unsigned int bond1, const ROMol& mol2,
+                        unsigned int bond2) {
+  // indices of rings in the query molecule
+  const auto& ringIndices1 = mol1.getRingInfo()->bondMembers(bond1);
+  // indices of rings in the target molecule
+  const auto& ringIndices2 = mol2.getRingInfo()->bondMembers(bond2);
+  bool bond1inRing = !ringIndices1.empty();
+  bool bond2inRing = !ringIndices2.empty();
+  bool res = (bond1inRing == bond2inRing);
+  // if rings should be complete, we need to check upfront that there
+  // is at least one pair of compatible rings; if there isn't, there
+  // will never be a chance of complete match, so we should fail early
+#if 1
+  if (p.CompleteRingsOnly && bond1inRing && bond2inRing) {
+    res = havePairOfCompatibleRings(p, mol1, bond1, mol2, bond2);
+  }
+#endif
 
   // bond are both either in a ring or not
-  return (bond1inRing == bond2inRing);
+  return res;
 }
 
 bool MCSBondCompareAny(const MCSBondCompareParameters& p, const ROMol& mol1,
                        unsigned int bond1, const ROMol& mol2,
-                       unsigned int bond2, void* ud) {
+                       unsigned int bond2, void*) {
   if (p.MatchStereo && !checkBondStereo(p, mol1, bond1, mol2, bond2)) {
     return false;
   }
   if (p.RingMatchesRingOnly) {
-    return checkBondRingMatch(p, mol1, bond1, mol2, bond2, ud);
+    return checkBondRingMatch(p, mol1, bond1, mol2, bond2);
   }
   return true;
 }
 
 bool MCSBondCompareOrder(const MCSBondCompareParameters& p, const ROMol& mol1,
                          unsigned int bond1, const ROMol& mol2,
-                         unsigned int bond2, void* ud) {
+                         unsigned int bond2, void*) {
   static const BondMatchOrderMatrix match(true);  // ignore Aromatization
   const Bond* b1 = mol1.getBondWithIdx(bond1);
   const Bond* b2 = mol2.getBondWithIdx(bond2);
@@ -426,7 +455,7 @@ bool MCSBondCompareOrder(const MCSBondCompareParameters& p, const ROMol& mol1,
       return false;
     }
     if (p.RingMatchesRingOnly) {
-      return checkBondRingMatch(p, mol1, bond1, mol2, bond2, ud);
+      return checkBondRingMatch(p, mol1, bond1, mol2, bond2);
     }
     return true;
   }
@@ -435,7 +464,7 @@ bool MCSBondCompareOrder(const MCSBondCompareParameters& p, const ROMol& mol1,
 
 bool MCSBondCompareOrderExact(const MCSBondCompareParameters& p,
                               const ROMol& mol1, unsigned int bond1,
-                              const ROMol& mol2, unsigned int bond2, void* ud) {
+                              const ROMol& mol2, unsigned int bond2, void*) {
   static const BondMatchOrderMatrix match(false);  // AROMATIC != SINGLE
   const Bond* b1 = mol1.getBondWithIdx(bond1);
   const Bond* b2 = mol2.getBondWithIdx(bond2);
@@ -446,7 +475,7 @@ bool MCSBondCompareOrderExact(const MCSBondCompareParameters& p,
       return false;
     }
     if (p.RingMatchesRingOnly) {
-      return checkBondRingMatch(p, mol1, bond1, mol2, bond2, ud);
+      return checkBondRingMatch(p, mol1, bond1, mol2, bond2);
     }
     return true;
   }
@@ -459,11 +488,11 @@ inline bool ringFusionCheck(const std::uint32_t c1[], const std::uint32_t c2[],
                             const ROMol& mol2, const FMCS::Graph& target,
                             const MCSParameters* p) {
   PRECONDITION(p, "p must not be NULL");
-  const RingInfo* ri2 = mol2.getRingInfo();
-  const VECT_INT_VECT& br2 = ri2->bondRings();
+  const auto ri2 = mol2.getRingInfo();
+  const auto& br2 = ri2->bondRings();
   std::vector<size_t> nonFusedBonds(br2.size(), 0);
   std::vector<size_t> numMcsBondRings(br2.size(), 0);
-  RDKit::FMCS::Graph::BOND_ITER_PAIR bpIter = boost::edges(query);
+  auto bpIter = boost::edges(query);
   size_t i = 0;
   // numMcsBondRings stores the number of bonds which
   // are part of the MCS for each ring
@@ -549,8 +578,8 @@ inline bool ringFusionCheck(const std::uint32_t c1[], const std::uint32_t c2[],
     if (!p->BondCompareParameters.MatchFusedRingsStrict) {
       missingFusedBond = false;
     }
-    const RingInfo* ri1 = mol1.getRingInfo();
-    const VECT_INT_VECT& br1 = ri1->bondRings();
+    const auto ri1 = mol1.getRingInfo();
+    const auto& br1 = ri1->bondRings();
     std::set<unsigned int> mcsRingBondIdxSet;
     // put all MCS bond indices which belong to one or more rings in a set
     for (auto it = bpIter.first; it != bpIter.second; ++it) {
