@@ -151,7 +151,7 @@ void MaximumCommonSubgraph::init() {
     if (!Parameters.CompareFunctionsUserData && (Parameters.BondCompareParameters.CompleteRingsOnly ||
                       Parameters.BondCompareParameters.RingMatchesRingOnly)) {
       // is bond in ring
-      ring = QueryMolecule->getRingInfo()->bondMembers(aj).size() ? 0 : 1;
+      ring = QueryMolecule->getRingInfo()->numBondRings(aj) ? 0 : 1;
     }
     if (MCSBondCompareAny == Parameters.BondTyper) {
       QueryBondLabels[aj] = 1 | (ring >> 8);

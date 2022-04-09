@@ -42,7 +42,7 @@ class MolMatchFinalCheckFunctor {
     if ((unsigned int)c1[0] >= boost::num_vertices(QueryTopology)) {
       return false;  // invalid index - match failed, see v2f implementation
     }
-    MCSFinalMatchCheckFunction compare =
+    auto compare =
         Parameters ? Parameters->FinalMatchChecker : nullptr;
     return compare ? compare(c1, c2, d_query, QueryTopology, d_mol,
                              TargetTopology, Parameters)

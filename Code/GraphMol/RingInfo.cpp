@@ -210,6 +210,19 @@ bool RingInfo::areRingsFused(unsigned int ring1Idx, unsigned int ring2Idx) {
   return d_fusedRings.at(ring1Idx).test(ring2Idx);
 }
 
+unsigned int RingInfo::numFusedBonds(unsigned int ringIdx) {
+  PRECONDITION(ringIdx < d_bondRings.size(), "ringIdx out of bounds");
+  if (d_numFusedBonds.empty()) {
+    d_numFusedBonds.resize(d_bondRings.size(), 0);
+    for (unsigned int ri; ri < d_bondRings.size(); ++ri) {
+      d_numFusedBonds[ri] += std::count_if(d_bondRings[ri].begin(), d_bondRings[ri].end(), [this](unsigned int bi) {
+        return numBondRings(bi) > 1;
+      });
+    }
+  }
+  return d_numFusedBonds[ringIdx];
+}
+
 void RingInfo::initFusedRings() {
   if (d_bondRings.empty()) {
     return;
