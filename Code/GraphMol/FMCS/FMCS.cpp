@@ -390,6 +390,19 @@ bool checkBondStereo(const MCSBondCompareParameters&, const ROMol& mol1,
   return true;
 }
 
+bool checkRingNbrs(const RingInfo &ri, unsigned int ringIdx, unsigned int otherRingSize) {
+  if (ri->numFusedRingNeighbors(ringIdx) == 1) {
+    unsigned int nbrRingIdx = ri->fusedRingNeighbors(ringIdx).front();
+    if (ri->numFusedRingNeighbors(nbrRingIdx) == 1 &&
+      bondRings[ringIdx].size() + bondRings[nbrRingIdx].size() - ri->numFusedBonds(ringIdx) == otherRingSize) {
+      return true;
+    }
+  } else {
+    return true;
+  }
+  return false;
+}
+
 bool havePairOfCompatibleRings(const MCSBondCompareParameters&,
   const ROMol &mol1, unsigned int bond1,
   const ROMol &mol2, unsigned int bond2) {
@@ -405,9 +418,11 @@ bool havePairOfCompatibleRings(const MCSBondCompareParameters&,
       if (ring1.size() == ring2.size()) {
         return true;
       }
+      if (isRing1Fused && ring2.size() > ring1.size()) {
+        return true;
+      }
       bool isRing2Fused = ri2->isRingFused(ringIdx2);
-      if ((isRing1Fused && ring2.size() > ring1.size()) ||
-        (isRing2Fused && ring1.size() > ring2.size())) {
+      if (isRing2Fused && ring1.size() > ring2.size()) {
         return true;
       }
     }
