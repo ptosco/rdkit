@@ -46,6 +46,54 @@ class JSMol {
   std::string get_pattern_fp_as_binary_text() const {
     return get_pattern_fp_as_binary_text(2048);
   }
+  std::string get_topological_torsion_fp(unsigned int len) const;
+  std::string get_topological_torsion_fp() const {
+    return get_topological_torsion_fp(2048);
+  };
+  std::string get_topological_torsion_fp_as_binary_text(unsigned int len) const;
+  std::string get_topological_torsion_fp_as_binary_text() const {
+    return get_topological_torsion_fp_as_binary_text(2048);
+  }
+  std::string get_rdk_fp(unsigned int len, int minPath, int maxPath) const;
+  std::string get_rdk_fp(unsigned int len, int minPath) const {
+    return get_rdk_fp(len, int minPath, 30);
+  }
+  std::string get_rdk_fp(unsigned int len) const {
+    return get_rdk_fp(len, 1, 30);
+  }
+  std::string get_rdk_fp() const {
+    return get_rdk_fp(2048, 1, 30);
+  }
+  std::string get_rdk_fp_as_binary_text(unsigned int len, int minPath, int maxPath) const;
+  std::string get_rdk_fp_as_binary_text(unsigned int len, int minPath) const {
+    return get_rdk_fp_as_binary_text(len, int minPath, 30);
+  }
+  std::string get_rdk_fp_as_binary_text(unsigned int len) const {
+    return get_rdk_fp_as_binary_text(len, 1, 30);
+  }
+  std::string get_rdk_fp_as_binary_text() const {
+    return get_rdk_fp_as_binary_text(2048, 1, 30);
+  }
+  std::string get_atom_pair_fp(unsigned int len, int minDistance, int maxDistance) const;
+  std::string get_atom_pair_fp(unsigned int len, int minDistance) const {
+    return get_atom_pair_fp(len, int minDistance, 30);
+  }
+  std::string get_atom_pair_fp(unsigned int len) const {
+    return get_atom_pair_fp(len, 1, 30);
+  }
+  std::string get_atom_pair_fp() const {
+    return get_atom_pair_fp(2048, 1, 30);
+  }
+  std::string get_atom_pair_fp_as_binary_text(unsigned int len, int minDistance, int maxDistance) const;
+  std::string get_atom_pair_fp_as_binary_text(unsigned int len, int minDistance) const {
+    return get_atom_pair_fp_as_binary_text(len, int minDistance, 30);
+  }
+  std::string get_atom_pair_fp_as_binary_text(unsigned int len) const {
+    return get_atom_pair_fp_as_binary_text(len, 1, 30);
+  }
+  std::string get_atom_pair_fp_as_binary_text() const {
+    return get_atom_pair_fp_as_binary_text(2048, 1, 30);
+  }
   std::string condense_abbreviations(double maxCoverage, bool useLinkers);
   std::string condense_abbreviations() {
     return condense_abbreviations(0.4, false);
