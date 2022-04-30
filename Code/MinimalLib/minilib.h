@@ -94,6 +94,14 @@ class JSMol {
   std::string get_atom_pair_fp_as_binary_text() const {
     return get_atom_pair_fp_as_binary_text(2048, 1, 30);
   }
+  #ifdef RDK_BUILD_AVALON_SUPPORT
+  std::string get_avalon_fp(unsigned int len) const;
+  std::string get_avalon_fp() const { return get_avalon_fp(512); }
+  std::string get_avalon_fp_as_binary_text(unsigned int len) const;
+  std::string get_avalon_fp_as_binary_text() const {
+    return get_avalon_fp_as_binary_text(512);
+  }
+  #endif
   std::string condense_abbreviations(double maxCoverage, bool useLinkers);
   std::string condense_abbreviations() {
     return condense_abbreviations(0.4, false);
