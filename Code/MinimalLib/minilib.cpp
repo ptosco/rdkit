@@ -116,7 +116,9 @@ std::string JSMol::get_json() const {
 }
 
 std::string JSMol::get_pickle() const {
-  if (!d_mol) return std::string();
+  if (!d_mol) {
+    return "";
+  }
   std::string pickle;
   MolPickler::pickleMol(*d_mol, pickle);
   return pickle;
@@ -124,7 +126,9 @@ std::string JSMol::get_pickle() const {
 
 std::string JSMol::get_substruct_match(const JSMol &q) const {
   std::string res = "{}";
-  if (!d_mol || !q.d_mol) return res;
+  if (!d_mol || !q.d_mol) {
+    return res;
+  }
 
   MatchVectType match;
   if (SubstructMatch(*d_mol, *(q.d_mol), match)) {
@@ -142,7 +146,9 @@ std::string JSMol::get_substruct_match(const JSMol &q) const {
 
 std::string JSMol::get_substruct_matches(const JSMol &q) const {
   std::string res = "{}";
-  if (!d_mol || !q.d_mol) return res;
+  if (!d_mol || !q.d_mol) {
+    return res;
+  }
 
   auto matches = SubstructMatch(*d_mol, (*q.d_mol));
   if (!matches.empty()) {
@@ -165,7 +171,9 @@ std::string JSMol::get_substruct_matches(const JSMol &q) const {
 }
 
 std::string JSMol::get_descriptors() const {
-  if (!d_mol) return "{}";
+  if (!d_mol) {
+    return "{}";
+  }
   return MinimalLib::get_descriptors(*d_mol);
 }
 
@@ -301,7 +309,9 @@ std::string get_avalon_fp_as_binary_text(unsigned int fplen) const {
 #endif
 
 std::string JSMol::get_stereo_tags() const {
-  if (!d_mol) return "{}";
+  if (!d_mol) {
+    return "{}";
+  }
   rj::Document doc;
   doc.SetObject();
 
@@ -384,7 +394,9 @@ std::string JSMol::get_kekule_form() const {
 }
 
 bool JSMol::set_new_coords(bool useCoordGen) {
-  if (!d_mol) return false;
+  if (!d_mol) {
+    return false;
+  }
 
 #ifdef RDK_BUILD_COORDGEN_SUPPORT
   bool oprefer = RDDepict::preferCoordGen;
@@ -483,8 +495,9 @@ std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
                                            bool useCoordGen, bool allowRGroups,
                                            bool acceptFailure) {
   std::string res;
-  if (!d_mol || !templateMol.d_mol || !templateMol.d_mol->getNumConformers())
+  if (!d_mol || !templateMol.d_mol || !templateMol.d_mol->getNumConformers()) {
     return res;
+  }
 
 #ifdef RDK_BUILD_COORDGEN_SUPPORT
   bool oprefer = RDDepict::preferCoordGen;
@@ -513,16 +526,23 @@ std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
 }
 
 double JSMol::normalize_depiction(int canonicalize, double scaleFactor) {
-  if (!d_mol || !d_mol->getNumAtoms() || !d_mol->getNumConformers()) return -1.;
+  if (!d_mol || !d_mol->getNumAtoms() || !d_mol->getNumConformers()) {
+    return -1.;
+  }
   return RDDepict::normalizeDepiction(*d_mol, -1, canonicalize, scaleFactor);
 }
 
 void JSMol::straighten_depiction() {
-  if (!d_mol || !d_mol->getNumAtoms() || !d_mol->getNumConformers()) return;
+  if (!d_mol || !d_mol->getNumAtoms() || !d_mol->getNumConformers()) {
+    return;
+  }
   RDDepict::straightenDepiction(*d_mol, -1);
 }
 
 std::string JSMol::compute_hash() {
+  if (!d_mol) {
+    return "";
+  }
   std::unique_ptr<ROMol> hashMol(new ROMol(*d_mol));
   auto smi = MolToSmiles(*hashMol);
   if (hashMol->hasProp(common_properties::_smilesAtomOutputOrder)) {

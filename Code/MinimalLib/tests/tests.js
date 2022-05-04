@@ -703,10 +703,72 @@ function test_flexicanvas() {
 }
 
 function test_rxn_drawing() {
-    var rxn = RDKitModule.get_reaction('[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15]>C(Cl)Cl.C(=O)(C(=O)Cl)Cl>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]');
-    var svg = rxn.get_svg_with_highlights(JSON.stringify({ kekulize: false }));
-    console.log(`*** SVG ***\n-----------\n${svg}`);
-    rxn.delete();
+    {
+        var rxn = RDKitModule.get_reaction("[CH3:1][OH:2]>>[CH2:1]=[OH0:2]");
+        var svg = rxn.get_svg();
+        assert(svg.search("svg") > 0);
+        var rxn_from_block = RDKitModule.get_reaction(`$RXN
+
+      RDKit
+
+  1  1
+$MOL
+
+     RDKit          2D
+
+  2  1  0  0  0  0  0  0  0  0999 V2000
+    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  1  0  0
+    1.2990    0.7500    0.0000 O   0  0  0  0  0  0  0  0  0  2  0  0
+  1  2  6  0
+V    1 [C&H3:1]
+V    2 [O&H1:2]
+M  END
+$MOL
+
+     RDKit          2D
+
+  2  1  0  0  0  0  0  0  0  0999 V2000
+    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  1  0  0
+    1.2990    0.7500    0.0000 O   0  0  0  0  0  0  0  0  0  2  0  0
+  1  2  2  0
+V    1 [C&H2:1]
+V    2 [O&H0:2]
+M  END`);
+        var svg_from_block = rxn_from_block.get_svg();
+        assert(svg_from_block.search("svg") > 0);
+        assert(svg.match(/<path/g).length > 0);
+        assert(svg.match(/<path/g).length === svg_from_block.match(/<path/g).length);
+    }
+    {
+        var rxn = RDKitModule.get_reaction("[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15]>C(Cl)Cl.C(=O)(C(=O)Cl)Cl>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]",
+                                        JSON.stringify({ useSmiles: true }));
+        {
+            var svg = rxn.get_svg();
+            assert(svg.search("svg") > 0);
+            assert(svg.search("stroke-dasharray" < 0));
+        }
+        {
+            var svg = rxn.get_svg_with_highlights(JSON.stringify({ kekulize: false }));
+            assert(svg.search("svg") > 0);
+            assert(svg.search("stroke-dasharray" > 0));
+        }
+        rxn.delete();
+    }
+    {
+        var rxn = RDKitModule.get_reaction("[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15]>C(Cl)Cl.C(=O)(C(=O)Cl)Cl>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]");
+        var hasThrown = false;
+        var isAromatic = false;
+        // if the code is built with exception support it will not throw
+        // but rather display molecules in their aromatic form rather
+        // than kekulized
+        try {
+            var svg = rxn.get_svg();
+            isAromatic = svg.search("stroke-dasharray" > 0);
+        } catch {
+            hasThrown = true;
+        }
+        assert(isAromatic || hasThrown);
+    }
 }
 
 
