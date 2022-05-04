@@ -746,11 +746,40 @@ M  END`);
             var svg = rxn.get_svg();
             assert(svg.search("svg") > 0);
             assert(svg.search("stroke-dasharray" < 0));
+            assert(svg.search("ellipse") < 0);
         }
         {
             var svg = rxn.get_svg_with_highlights(JSON.stringify({ kekulize: false }));
             assert(svg.search("svg") > 0);
             assert(svg.search("stroke-dasharray" > 0));
+            assert(svg.search("ellipse") < 0);
+        }
+        {
+            var svg = rxn.get_svg_with_highlights(JSON.stringify({ highlightByReactant: true }));
+            assert(svg.search("svg") > 0);
+            assert(svg.search("stroke-dasharray" < 0));
+            assert(svg.search("ellipse") > 0);
+            assert(svg.search("#BCD6ED") < 0);
+            assert(svg.search("#A8D08D") < 0);
+        }
+        {
+            var svg = rxn.get_svg_with_highlights(JSON.stringify({
+                highlightColorsReactants: [[.741, .843, .933], [.659, .816, .553]]
+            }));
+            assert(svg.search("svg") > 0);
+            assert(svg.search("stroke-dasharray" < 0));
+            assert(svg.search("ellipse") < 0);
+        }
+        {
+            var svg = rxn.get_svg_with_highlights(JSON.stringify({
+                highlightByReactant: true,
+                highlightColorsReactants: [[.741, .843, .933], [.659, .816, .553]]
+            }));
+            assert(svg.search("svg") > 0);
+            assert(svg.search("stroke-dasharray" < 0));
+            assert(svg.search("ellipse") > 0);
+            assert(svg.search("#BCD6ED") > 0);
+            assert(svg.search("#A8D08D") > 0);
         }
         rxn.delete();
     }

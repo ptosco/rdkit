@@ -149,9 +149,13 @@ std::string draw_rxn_to_canvas_with_highlights(JSReaction &self,
     MolDraw2DUtils::updateDrawerParamsFromJSON(*d2d, details);
   }
   d2d->setOffset(offsetx, offsety);
-  d2d->drawReaction(
-      *self.d_rxn, highlightByReactant,
-      highlightColorsReactants.empty() ? nullptr : &highlightColorsReactants);
+  if (!kekulize) {
+    d2d->drawOptions().prepareMolsBeforeDrawing = false;
+  }
+  d2d->drawReaction(*self.d_rxn, highlightByReactant,
+                    !highlightByReactant || highlightColorsReactants.empty()
+                        ? nullptr
+                        : &highlightColorsReactants);
   return "";
 }
 
