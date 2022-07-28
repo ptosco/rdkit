@@ -119,9 +119,10 @@ from rdkit.Chem import SDWriter
 from rdkit.Chem import rdchem
 from rdkit.Chem.Scaffolds import MurckoScaffold
 InteractiveRenderer = None
+drawOptions = None
 if hasattr(rdkit, 'IPythonConsole'):
   try:
-    from rdkit.Chem.Draw.IPythonConsole import InteractiveRenderer
+    from rdkit.Chem.Draw.IPythonConsole import InteractiveRenderer, drawOptions
   except ImportError:
     pass
 
@@ -214,56 +215,18 @@ def _patched_get_adjustment():
   return RenderMoleculeAdjustment(inner_adjustment)
 
 
-def patchPandasrepr(self, **kwargs):
-  """  used to patch DataFrame._repr_html_ in pandas version > 0.25.0
-  """
-  global defHTMLFormatter_write_cell
-  global defPandasGetAdjustment
-
+def callWhilePandasIsPatched(func, self, **kwargs):
   import pandas.io.formats.html
-  defHTMLFormatter_write_cell = pd.io.formats.html.HTMLFormatter._write_cell
-  pd.io.formats.html.HTMLFormatter._write_cell = _patched_HTMLFormatter_write_cell
-  try:
-    get_adjustment_attr = getAdjustmentAttr()
-    if get_adjustment_attr:
-      defPandasGetAdjustment = getattr(pd.io.formats.format, get_adjustment_attr)
-      setattr(pd.io.formats.format, get_adjustment_attr, _patched_get_adjustment)
-    res = defPandasRepr(self, **kwargs)
-    if get_adjustment_attr:
-      setattr(pd.io.formats.format, get_adjustment_attr, defPandasGetAdjustment)
-    return res
-  finally:
-    pd.io.formats.html.HTMLFormatter._write_cell = defHTMLFormatter_write_cell
-
-
-def patchPandasHTMLrepr(self, **kwargs):
-  """A patched version of the DataFrame.to_html method that allows rendering
-    molecule images in data frames.
-  """
   global defHTMLFormatter_write_cell
   global defPandasGetAdjustment
-
-  # Two things have to be done:
-  # 1. Disable escaping of HTML in order to render img / svg tags
-  # 2. Avoid truncation of data frame values that contain HTML content
-
-  # The correct patch requires that two private methods in pandas exist. If
-  # this is not the case, use a working but suboptimal patch:
-  def patch_v1():
-    with pd.option_context('display.max_colwidth', -1):  # do not truncate
-      kwargs['escape'] = False  # disable escaping
-      return defPandasRendering(self, **kwargs)
-
-  try:
-    import pandas.io.formats.html  # necessary for loading HTMLFormatter
-  except Exception:
-    # this happens up until at least pandas v0.22
-    return patch_v1()
-  get_adjustment_attr = getAdjustmentAttr()
 
   if (not hasattr(pd.io.formats.html, 'HTMLFormatter')
-      or not hasattr(pd.io.formats.html.HTMLFormatter, '_write_cell') or not get_adjustment_attr):
-    return patch_v1()
+      or not hasattr(pd.io.formats.html.HTMLFormatter, '_write_cell')):
+    return None
+
+  get_adjustment_attr = getAdjustmentAttr()
+  if not get_adjustment_attr:
+    return None
 
   # The "clean" patch:
   # 1. Temporarily set escape=False in HTMLFormatter._write_cell
@@ -278,24 +241,45 @@ def patchPandasHTMLrepr(self, **kwargs):
 
   # store original _get_adjustment method
   defPandasGetAdjustment = getattr(pd.io.formats.format, get_adjustment_attr)
+  # patch methods and call original to_html function
+  pd.io.formats.html.HTMLFormatter._write_cell = _patched_HTMLFormatter_write_cell
+  setattr(pd.io.formats.format, get_adjustment_attr, _patched_get_adjustment)
 
   try:
-    # patch methods and call original to_html function
-    setattr(pd.io.formats.format, get_adjustment_attr, _patched_get_adjustment)
-    pd.io.formats.html.HTMLFormatter._write_cell = _patched_HTMLFormatter_write_cell
-    res = defPandasRendering(self, **kwargs)
+    res = func(self, **kwargs)
     return (InteractiveRenderer.injectHTMLHeaderBeforeTable(res)
       if InteractiveRenderer and InteractiveRenderer.isEnabled() else res)
   except Exception:
-    pass
+    return None
   finally:
     # restore original methods
     setattr(pd.io.formats.format, get_adjustment_attr, defPandasGetAdjustment)
     pd.io.formats.html.HTMLFormatter._write_cell = defHTMLFormatter_write_cell
 
-  # If this point is reached, an error occurred in the previous try block.
-  # Use old patch:
-  return patch_v1()
+
+def patchPandasrepr(self, **kwargs):
+  """  used to patch DataFrame._repr_html_ in pandas version > 0.25.0
+  """
+  return callWhilePandasIsPatched(defPandasRepr, self, **kwargs)
+
+
+def patchPandasHTMLrepr(self, **kwargs):
+  """A patched version of the DataFrame.to_html method that allows rendering
+    molecule images in data frames.
+  """
+  # Two things have to be done:
+  # 1. Disable escaping of HTML in order to render img / svg tags
+  # 2. Avoid truncation of data frame values that contain HTML content
+
+  # The correct patch requires that two private methods in pandas exist. If
+  # this is not the case, use a working but suboptimal patch:
+  def patch_v1():
+    with pd.option_context('display.max_colwidth', -1):  # do not truncate
+      kwargs['escape'] = False  # disable escaping
+      return defPandasRendering(self, **kwargs)
+
+  res = callWhilePandasIsPatched(defPandasRendering, self, **kwargs)
+  return res or patch_v1()
 
 
 def is_molecule_image(s):
@@ -379,9 +363,11 @@ def _molge(x, y):
   else:
     return False
 
-def PrintAsBase64PNGString(x, renderer=None):
+def PrintAsBase64PNGString(x):
   '''returns the molecules as base64 encoded PNG image
     '''
+  with open("/tmp/PrintAsBase64PNGString.log", "a") as hnd:
+    hnd.write("PrintAsBase64PNGString x " + PrintDefaultMolRep(x) + "\n")
   if highlightSubstructures and hasattr(x, '__sssAtoms'):
     highlightAtoms = x.__sssAtoms
   else:
@@ -399,7 +385,7 @@ def PrintAsBase64PNGString(x, renderer=None):
     return InteractiveRenderer.generateHTMLBody(useSvg, x, size)
   else:
     if useSvg:
-      svg = Draw._moltoSVG(x, molSize, highlightAtoms, "", True)
+      svg = Draw._moltoSVG(x, molSize, highlightAtoms, "", kekulize=True, drawOptions=drawOptions)
       svg = minidom.parseString(svg)
       svg = svg.getElementsByTagName('svg')[0]
       svg.attributes['viewbox'] = f'0 0 {molSize[0]} {molSize[1]}'
@@ -407,9 +393,12 @@ def PrintAsBase64PNGString(x, renderer=None):
       svg.attributes['data-content'] = 'rdkit/molecule'
       return svg.toxml()
     else:
-      data = Draw._moltoimg(x, molSize, highlightAtoms, "", returnPNG=True, kekulize=True)
-      return '<img data-content="rdkit/molecule" src="data:image/png;base64,%s" alt="Mol"/>' % _get_image(
-        data)
+      data = Draw._moltoimg(x, molSize, highlightAtoms, "", returnPNG=True, kekulize=True, drawOptions=drawOptions)
+      return (
+        f'<div style="width: {molSize[0]}px; height: {molSize[1]}px" data-content="rdkit/molecule">'
+         '<img src="data:image/png;base64,%s" alt="Mol"/>'
+         '</div>' % _get_image(data)
+      )
 
 
 def PrintDefaultMolRep(x):
@@ -473,7 +462,7 @@ def ChangeMoleculeRendering(frame=None, renderer='PNG'):
   if frame is not None:
     frame.to_html = types.MethodType(patchPandasHTMLrepr, frame)
     if defPandasRepr is not None:
-      frame._repr_html_ = types.MethodType(defPandasRepr, frame)
+      frame._repr_html_ = types.MethodType(patchPandasrepr, frame)
 
 
 def LoadSDF(filename, idName='ID', molColName='ROMol', includeFingerprints=False,
@@ -523,8 +512,9 @@ def LoadSDF(filename, idName='ID', molColName='ROMol', includeFingerprints=False
 
   if close is not None:
     close()
-  RenderImagesInAllDataFrames(images=True)
-  return pd.DataFrame(records, index=indices)
+  df = pd.DataFrame(records, index=indices)
+  ChangeMoleculeRendering(df)
+  return df
 
 
 def WriteSDF(df, out, molColName='ROMol', idName=None, properties=None, allNumeric=False):

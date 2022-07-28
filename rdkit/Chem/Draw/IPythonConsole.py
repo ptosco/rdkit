@@ -364,10 +364,14 @@ _methodsToDelete = []
 
 
 def InstallIPythonRenderer():
+  with open("/tmp/PrintAsBase64PNGString.log", "a") as hnd:
+    hnd.write(f"1) InstallIPythonRenderer\n")
   global _MolsToGridImageSaved, _DrawRDKitBitSaved, _DrawRDKitBitsSaved, _DrawMorganBitSaved, _DrawMorganBitsSaved
   global _rendererInstalled
   if _rendererInstalled:
     return
+  with open("/tmp/PrintAsBase64PNGString.log", "a") as hnd:
+    hnd.write(f"2) InstallIPythonRenderer\n")
   rdchem.Mol._repr_png_ = _toPNG
   rdchem.Mol._repr_svg_ = _toSVG
   _methodsToDelete.append((rdchem.Mol, '_repr_png_'))

@@ -191,7 +191,7 @@ def injectHTMLHeaderBeforeTable(html):
   return html
 
 def generateHTMLHeader(doc, element):
-  element_parent = element.parentNode
+  div = doc.createElement("div")
   script = doc.createElement("script")
   script.setAttribute("type", "module")
   # avoid arrow function as minidom encodes => into HTML (grrr)
@@ -209,7 +209,9 @@ import('{rdkitStructureRendererJsUrl}').then(
 ).catch();
 }} catch {{}}""")
   script.appendChild(cmd)
-  element_parent.appendChild(script)
+  div.appendChild(script)
+  div.appendChild(element)
+  doc.appendChild(div)
   html = doc.toxml()
   return html
 
@@ -281,4 +283,7 @@ def generateHTMLBody(useSvg, mol, size, drawOptions=None):
   if useSvg:
     div.setAttribute("data-use-svg", "true")
   doc.appendChild(div)
-  return xmlToNewline(div.toxml())
+  res = xmlToNewline(div.toxml())
+  with open("/tmp/PrintAsBase64PNGString.log", "a") as hnd:
+    hnd.write(f"generateHTMLBody mol {str(mol.__repr__())} uuid {unique_id} res {res}\n")
+  return res
