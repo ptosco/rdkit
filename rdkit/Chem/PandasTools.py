@@ -165,6 +165,8 @@ from xml.parsers.expat import ExpatError
 
 log = logging.getLogger(__name__)
 pd = None
+RDK_MOLS_AS_IMAGE_ATTR = "__rdkitMolAsImage"
+RDK_MOLS_TO_HTML_ATTR = "__rdkitMolToHtml"
 _originalSettings = {}
 
 highlightSubstructures = True
@@ -183,84 +185,6 @@ def _getPandasVersion():
 
 def patchPandas():
   global pd
-  pandas_has_func = False
-  pandas_module_name = None
-  for pandas_module_name in (
-    "pandas.io.formats.printing",
-    "pandas.formats.printing",
-    "pandas.core.common"
-  ):
-    try:
-      print(f"pandas_module_name {pandas_module_name}")
-      pprint_thing_module = importlib.import_module(pandas_module_name)
-      if hasattr(pprint_thing_module, "pprint_thing"):
-        pandas_has_func = True
-        break
-    except ModuleNotFoundError:
-      pprint_thing_module = None
-  if pprint_thing_module is None:
-    print("Failed to find pandas module to be patched", file=sys.stderr)
-    return
-  elif not pandas_has_func:
-    print(f"Failed to find pandas function to be patched in {pandas_module_name}", file=sys.stderr)
-    return
-  _originalSettings["pprint_thing_module"] = pprint_thing_module
-
-  def _patched_pprint_thing(s, **kwargs):
-    print(f'_patched_pprint_thing s {str(type(s))} png {hasattr(_patched_pprint_thing, "png")}')
-    if hasattr(_patched_pprint_thing, "png") and isinstance(s, Chem.Mol):
-      kwargs['escape_chars'] = {}
-      s = PrintAsBase64PNGString(s)
-    return _originalSettings['orig_pprint_thing'](s, **kwargs)
-
-  if "orig_pprint_thing" not in _originalSettings:
-    _originalSettings['orig_pprint_thing'] = getattr(pprint_thing_module, "pprint_thing")
-    setattr(pprint_thing_module, "pprint_thing", _patched_pprint_thing)
-
-  try:
-    import pandas.core.frame
-    import pandas.io.formats.html
-    import pandas.io.formats.format
-  except ImportError:
-    print("Failed to import pandas modules to be patched", file=sys.stderr)
-    return
-
-  if not (hasattr(pandas.io.formats.html, 'HTMLFormatter')
-      and hasattr(pandas.io.formats.html.HTMLFormatter, '_write_cell')):
-    print(f"Failed to find pandas function to be patched in pandas.io.formats.html", file=sys.stderr)
-    return
-
-  # Github #3701 was a problem with a private function being renamed (made public) in
-  # pandas v1.2. Rather than relying on version numbers we just use getattr:
-  get_adjustment_attr = ((hasattr(pandas.io.formats.format, '_get_adjustment') and '_get_adjustment')
-    or (hasattr(pandas.io.formats.format, 'get_adjustment') and 'get_adjustment') or None)
-  if not get_adjustment_attr:
-    print(f"Failed to find get_adjustment function to be patched in pandas.io.formats.format", file=sys.stderr)
-    return
-
-  try:
-    import pandas as pd
-  except ImportError:
-    print(f"Failed to import pandas", file=sys.stderr)
-    return
-
-
-  def is_molecule_image(s):
-    result = False
-    try:
-      # is text valid XML / HTML?
-      xml = minidom.parseString(s)
-      root_node = xml.firstChild
-      # check data-content attribute
-      if (root_node.nodeName in ['svg', 'img', 'div'] and
-          'data-content' in root_node.attributes.keys() and
-          root_node.attributes['data-content'].value == 'rdkit/molecule'):
-        result = True
-    except ExpatError:
-      pass  # parsing xml failed and text is not a molecule image
-    return result
-
-
   class RenderMoleculeAdjustment:
     """Pandas uses TextAdjustment objects to measure the length of texts
     (e.g. for east asian languages). We take advantage of this mechanism
@@ -296,82 +220,83 @@ def patchPandas():
     as images.
     """
     styleRegex = re.compile("^(.*style=[\"'][^\"^']*)([\"'].*)$")
-    orig_to_html = pandas.core.frame.DataFrame.to_html
-    orig_repr_html_ = pandas.core.frame.DataFrame._repr_html_ \
-      if _getPandasVersion() > (0, 25, 0) else None
-    orig_get_adjustment = getattr(pandas.io.formats.format, get_adjustment_attr)
-    orig_HTMLFormatter_write_cell = pandas.io.formats.html.HTMLFormatter._write_cell
 
     def __enter__(self):
-      print(f"PandasPatcher.__enter__ pprint_thing_module {pprint_thing_module}")
       setattr(pandas.io.formats.format,
               get_adjustment_attr, PandasPatcher._patched_get_adjustment)
-      setattr(_patched_pprint_thing, "png", True)
-      pandas.io.formats.html.HTMLFormatter._write_cell = \
-        PandasPatcher._patched_HTMLFormatter_write_cell
       return self
 
     def __exit__(self, *args, **kwargs):
       print("PandasPatcher.__exit__")
       setattr(pandas.io.formats.format, get_adjustment_attr, PandasPatcher.orig_get_adjustment)
-      delattr(_patched_pprint_thing, "png")
-      pandas.io.formats.html.HTMLFormatter._write_cell = PandasPatcher.orig_HTMLFormatter_write_cell
 
     @staticmethod
-    def patchPandasrepr(self, **kwargs):
-      """used to patch DataFrame._repr_html_ in pandas version > 0.25.0
-      """
-      print(f"patchPandasrepr self {self}")
-      return PandasPatcher.callWhilePandasIsPatched(PandasPatcher.orig_repr_html_, self, **kwargs)
+    def is_mol(x):
+      return isinstance(x, Chem.Mol)
 
     @staticmethod
-    def patchPandasHTMLrepr(self, **kwargs):
-      """A patched version of the DataFrame.to_html method that allows rendering
-        molecule images in data frames.
+    def default_formatter(x):
+      return pprint_thing(x, escape_chars=("\t", "\r", "\n"))
+
+    @staticmethod
+    def mol_formatter(x):
+      return PandasPatcher.is_mol(x) and PrintAsBase64PNGString(x) or PandasPatcher.default_formatter(x)
+
+    @staticmethod
+    def get_mol_formatters(df):
+      return {col: PandasPatcher.mol_formatter for col in df.select_dtypes("object").applymap(PandasPatcher.is_mol).any().keys()}
+
+    @staticmethod
+    def check_rdk_attr(frame, attr):
+      return hasattr(frame, attr) and getattr(frame, attr)
+
+    @staticmethod
+    def set_rdk_attr(frame, attr):
+      setattr(frame, attr, True)
+
+    @staticmethod
+    def patched_DataFrame_to_html(self, *args, **kwargs):
+      """A patched version of the DataFrame.to_html method
+         that allows rendering molecule images in data frames.
       """
       # Two things have to be done:
       # 1. Disable escaping of HTML in order to render img / svg tags
       # 2. Avoid truncation of data frame values that contain HTML content
-
-      # The correct patch requires that two private methods in pandas exist. If
-      # this is not the case, use a working but suboptimal patch:
-      print(f"1) patchPandasHTMLrepr self {self}")
-      def patch_v1():
-        with pd.option_context('display.max_colwidth', -1):  # do not truncate
-          kwargs['escape'] = False  # disable escaping
-          return PandasPatcher.orig_to_html(self, **kwargs)
-
-      res = PandasPatcher.callWhilePandasIsPatched(PandasPatcher.orig_to_html, self, **kwargs)
-      print(f"2) patchPandasHTMLrepr res {res}")
-      return res or patch_v1()
+      if PandasPatcher.check_rdk_attr(self, RDK_MOLS_AS_IMAGE_ATTR):
+        PandasPatcher.set_rdk_attr(self, RDK_MOLS_TO_HTML_ATTR)
+        try:
+          formatters = self.formatters or {}
+          if not isinstance(formatters, dict):
+            formatters = {col: formatters[i] for i, col in enumerate(self.columns)}
+          formatters.update(PandasPatcher.get_mol_formatters(self))
+          self.formatters = formatters
+          self.fmt.adj = PandasPatcher._patched_get_adjustment(self.fmt.adj)
+      return PandasPatcher.orig_DataFrameRenderer_to_html(self, *args, **kwargs)
 
     @classmethod
     def renderImagesInAllDataFrames(cls, images=True):
       if images:
-        pd.core.frame.DataFrame.to_html = cls.patchPandasHTMLrepr
-        if cls.orig_repr_html_ is not None:
-          pd.core.frame.DataFrame._repr_html_ = cls.patchPandasrepr
+        setattr(pd.core.frame.DataFrame, RDK_MOLS_AS_IMAGE_ATTR, True)
+        pd.io.formats.format.DataFrame.to_html = cls.patched_DataFrame_to_html
       else:
-        pd.core.frame.DataFrame.to_html = cls.orig_to_html
-        if cls.orig_repr_html_ is not None:
-          pd.core.frame.DataFrame._repr_html_ = cls.orig_repr_html_
+        if hasattr(pd.core.frame.DataFrame, RDK_MOLS_AS_IMAGE_ATTR):
+          delattr(pd.core.frame.DataFrame, RDK_MOLS_AS_IMAGE_ATTR)
+        pd.io.formats.format.DataFrame.to_html = cls.orig_DataFrame_to_html
 
     @classmethod
     def changeMoleculeRendering(cls, frame, renderer='image'):
-      if renderer.lower().startswith('str'):
-        frame.to_html = types.MethodType(cls.orig_to_html, frame)
-        if cls.orig_repr_html_ is not None:
-          frame._repr_html_ = types.MethodType(cls.orig_repr_html_, frame)
+      if not renderer.lower().startswith('str'):
+        setattr(frame, RDK_MOLS_AS_IMAGE_ATTR, True)
+        pd.io.formats.format.DataFrame.to_html = cls.patched_DataFrame_to_html
       else:
-        frame.to_html = types.MethodType(cls.patchPandasHTMLrepr, frame)
-        if cls.orig_repr_html_ is not None:
-          frame._repr_html_ = types.MethodType(cls.patchPandasrepr, frame)
+        if hasattr(frame, RDK_MOLS_AS_IMAGE_ATTR):
+          delattr(frame, RDK_MOLS_AS_IMAGE_ATTR)
+        pd.io.formats.format.DataFrame.to_html = cls.orig_DataFrame_to_html
 
     @staticmethod
     def _patched_HTMLFormatter_write_cell(self, s, *args, **kwargs):
-      print(f"1) _patched_HTMLFormatter_write_cell self {self}")
       styleTags = f"text-align: {molJustify};"
-      if is_molecule_image(s):
+      if hasattr(self.frame, RDK_MOLS_AS_IMAGE_ATTR) and is_molecule_image(s):
         kind = kwargs.get('kind', None)
         if kind == 'td':
           tags = kwargs.get('tags', None) or ''
@@ -383,12 +308,10 @@ def patchPandas():
               tags += ' '
             tags += f'style="{styleTags}"'
           kwargs['tags'] = tags
-      print(f"2) _patched_HTMLFormatter_write_cell self {self}")
       return PandasPatcher.orig_HTMLFormatter_write_cell(self, s, *args, **kwargs)
 
     @staticmethod
-    def _patched_get_adjustment():
-      inner_adjustment = PandasPatcher.orig_get_adjustment()
+    def _patched_get_adjustment(inner_adjustment):
       return RenderMoleculeAdjustment(inner_adjustment)
 
     @classmethod
@@ -405,6 +328,60 @@ def patchPandas():
         except Exception as e:
           print(f"callWhilePandasIsPatched exception {str(e)}")
           return None
+
+  try:
+    import pandas.core.frame as pandas_frame
+  except ImportError:
+    print("Failed to import pandas frame module", file=sys.stderr)
+    return
+  try:
+    from pandas.io import formats as pandas_formats
+  except ImportError:
+    try:
+      from pandas import formats as pandas_formats
+    except ImportError:
+      print("Failed to import pandas formats module", file=sys.stderr)
+      return
+  if not (hasattr(pandas_frame, "DataFrame") and hasattr(pandas_frame.DataFrame, "to_html")):
+    print("Failed to find the DataFrame.to_html method", file=sys.stderr)
+    return
+  if not (hasattr(pandas_formats, "format") and hasattr(pandas_formats.format, "DataFrameFormatter")
+    and hasattr(pandas_formats.format.DataFrameFormatter, "__init__")):
+    print("Failed to find the pandas formats.format.DataFrameFormatter.__init__ method", file=sys.stderr)
+    return
+  if not (hasattr(pandas_formats, "printing") and hasattr(pandas_formats.printing, "pprint_thing")):
+    print("Failed to find the pandas formats.printing.pprint_thing method", file=sys.stderr)
+    return
+  if (pandas_frame.DataFrame.to_html != PandasPatcher.patched_DataFrame_to_html):
+    PandasPatcher.orig_DataFrame_to_html = pandas_frame.DataFrame.to_html
+    pandas_frame.DataFrame.to_html = PandasPatcher.patched_DataFrame_to_html
+  if (pandas_formats.format.DataFrameFormatter.__init__ != PandasPatcher.patched_DataFrameFormatter_init):
+    PandasPatcher.orig_DataFrameFormatter_init = pandas_formats.format.DataFrameFormatter.__init__
+    pandas_formats.format.DataFrameFormatter.__init__ = PandasPatcher.patched_DataFrameFormatter_init
+  pprint_thing = pandas_formats.printing.pprint_thing
+
+  try:
+    import pandas as pd
+  except ImportError:
+    print(f"Failed to import pandas", file=sys.stderr)
+    return
+
+
+  def is_molecule_image(s):
+    result = False
+    try:
+      # is text valid XML / HTML?
+      xml = minidom.parseString(s)
+      root_node = xml.firstChild
+      # check data-content attribute
+      if (root_node.nodeName in ['svg', 'img', 'div'] and
+          'data-content' in root_node.attributes.keys() and
+          root_node.attributes['data-content'].value == 'rdkit/molecule'):
+        result = True
+    except ExpatError:
+      pass  # parsing xml failed and text is not a molecule image
+    return result
+
 
   pandasVersion = _getPandasVersion()
   if pandasVersion < (0, 10):
@@ -490,10 +467,6 @@ def UninstallPandasTools():
   global _originalSettings
   Chem.Mol.__ge__ = _originalSettings['Chem.Mol.__ge__']
   # Chem.Mol.__str__ = _originalSettings['Chem.Mol.__str__']
-  pprint_thing_module = _originalSettings.get('pprint_thing_module', None)
-  orig_pprint_thing = _originalSettings.get('orig_pprint_thing', None)
-  if pprint_thing_module and orig_pprint_thing:
-    setattr(pprint_thing_module, "pprint_thing", orig_pprint_thing)
   _originalSettings.clear()
   try:
     pd
