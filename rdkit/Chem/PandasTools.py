@@ -1,3 +1,34 @@
+#
+#  Copyright (c) 2013, Novartis Institutes for BioMedical Research Inc.
+#  All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Novartis Institutes for BioMedical Research Inc.
+#       nor the names of its contributors may be used to endorse or promote
+#       products derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
 '''
 Importing pandasTools enables several features that allow for using RDKit molecules as columns of a
 Pandas dataframe.
@@ -77,7 +108,7 @@ dtypes: object(20)>
 The standard ForwardSDMolSupplier keywords are also available:
 
 >>> sdfFile = os.path.join(RDConfig.RDDataDir,'NCI/first_200.props.sdf')
->>> frame = PandasTools.LoadSDF(sdfFile,smilesName='SMILES',molColName='Molecule',
+>>> frame = PandasTools.LoadSDF(sdfFile, smilesName='SMILES', molColName='Molecule',
 ...            includeFingerprints=True, removeHs=False, strictParsing=True)
 
 Conversion to html is quite easy:
@@ -107,9 +138,11 @@ from base64 import b64encode
 import sys
 import types
 import re
+import importlib
 import logging
 
 import numpy as np
+from regex import P
 import rdkit
 from rdkit import Chem
 from rdkit import DataStructs
@@ -131,214 +164,256 @@ from xml.dom import minidom
 from xml.parsers.expat import ExpatError
 
 log = logging.getLogger(__name__)
+pd = None
+_originalSettings = {}
 
-try:
-  import pandas as pd
+highlightSubstructures = True
+molRepresentation = "png"  # supports also SVG
+molSize = (200, 200)
+molJustify = "center" # supports also left, right
 
-  def _getPandasVersion():
-    """ Get the pandas version as a tuple """
-    import re
+def _getPandasVersion():
+  """ Get the pandas version as a tuple """
+  try:
+    v = pd.__version__
+  except AttributeError:
+    v = pd.version.version
+  v = re.split(r'[^0-9,.]', v)[0].split('.')
+  return tuple(int(vi) for vi in v)
+
+def patchPandas():
+  global pd
+  pandas_has_func = False
+  pandas_module_name = None
+  for pandas_module_name in (
+    "pandas.io.formats.printing",
+    "pandas.formats.printing",
+    "pandas.core.common"
+  ):
     try:
-      v = pd.__version__
-    except AttributeError:
-      v = pd.version.version
-    v = re.split(r'[^0-9,.]', v)[0].split('.')
-    return tuple(int(vi) for vi in v)
+      print(f"pandas_module_name {pandas_module_name}")
+      pprint_thing_module = importlib.import_module(pandas_module_name)
+      if hasattr(pprint_thing_module, "pprint_thing"):
+        pandas_has_func = True
+        break
+    except ModuleNotFoundError:
+      pprint_thing_module = None
+  if pprint_thing_module is None:
+    print("Failed to find pandas module to be patched", file=sys.stderr)
+    return
+  elif not pandas_has_func:
+    print(f"Failed to find pandas function to be patched in {pandas_module_name}", file=sys.stderr)
+    return
+  _originalSettings["pprint_thing_module"] = pprint_thing_module
+
+  def _patched_pprint_thing(s, **kwargs):
+    print(f'_patched_pprint_thing s {str(type(s))} png {hasattr(_patched_pprint_thing, "png")}')
+    if hasattr(_patched_pprint_thing, "png") and isinstance(s, Chem.Mol):
+      kwargs['escape_chars'] = {}
+      s = PrintAsBase64PNGString(s)
+    return _originalSettings['orig_pprint_thing'](s, **kwargs)
+
+  if "orig_pprint_thing" not in _originalSettings:
+    _originalSettings['orig_pprint_thing'] = getattr(pprint_thing_module, "pprint_thing")
+    setattr(pprint_thing_module, "pprint_thing", _patched_pprint_thing)
+
+  try:
+    import pandas.core.frame
+    import pandas.io.formats.html
+    import pandas.io.formats.format
+  except ImportError:
+    print("Failed to import pandas modules to be patched", file=sys.stderr)
+    return
+
+  if not (hasattr(pandas.io.formats.html, 'HTMLFormatter')
+      and hasattr(pandas.io.formats.html.HTMLFormatter, '_write_cell')):
+    print(f"Failed to find pandas function to be patched in pandas.io.formats.html", file=sys.stderr)
+    return
+
+  # Github #3701 was a problem with a private function being renamed (made public) in
+  # pandas v1.2. Rather than relying on version numbers we just use getattr:
+  get_adjustment_attr = ((hasattr(pandas.io.formats.format, '_get_adjustment') and '_get_adjustment')
+    or (hasattr(pandas.io.formats.format, 'get_adjustment') and 'get_adjustment') or None)
+  if not get_adjustment_attr:
+    print(f"Failed to find get_adjustment function to be patched in pandas.io.formats.format", file=sys.stderr)
+    return
+
+  try:
+    import pandas as pd
+  except ImportError:
+    print(f"Failed to import pandas", file=sys.stderr)
+    return
+
+
+  def is_molecule_image(s):
+    result = False
+    try:
+      # is text valid XML / HTML?
+      xml = minidom.parseString(s)
+      root_node = xml.firstChild
+      # check data-content attribute
+      if (root_node.nodeName in ['svg', 'img', 'div'] and
+          'data-content' in root_node.attributes.keys() and
+          root_node.attributes['data-content'].value == 'rdkit/molecule'):
+        result = True
+    except ExpatError:
+      pass  # parsing xml failed and text is not a molecule image
+    return result
+
+
+  class RenderMoleculeAdjustment:
+    """Pandas uses TextAdjustment objects to measure the length of texts
+    (e.g. for east asian languages). We take advantage of this mechanism
+    and replace the original text adjustment object with a custom one.
+    This "RenderMoleculeAdjustment" object assigns a length of 0 to a
+    given text if it is valid HTML. And a value having length 0 will not
+    be truncated.
+    """
+    def __init__(self, inner_adjustment):
+      """Creates a new instance.
+
+          @param inner_adjustment: The text adjustment that is used if the
+              specified text is not valid XML / HTML.
+          """
+      self.inner_adjustment = inner_adjustment
+
+    def len(self, text):
+      if is_molecule_image(text):
+        return 0
+      else:
+        return self.inner_adjustment.len(text)
+
+    def justify(self, texts, max_len, mode='right'):
+      return self.inner_adjustment.justify(texts, max_len, mode)
+
+    def adjoin(self, space, *lists, **kwargs):
+      return self.inner_adjustment.adjoin(space, *lists, **kwargs)
+
+
+  class PandasPatcher:
+    """Context manager class that monkey-patches a few
+    pandas functions to render molecules in DataFrames
+    as images.
+    """
+    styleRegex = re.compile("^(.*style=[\"'][^\"^']*)([\"'].*)$")
+    orig_to_html = pandas.core.frame.DataFrame.to_html
+    orig_repr_html_ = pandas.core.frame.DataFrame._repr_html_ \
+      if _getPandasVersion() > (0, 25, 0) else None
+    orig_get_adjustment = getattr(pandas.io.formats.format, get_adjustment_attr)
+    orig_HTMLFormatter_write_cell = pandas.io.formats.html.HTMLFormatter._write_cell
+
+    def __enter__(self):
+      print(f"PandasPatcher.__enter__ pprint_thing_module {pprint_thing_module}")
+      setattr(pandas.io.formats.format,
+              get_adjustment_attr, PandasPatcher._patched_get_adjustment)
+      setattr(_patched_pprint_thing, "png", True)
+      pandas.io.formats.html.HTMLFormatter._write_cell = \
+        PandasPatcher._patched_HTMLFormatter_write_cell
+      return self
+
+    def __exit__(self, *args, **kwargs):
+      print("PandasPatcher.__exit__")
+      setattr(pandas.io.formats.format, get_adjustment_attr, PandasPatcher.orig_get_adjustment)
+      delattr(_patched_pprint_thing, "png")
+      pandas.io.formats.html.HTMLFormatter._write_cell = PandasPatcher.orig_HTMLFormatter_write_cell
+
+    @staticmethod
+    def patchPandasrepr(self, **kwargs):
+      """used to patch DataFrame._repr_html_ in pandas version > 0.25.0
+      """
+      print(f"patchPandasrepr self {self}")
+      return PandasPatcher.callWhilePandasIsPatched(PandasPatcher.orig_repr_html_, self, **kwargs)
+
+    @staticmethod
+    def patchPandasHTMLrepr(self, **kwargs):
+      """A patched version of the DataFrame.to_html method that allows rendering
+        molecule images in data frames.
+      """
+      # Two things have to be done:
+      # 1. Disable escaping of HTML in order to render img / svg tags
+      # 2. Avoid truncation of data frame values that contain HTML content
+
+      # The correct patch requires that two private methods in pandas exist. If
+      # this is not the case, use a working but suboptimal patch:
+      print(f"1) patchPandasHTMLrepr self {self}")
+      def patch_v1():
+        with pd.option_context('display.max_colwidth', -1):  # do not truncate
+          kwargs['escape'] = False  # disable escaping
+          return PandasPatcher.orig_to_html(self, **kwargs)
+
+      res = PandasPatcher.callWhilePandasIsPatched(PandasPatcher.orig_to_html, self, **kwargs)
+      print(f"2) patchPandasHTMLrepr res {res}")
+      return res or patch_v1()
+
+    @classmethod
+    def renderImagesInAllDataFrames(cls, images=True):
+      if images:
+        pd.core.frame.DataFrame.to_html = cls.patchPandasHTMLrepr
+        if cls.orig_repr_html_ is not None:
+          pd.core.frame.DataFrame._repr_html_ = cls.patchPandasrepr
+      else:
+        pd.core.frame.DataFrame.to_html = cls.orig_to_html
+        if cls.orig_repr_html_ is not None:
+          pd.core.frame.DataFrame._repr_html_ = cls.orig_repr_html_
+
+    @classmethod
+    def changeMoleculeRendering(cls, frame, renderer='image'):
+      if renderer.lower().startswith('str'):
+        frame.to_html = types.MethodType(cls.orig_to_html, frame)
+        if cls.orig_repr_html_ is not None:
+          frame._repr_html_ = types.MethodType(cls.orig_repr_html_, frame)
+      else:
+        frame.to_html = types.MethodType(cls.patchPandasHTMLrepr, frame)
+        if cls.orig_repr_html_ is not None:
+          frame._repr_html_ = types.MethodType(cls.patchPandasrepr, frame)
+
+    @staticmethod
+    def _patched_HTMLFormatter_write_cell(self, s, *args, **kwargs):
+      print(f"1) _patched_HTMLFormatter_write_cell self {self}")
+      styleTags = f"text-align: {molJustify};"
+      if is_molecule_image(s):
+        kind = kwargs.get('kind', None)
+        if kind == 'td':
+          tags = kwargs.get('tags', None) or ''
+          match = PandasPatcher.styleRegex.match(tags)
+          if match:
+            tags = PandasPatcher.styleRegex.sub(f'\\1 {styleTags}\\2', tags)
+          else:
+            if tags:
+              tags += ' '
+            tags += f'style="{styleTags}"'
+          kwargs['tags'] = tags
+      print(f"2) _patched_HTMLFormatter_write_cell self {self}")
+      return PandasPatcher.orig_HTMLFormatter_write_cell(self, s, *args, **kwargs)
+
+    @staticmethod
+    def _patched_get_adjustment():
+      inner_adjustment = PandasPatcher.orig_get_adjustment()
+      return RenderMoleculeAdjustment(inner_adjustment)
+
+    @classmethod
+    def callWhilePandasIsPatched(cls, func, self, *args, **kwargs):
+      # patch methods and call func(), then restore
+      # original methods through context manager
+      with cls():
+        try:
+          print(f"callWhilePandasIsPatched calling {func}")
+          res = func(self, *args, **kwargs)
+          print(f"callWhilePandasIsPatched res {res}")
+          return (InteractiveRenderer.injectHTMLHeaderBeforeTable(res)
+            if InteractiveRenderer and InteractiveRenderer.isEnabled() else res)
+        except Exception as e:
+          print(f"callWhilePandasIsPatched exception {str(e)}")
+          return None
 
   pandasVersion = _getPandasVersion()
   if pandasVersion < (0, 10):
-    print("Pandas version {0} not compatible with tests".format(_getPandasVersion()),
+    print(f"Pandas version {pandasVersion} not compatible with tests",
           file=sys.stderr)
     pd = None
-  else:
-    if not hasattr(pd, "_rdkitpatched"):
-      # saves the default pandas rendering to allow restoration
-      pd.core.frame.DataFrame._orig_to_html = pd.core.frame.DataFrame.to_html
-      if pandasVersion > (0, 25, 0):
-        # this was github #2673
-        pd.core.frame.DataFrame._orig_repr_html_ = pd.core.frame.DataFrame._repr_html_
-      else:
-        pd.core.frame.DataFrame._orig_repr_html_ = None
-      pd._rdkitpatched = True
+    return
 
-    defPandasRendering = pd.core.frame.DataFrame._orig_to_html
-    defPandasRepr = pd.core.frame.DataFrame._orig_repr_html_
-except ImportError:
-  import traceback
-  traceback.print_exc()
-  pd = None
-
-except Exception as e:
-  import traceback
-  traceback.print_exc()
-  pd = None
-
-highlightSubstructures = True
-molRepresentation = 'png'  # supports also SVG
-molSize = (200, 200)
-
-def getAdjustmentAttr():
-  # Github #3701 was a problem with a private function being renamed (made public) in
-  # pandas v1.2. Rather than relying on version numbers we just use getattr:
-  return ((hasattr(pd.io.formats.format, '_get_adjustment') and '_get_adjustment')
-          or (hasattr(pd.io.formats.format, 'get_adjustment') and 'get_adjustment') or None)
-
-
-def _patched_HTMLFormatter_write_cell(self, s, *args, **kwargs):
-  if not hasattr(_patched_HTMLFormatter_write_cell, 'styleRegex'):
-    _patched_HTMLFormatter_write_cell.styleRegex = re.compile("^(.*style=[\"'].*)([\"'].*)$")
-  styleTags = "text-align: center;"
-  styleRegex = _patched_HTMLFormatter_write_cell.styleRegex
-  def_escape = self.escape
-  try:
-    if is_molecule_image(s):
-      self.escape = False
-      kind = kwargs.get('kind', None)
-      if kind == 'td':
-        tags = kwargs.get('tags', None) or ''
-        match = styleRegex.match(tags)
-        if match:
-          tags = styleRegex.sub(f'\\1 {styleTags}\\2', tags)
-        else:
-          if tags:
-            tags += ' '
-          tags += f'style="{styleTags}"'
-        kwargs['tags'] = tags
-
-    return defHTMLFormatter_write_cell(self, s, *args, **kwargs)
-  finally:
-    self.escape = def_escape
-
-
-def _patched_get_adjustment():
-  inner_adjustment = defPandasGetAdjustment()
-  return RenderMoleculeAdjustment(inner_adjustment)
-
-
-def callWhilePandasIsPatched(func, self, **kwargs):
-  import pandas.io.formats.html
-  global defHTMLFormatter_write_cell
-  global defPandasGetAdjustment
-
-  if (not hasattr(pd.io.formats.html, 'HTMLFormatter')
-      or not hasattr(pd.io.formats.html.HTMLFormatter, '_write_cell')):
-    return None
-
-  get_adjustment_attr = getAdjustmentAttr()
-  if not get_adjustment_attr:
-    return None
-
-  # The "clean" patch:
-  # 1. Temporarily set escape=False in HTMLFormatter._write_cell
-  defHTMLFormatter_write_cell = pd.io.formats.html.HTMLFormatter._write_cell
-
-  # 2. Pandas uses TextAdjustment objects to measure the length of texts
-  #    (e.g. for east asian languages). We take advantage of this mechanism
-  #    and replace the original text adjustment object with a custom one.
-  #    This "RenderMoleculeAdjustment" object assigns a length of 0 to a
-  #    given text if it is valid HTML. And a value having length 0 will not
-  #    be truncated.
-
-  # store original _get_adjustment method
-  defPandasGetAdjustment = getattr(pd.io.formats.format, get_adjustment_attr)
-  # patch methods and call original to_html function
-  pd.io.formats.html.HTMLFormatter._write_cell = _patched_HTMLFormatter_write_cell
-  setattr(pd.io.formats.format, get_adjustment_attr, _patched_get_adjustment)
-
-  try:
-    res = func(self, **kwargs)
-    return (InteractiveRenderer.injectHTMLHeaderBeforeTable(res)
-      if InteractiveRenderer and InteractiveRenderer.isEnabled() else res)
-  except Exception:
-    return None
-  finally:
-    # restore original methods
-    setattr(pd.io.formats.format, get_adjustment_attr, defPandasGetAdjustment)
-    pd.io.formats.html.HTMLFormatter._write_cell = defHTMLFormatter_write_cell
-
-
-def patchPandasrepr(self, **kwargs):
-  """  used to patch DataFrame._repr_html_ in pandas version > 0.25.0
-  """
-  return callWhilePandasIsPatched(defPandasRepr, self, **kwargs)
-
-
-def patchPandasHTMLrepr(self, **kwargs):
-  """A patched version of the DataFrame.to_html method that allows rendering
-    molecule images in data frames.
-  """
-  # Two things have to be done:
-  # 1. Disable escaping of HTML in order to render img / svg tags
-  # 2. Avoid truncation of data frame values that contain HTML content
-
-  # The correct patch requires that two private methods in pandas exist. If
-  # this is not the case, use a working but suboptimal patch:
-  def patch_v1():
-    with pd.option_context('display.max_colwidth', -1):  # do not truncate
-      kwargs['escape'] = False  # disable escaping
-      return defPandasRendering(self, **kwargs)
-
-  res = callWhilePandasIsPatched(defPandasRendering, self, **kwargs)
-  return res or patch_v1()
-
-
-def is_molecule_image(s):
-  result = False
-  try:
-    # is text valid XML / HTML?
-    xml = minidom.parseString(s)
-    root_node = xml.firstChild
-    # check data-content attribute
-    if (root_node.nodeName in ['svg', 'img', 'div'] and
-        'data-content' in root_node.attributes.keys() and
-        root_node.attributes['data-content'].value == 'rdkit/molecule'):
-      result = True
-  except ExpatError:
-    pass  # parsing xml failed and text is not a molecule image
-
-  return result
-
-
-class RenderMoleculeAdjustment:
-
-  def __init__(self, inner_adjustment):
-    """Creates a new instance.
-
-        @param inner_adjustment: The text adjustment that is used if the
-            specified text is not valid XML / HTML.
-        """
-    self.inner_adjustment = inner_adjustment
-
-  def len(self, text):
-    if is_molecule_image(text):
-      return 0
-    else:
-      return self.inner_adjustment.len(text)
-
-  def justify(self, texts, max_len, mode='right'):
-    return self.inner_adjustment.justify(texts, max_len, mode)
-
-  def adjoin(self, space, *lists, **kwargs):
-    return self.inner_adjustment.adjoin(space, *lists, **kwargs)
-
-
-def _get_image(x):
-  """displayhook function for PNG data"""
-  return b64encode(x).decode('ascii')
-
-
-try:
-  from rdkit.Avalon import pyAvalonTools as pyAvalonTools
-
-  # Calculate the Avalon fingerprint
-
-
-  def _fingerprinter(x, y):
-    return pyAvalonTools.GetAvalonFP(x, isQuery=y, bitFlags=pyAvalonTools.avalonSSSBits)
-except ImportError:
-  # Calculate fingerprint using SMARTS patterns
-  def _fingerprinter(x, y):
-    return Chem.PatternFingerprint(x, fpSize=2048)
+  pd.rdkitPandasPatcher = PandasPatcher
 
 
 def _molge(x, y):
@@ -367,18 +442,11 @@ def PrintAsBase64PNGString(x):
   '''returns the molecules as base64 encoded PNG image
     '''
   with open("/tmp/PrintAsBase64PNGString.log", "a") as hnd:
-    hnd.write("PrintAsBase64PNGString x " + PrintDefaultMolRep(x) + "\n")
+    hnd.write(f"PrintAsBase64PNGString x {x}\n")
   if highlightSubstructures and hasattr(x, '__sssAtoms'):
     highlightAtoms = x.__sssAtoms
   else:
     highlightAtoms = []
-  # TODO: should we generate coordinates if no coordinates available?
-  # from rdkit.Chem import rdDepictor
-  # try:
-  #     # If no coordinates, calculate 2D
-  #     x.GetConformer(-1)
-  # except ValueError:
-  #     rdDepictor.Compute2DCoords(x)
   useSvg = (molRepresentation.lower() == 'svg')
   if InteractiveRenderer and InteractiveRenderer.isEnabled(x):
     size = [max(30, s) for s in molSize]
@@ -401,8 +469,173 @@ def PrintAsBase64PNGString(x):
       )
 
 
-def PrintDefaultMolRep(x):
-  return str(x.__repr__())
+# ==========================================================================================
+# Monkey patching RDkit functionality
+def InstallPandasTools():
+  """ Monkey patch an RDKit method of Chem.Mol and pandas """
+  global _originalSettings
+  global pd
+  if len(_originalSettings) == 0:
+    _originalSettings['Chem.Mol.__ge__'] = Chem.Mol.__ge__
+    # _originalSettings['Chem.Mol.__str__'] = Chem.Mol.__str__
+    patchPandas()
+    if pd is None:
+      del pd
+  rdchem.Mol.__ge__ = _molge
+  # rdchem.Mol.__str__ = PrintAsBase64PNGString
+
+
+def UninstallPandasTools():
+  """ Unpatch an RDKit method of Chem.Mol and pandas """
+  global _originalSettings
+  Chem.Mol.__ge__ = _originalSettings['Chem.Mol.__ge__']
+  # Chem.Mol.__str__ = _originalSettings['Chem.Mol.__str__']
+  pprint_thing_module = _originalSettings.get('pprint_thing_module', None)
+  orig_pprint_thing = _originalSettings.get('orig_pprint_thing', None)
+  if pprint_thing_module and orig_pprint_thing:
+    setattr(pprint_thing_module, "pprint_thing", orig_pprint_thing)
+  _originalSettings.clear()
+  try:
+    pd
+  except NameError:
+    pass
+  else:
+    if pd.rdkitPandasPatcher:
+      del pd.rdkitPandasPatcher
+
+
+InstallPandasTools()
+
+
+try:
+  pd
+except NameError:
+  pass
+else:
+  def RenderImagesInAllDataFrames(images=True):
+    '''Changes the default dataframe rendering to not escape HTML characters, thus allowing
+      rendered images in all dataframes.
+      IMPORTANT: THIS IS A GLOBAL CHANGE THAT WILL AFFECT TO COMPLETE PYTHON SESSION. If you want
+      to change the rendering only for a single dataframe use the "ChangeMoleculeRendering" method
+      instead.
+      '''
+    pd.rdkitPandasPatcher.renderImagesInAllDataFrames(images)
+
+
+  def LoadSDF(filename, idName='ID', molColName='ROMol', includeFingerprints=False,
+              isomericSmiles=True, smilesName=None, embedProps=False, removeHs=True,
+              strictParsing=True):
+    '''Read file in SDF format and return as Pandas data frame.
+      If embedProps=True all properties also get embedded in Mol objects in the molecule column.
+      If molColName=None molecules would not be present in resulting DataFrame (only properties
+      would be read).
+      '''
+    if isinstance(filename, str):
+      if filename.lower()[-3:] == ".gz":
+        import gzip
+        f = gzip.open(filename, "rb")
+      else:
+        f = open(filename, 'rb')
+      close = f.close
+    else:
+      f = filename
+      close = None  # don't close an open file that was passed in
+    records = []
+    indices = []
+    sanitize = bool(molColName is not None or smilesName is not None)
+    for i, mol in enumerate(
+        Chem.ForwardSDMolSupplier(f, sanitize=sanitize, removeHs=removeHs,
+                                  strictParsing=strictParsing)):
+      if mol is None:
+        continue
+      row = dict((k, mol.GetProp(k)) for k in mol.GetPropNames())
+      if molColName is not None and not embedProps:
+        for prop in mol.GetPropNames():
+          mol.ClearProp(prop)
+      if mol.HasProp('_Name'):
+        row[idName] = mol.GetProp('_Name')
+      if smilesName is not None:
+        try:
+          row[smilesName] = Chem.MolToSmiles(mol, isomericSmiles=isomericSmiles)
+        except Exception:
+          log.warning('No valid smiles could be generated for molecule %s', i)
+          row[smilesName] = None
+      if molColName is not None and not includeFingerprints:
+        row[molColName] = mol
+      elif molColName is not None:
+        row[molColName] = _MolPlusFingerprint(mol)
+      records.append(row)
+      indices.append(i)
+
+    if close is not None:
+      close()
+    df = pd.DataFrame(records, index=indices)
+    ChangeMoleculeRendering(df)
+    return df
+
+
+  def RGroupDecompositionToFrame(groups, mols, include_core=False, redraw_sidechains=False):
+    """ returns a dataframe with the results of R-Group Decomposition
+
+    >>> from rdkit import Chem
+    >>> from rdkit.Chem import rdRGroupDecomposition
+    >>> from rdkit.Chem import PandasTools
+    >>> import pandas as pd
+    >>> scaffold = Chem.MolFromSmiles('c1ccccn1')
+    >>> mols = [Chem.MolFromSmiles(smi) for smi in 'c1c(F)cccn1 c1c(Cl)c(C)ccn1 c1c(O)cccn1 c1c(F)c(C)ccn1 c1cc(Cl)c(F)cn1'.split()]
+    >>> groups,_ = rdRGroupDecomposition.RGroupDecompose([scaffold],mols,asSmiles=False,asRows=False)
+    >>> df = PandasTools.RGroupDecompositionToFrame(groups,mols,include_core=True)
+    >>> list(df.columns)
+    ['Mol', 'Core', 'R1', 'R2']
+    >>> len(df)
+    5
+    >>> df.columns() # doctest: +SKIP
+    <class 'pandas*...*DataFrame'>
+    RangeIndex: 5 entries, 0 to 4
+    Data columns (total 4 columns):
+    Mol     5 non-null object
+    Core    5 non-null object
+    R1      5 non-null object
+    R2      5 non-null object
+    dtypes: object(4)
+    memory usage: *...*
+
+    """
+    cols = ['Mol'] + list(groups.keys())
+    if redraw_sidechains:
+      from rdkit.Chem import rdDepictor
+      for k, vl in groups.items():
+        if k == 'Core':
+          continue
+        for i, v in enumerate(vl):
+          vl[i] = Chem.RemoveHs(v)
+          rdDepictor.Compute2DCoords(vl[i])
+
+    if not include_core:
+      cols.remove('Core')
+      del groups['Core']
+    groups['Mol'] = mols
+    frame = pd.DataFrame(groups, columns=cols)
+    return frame
+
+
+def _get_image(x):
+  """displayhook function for PNG data"""
+  return b64encode(x).decode('ascii')
+
+
+try:
+  from rdkit.Avalon import pyAvalonTools as pyAvalonTools
+
+  # Calculate the Avalon fingerprint
+
+
+  def _fingerprinter(x, y):
+    return pyAvalonTools.GetAvalonFP(x, isQuery=y, bitFlags=pyAvalonTools.avalonSSSBits)
+except ImportError:
+  # Calculate fingerprint using SMARTS patterns
+  def _fingerprinter(x, y):
+    return Chem.PatternFingerprint(x, fpSize=2048)
 
 
 def _MolPlusFingerprint(m):
@@ -412,23 +645,6 @@ def _MolPlusFingerprint(m):
   if m is not None:
     m._substructfp = _fingerprinter(m, False)
   return m
-
-
-def RenderImagesInAllDataFrames(images=True):
-  '''Changes the default dataframe rendering to not escape HTML characters, thus allowing
-    rendered images in all dataframes.
-    IMPORTANT: THIS IS A GLOBAL CHANGE THAT WILL AFFECT TO COMPLETE PYTHON SESSION. If you want
-    to change the rendering only for a single dataframe use the "ChangeMoleculeRendering" method
-    instead.
-    '''
-  if images:
-    pd.core.frame.DataFrame.to_html = patchPandasHTMLrepr
-    if defPandasRepr is not None:
-      pd.core.frame.DataFrame._repr_html_ = patchPandasrepr
-  else:
-    pd.core.frame.DataFrame.to_html = defPandasRendering
-    if defPandasRepr is not None:
-      pd.core.frame.DataFrame._repr_html_ = defPandasRepr
 
 
 def AddMoleculeColumnToFrame(frame, smilesCol='Smiles', molCol='ROMol', includeFingerprints=False):
@@ -442,11 +658,11 @@ def AddMoleculeColumnToFrame(frame, smilesCol='Smiles', molCol='ROMol', includeF
   else:
     frame[molCol] = frame[smilesCol].map(
       lambda smiles: _MolPlusFingerprint(Chem.MolFromSmiles(smiles)))
-  RenderImagesInAllDataFrames(images=True)
+  ChangeMoleculeRendering(frame)
 
 
-def ChangeMoleculeRendering(frame=None, renderer='PNG'):
-  '''Allows to change the rendering of the molecules between base64 PNG images and string
+def ChangeMoleculeRendering(frame, renderer='image'):
+  '''Allows to change the rendering of the molecules between image and string
     representations.
     This serves two purposes: First it allows to avoid the generation of images if this is
     not desired and, secondly, it allows to enable image rendering for newly created dataframe
@@ -455,66 +671,10 @@ def ChangeMoleculeRendering(frame=None, renderer='PNG'):
     returns a new dataframe instance that uses the default pandas rendering (thus not drawing
     images for molecules) instead of the monkey-patched one.
     '''
-  if renderer == 'String':
-    Chem.Mol.__str__ = PrintDefaultMolRep
-  else:
-    Chem.Mol.__str__ = PrintAsBase64PNGString
-  if frame is not None:
-    frame.to_html = types.MethodType(patchPandasHTMLrepr, frame)
-    if defPandasRepr is not None:
-      frame._repr_html_ = types.MethodType(patchPandasrepr, frame)
-
-
-def LoadSDF(filename, idName='ID', molColName='ROMol', includeFingerprints=False,
-            isomericSmiles=True, smilesName=None, embedProps=False, removeHs=True,
-            strictParsing=True):
-  '''Read file in SDF format and return as Pandas data frame.
-    If embedProps=True all properties also get embedded in Mol objects in the molecule column.
-    If molColName=None molecules would not be present in resulting DataFrame (only properties
-    would be read).
-    '''
-  if isinstance(filename, str):
-    if filename.lower()[-3:] == ".gz":
-      import gzip
-      f = gzip.open(filename, "rb")
-    else:
-      f = open(filename, 'rb')
-    close = f.close
-  else:
-    f = filename
-    close = None  # don't close an open file that was passed in
-  records = []
-  indices = []
-  sanitize = bool(molColName is not None or smilesName is not None)
-  for i, mol in enumerate(
-      Chem.ForwardSDMolSupplier(f, sanitize=sanitize, removeHs=removeHs,
-                                strictParsing=strictParsing)):
-    if mol is None:
-      continue
-    row = dict((k, mol.GetProp(k)) for k in mol.GetPropNames())
-    if molColName is not None and not embedProps:
-      for prop in mol.GetPropNames():
-        mol.ClearProp(prop)
-    if mol.HasProp('_Name'):
-      row[idName] = mol.GetProp('_Name')
-    if smilesName is not None:
-      try:
-        row[smilesName] = Chem.MolToSmiles(mol, isomericSmiles=isomericSmiles)
-      except Exception:
-        log.warning('No valid smiles could be generated for molecule %s', i)
-        row[smilesName] = None
-    if molColName is not None and not includeFingerprints:
-      row[molColName] = mol
-    elif molColName is not None:
-      row[molColName] = _MolPlusFingerprint(mol)
-    records.append(row)
-    indices.append(i)
-
-  if close is not None:
-    close()
-  df = pd.DataFrame(records, index=indices)
-  ChangeMoleculeRendering(df)
-  return df
+  try:
+    pd.rdkitPandasPatcher.changeMoleculeRendering(frame, renderer)
+  except:
+    print("Pandas module not available - unable to change molecule rendering", file=sys.stderr)
 
 
 def WriteSDF(df, out, molColName='ROMol', idName=None, properties=None, allNumeric=False):
@@ -711,74 +871,6 @@ def AlignToScaffold(frame, molCol='ROMol', scaffoldCol='Murcko_SMILES'):
   frame[molCol] = frame.apply(lambda x: AlignMol(x[molCol], x[scaffoldCol]), axis=1)
 
 
-def RGroupDecompositionToFrame(groups, mols, include_core=False, redraw_sidechains=False):
-  """ returns a dataframe with the results of R-Group Decomposition
-
-  >>> from rdkit import Chem
-  >>> from rdkit.Chem import rdRGroupDecomposition
-  >>> from rdkit.Chem import PandasTools
-  >>> import pandas as pd
-  >>> scaffold = Chem.MolFromSmiles('c1ccccn1')
-  >>> mols = [Chem.MolFromSmiles(smi) for smi in 'c1c(F)cccn1 c1c(Cl)c(C)ccn1 c1c(O)cccn1 c1c(F)c(C)ccn1 c1cc(Cl)c(F)cn1'.split()]
-  >>> groups,_ = rdRGroupDecomposition.RGroupDecompose([scaffold],mols,asSmiles=False,asRows=False)
-  >>> df = PandasTools.RGroupDecompositionToFrame(groups,mols,include_core=True)
-  >>> list(df.columns)
-  ['Mol', 'Core', 'R1', 'R2']
-  >>> len(df)
-  5
-  >>> df.columns() # doctest: +SKIP
-  <class 'pandas*...*DataFrame'>
-  RangeIndex: 5 entries, 0 to 4
-  Data columns (total 4 columns):
-  Mol     5 non-null object
-  Core    5 non-null object
-  R1      5 non-null object
-  R2      5 non-null object
-  dtypes: object(4)
-  memory usage: *...*
-
-  """
-  cols = ['Mol'] + list(groups.keys())
-  if redraw_sidechains:
-    from rdkit.Chem import rdDepictor
-    for k, vl in groups.items():
-      if k == 'Core':
-        continue
-      for i, v in enumerate(vl):
-        vl[i] = Chem.RemoveHs(v)
-        rdDepictor.Compute2DCoords(vl[i])
-
-  if not include_core:
-    cols.remove('Core')
-    del groups['Core']
-  groups['Mol'] = mols
-  frame = pd.DataFrame(groups, columns=cols)
-  return frame
-
-
-# ==========================================================================================
-# Monkey patching RDkit functionality
-def InstallPandasTools():
-  """ Monkey patch a few RDkit methods of Chem.Mol """
-  global _originalSettings
-  if len(_originalSettings) == 0:
-    _originalSettings['Chem.Mol.__ge__'] = Chem.Mol.__ge__
-    _originalSettings['Chem.Mol.__str__'] = Chem.Mol.__str__
-  rdchem.Mol.__ge__ = _molge
-  rdchem.Mol.__str__ = PrintAsBase64PNGString
-
-
-def UninstallPandasTools():
-  """ Monkey patch a few RDkit methods of Chem.Mol """
-  global _originalSettings
-  Chem.Mol.__ge__ = _originalSettings['Chem.Mol.__ge__']
-  Chem.Mol.__str__ = _originalSettings['Chem.Mol.__str__']
-
-
-_originalSettings = {}
-InstallPandasTools()
-
-
 # ------------------------------------
 #
 #  doctest boilerplate
@@ -814,41 +906,13 @@ if __name__ == '__main__':  # pragma: nocover
       AddMoleculeColumnToFrame(df, 'smiles', 'molecule')
       self.assertEqual(len(df.molecule), 2)
 
-  if pd is None:
+  try:
+    pd
+  except NameError:
     print("pandas installation not found, skipping tests", file=sys.stderr)
-  elif _getPandasVersion() < (0, 10):
-    print("pandas installation >=0.10 not found, skipping tests", file=sys.stderr)
   else:
-    _runDoctests()
-    unittest.main()
-
-#
-#  Copyright (c) 2013, Novartis Institutes for BioMedical Research Inc.
-#  All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-#     * Redistributions of source code must retain the above copyright
-#       notice, this list of conditions and the following disclaimer.
-#     * Redistributions in binary form must reproduce the above
-#       copyright notice, this list of conditions and the following
-#       disclaimer in the documentation and/or other materials provided
-#       with the distribution.
-#     * Neither the name of Novartis Institutes for BioMedical Research Inc.
-#       nor the names of its contributors may be used to endorse or promote
-#       products derived from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
+    if _getPandasVersion() < (0, 10):
+      print("pandas installation >=0.10 not found, skipping tests", file=sys.stderr)
+    else:
+      _runDoctests()
+      unittest.main()
