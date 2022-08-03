@@ -223,6 +223,23 @@ unsigned int RingInfo::numFusedBonds(unsigned int ringIdx) {
   return d_numFusedBonds[ringIdx];
 }
 
+unsigned int RingInfo::numFusedRingNeighbors(unsigned int ringIdx) {
+  PRECONDITION(ringIdx < d_fusedRings.size(), "ringIdx out of bounds");
+  return d_fusedRings[ringIdx].count();
+}
+
+std::vector<unsigned int> RingInfo::fusedRingNeighbors(unsigned int ringIdx) {
+  PRECONDITION(ringIdx < d_bondRings.size(), "ringIdx out of bounds");
+  std::vector<unsigned int> res;
+  res.reserve(d_fusedRings[ringIdx].count());
+  for (unsigned int i = 0; i < d_fusedRings[ringIdx].size(); ++i) {
+    if (d_fusedRings[ringIdx].test(i)) {
+      res.push_back(i);
+    }
+  }
+  return res;
+}
+
 void RingInfo::initFusedRings() {
   if (d_bondRings.empty()) {
     return;

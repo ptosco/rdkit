@@ -60,7 +60,7 @@ struct TargetMatch {
     VisitedTargetAtoms.reset();
 
     MatchedAtomSize = match.size();
-    for (const auto& m : match) {
+    for (const auto &m : match) {
       TargetAtomIdx[seed.MoleculeFragment.AtomsIdx[m.first]] = m.second;
       VisitedTargetAtoms.set(m.second);
     }

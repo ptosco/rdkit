@@ -223,13 +223,29 @@ class RDKIT_GRAPHMOL_EXPORT RingInfo {
   */
   bool areRingsFused(unsigned int ring1Idx, unsigned int ring2Idx);
 
-  //! returns the number of bonds shared with other rings in ring with index \c
-  //! ringIdx.
+  //! returns the number of bonds shared with other rings in ring with index
+  //! \c ringIdx.
   /*!
     <b>Notes:</b>
       - the object must be initialized before calling this
   */
   unsigned int numFusedBonds(unsigned int ringIdx);
+
+  //! returns the number of rings which have at least one bond
+  //! in common with ring with index \c ringIdx.
+  /*!
+    <b>Notes:</b>
+      - the object must be initialized before calling this
+  */
+  unsigned int numFusedRingNeighbors(unsigned int ringIdx);
+
+  //! returns the indices of rings which have at least one bond
+  //! in common with ring with index \c ringIdx.
+  /*!
+    <b>Notes:</b>
+      - the object must be initialized before calling this
+  */
+  std::vector<unsigned int> fusedRingNeighbors(unsigned int ringIdx);
 
 #ifdef RDK_USE_URF
   //! adds a ring family to our data

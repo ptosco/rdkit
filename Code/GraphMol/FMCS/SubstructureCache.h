@@ -44,9 +44,9 @@ class RDKIT_FMCS_EXPORT SubstructureCache {
     }
 
    private:
-    void computeMorganCodeHash(
-        const Seed& seed, const std::vector<unsigned int>& queryAtomLabels,
-        const std::vector<unsigned int>& queryBondLabels) {
+    void computeMorganCodeHash(const Seed& seed,
+                               const std::vector<unsigned int>& queryAtomLabels,
+                               const std::vector<unsigned int>& queryBondLabels) {
       size_t nv = seed.getNumAtoms();
       size_t ne = seed.getNumBonds();
       std::vector<unsigned long> currCodes(nv);
@@ -72,8 +72,8 @@ class RDKIT_FMCS_EXPORT SubstructureCache {
           unsigned int order =
               queryBondLabels[seed.MoleculeFragment.BondsIdx[seedBondIdx]];
           unsigned int atom1 = seed.MoleculeFragment.SeedAtomIdxMap
-                                   .find(bond->getBeginAtomIdx())
-                                   ->second;
+                               .find(bond->getBeginAtomIdx())
+                               ->second;
           unsigned int atom2 =
               seed.MoleculeFragment.SeedAtomIdxMap.find(bond->getEndAtomIdx())
                   ->second;

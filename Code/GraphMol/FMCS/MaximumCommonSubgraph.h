@@ -51,9 +51,9 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
   std::vector<const ROMol*> Molecules;
 #ifdef FAST_SUBSTRUCT_CACHE
   std::vector<unsigned int> QueryAtomLabels;  // for code Morgan. Value based on
-                                              // current functor and parameters
+                                          // current functor and parameters
   std::vector<unsigned int> QueryBondLabels;  // for code Morgan. Value based on
-                                              // current functor and parameters
+                                          // current functor and parameters
   SubstructureCache HashCache;
   MatchTable QueryAtomMatchTable;
   MatchTable QueryBondMatchTable;

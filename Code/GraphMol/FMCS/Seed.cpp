@@ -51,18 +51,16 @@ unsigned int Seed::addBond(const Bond* bond) {
 void Seed::fillNewBonds(const ROMol& qmol) {
   auto excludedBonds = ExcludedBonds;
   // all atoms added on previous growing only
-  for (unsigned int srcAtomIdx = LastAddedAtomsBeginIdx;
-       srcAtomIdx < getNumAtoms(); srcAtomIdx++) {
+  for (unsigned int srcAtomIdx = LastAddedAtomsBeginIdx; srcAtomIdx < getNumAtoms();
+       srcAtomIdx++) {
     const auto atom = MoleculeFragment.Atoms[srcAtomIdx];
-    for (const auto& nbri :
-         boost::make_iterator_range(qmol.getAtomBonds(atom))) {
+    for (const auto &nbri : boost::make_iterator_range(qmol.getAtomBonds(atom))) {
       const auto bond = qmol[nbri];
       if (!excludedBonds.test(bond->getIdx())) {
         // already in the seed or NewBonds list from another atom in a RING
         excludedBonds.set(bond->getIdx());
-        unsigned int ai = (atom == bond->getBeginAtom())
-                              ? bond->getEndAtomIdx()
-                              : bond->getBeginAtomIdx();
+        unsigned int ai = (atom == bond->getBeginAtom()) ? bond->getEndAtomIdx()
+                                                     : bond->getBeginAtomIdx();
         const auto end_atom = qmol.getAtomWithIdx(ai);
         unsigned int end_atom_idx = NotSet;
         for (unsigned int i = 0; i < getNumAtoms(); i++) {
@@ -95,7 +93,7 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
   if (0 == GrowingStage) {
     // 0. Fill out list of all directly connected outgoing bonds
     // non const method, multistage growing optimisation
-    const_cast<Seed*>(this)->fillNewBonds(qmol);
+    const_cast<Seed *>(this)->fillNewBonds(qmol);
 
     if (NewBonds.empty()) {
       GrowingStage = NotSet;  // finished
@@ -108,7 +106,7 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     Seed seed;
     seed.createFromParent(this);
 
-    for (const auto& newBond : NewBonds) {
+    for (const auto &newBond : NewBonds) {
       unsigned int aIdx = newBond.EndAtomIdx;
       if (NotSet == aIdx) {  // new atom
         // check if new bonds simultaneously close a ring
@@ -197,7 +195,7 @@ void Seed::grow(MaximumCommonSubgraph& mcs) const {
     std::vector<NewBond> dirtyNewBonds;
     dirtyNewBonds.reserve(NewBonds.size());
     dirtyNewBonds.swap(NewBonds);
-    for (const auto& dirtyNewBond : dirtyNewBonds) {
+    for (const auto &dirtyNewBond : dirtyNewBonds) {
       if (NotSet != dirtyNewBond.BondIdx) {
         NewBonds.push_back(dirtyNewBond);
       }
@@ -310,9 +308,9 @@ void Seed::computeRemainingSize(const ROMol& qmol) {
   auto visitedBonds = ExcludedBonds;
   boost::dynamic_bitset<> visitedAtoms(qmol.getNumAtoms());
 
-  std::for_each(MoleculeFragment.AtomsIdx.begin(),
-                MoleculeFragment.AtomsIdx.end(),
-                [&visitedAtoms](unsigned int i) { visitedAtoms.set(i); });
+  std::for_each(MoleculeFragment.AtomsIdx.begin(), MoleculeFragment.AtomsIdx.end(), [&visitedAtoms](unsigned int i) {
+    visitedAtoms.set(i);
+  });
 
   // SDF all paths
   // 1. direct neighbours
@@ -321,8 +319,7 @@ void Seed::computeRemainingSize(const ROMol& qmol) {
        seedAtomIdx++) {  // just now added new border vertices (candidates for
                          // future growing)
     const auto atom = MoleculeFragment.Atoms[seedAtomIdx];
-    for (const auto& nbri :
-         boost::make_iterator_range(qmol.getAtomBonds(atom))) {
+    for (const auto &nbri : boost::make_iterator_range(qmol.getAtomBonds(atom))) {
       const auto bond = qmol[nbri];
       if (!visitedBonds.test(bond->getIdx())) {
         ++RemainingBonds;
@@ -344,15 +341,14 @@ void Seed::computeRemainingSize(const ROMol& qmol) {
     unsigned int ai = end_atom_stack.back();
     end_atom_stack.pop_back();
     const auto atom = qmol.getAtomWithIdx(ai);
-    for (const auto& nbri :
-         boost::make_iterator_range(qmol.getAtomBonds(atom))) {
+    for (const auto &nbri : boost::make_iterator_range(qmol.getAtomBonds(atom))) {
       const auto bond = qmol[nbri];
       if (!visitedBonds.test(bond->getIdx())) {
         ++RemainingBonds;
         visitedBonds.set(bond->getIdx());
         unsigned int end_atom_idx = (ai == bond->getBeginAtomIdx())
-                                        ? bond->getEndAtomIdx()
-                                        : bond->getBeginAtomIdx();
+                                    ? bond->getEndAtomIdx()
+                                    : bond->getBeginAtomIdx();
         if (!visitedAtoms.test(end_atom_idx)) {  // check RING/CYCLE
           ++RemainingAtoms;
           visitedAtoms.set(end_atom_idx);

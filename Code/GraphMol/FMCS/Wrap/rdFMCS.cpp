@@ -430,7 +430,6 @@ class PyMCSParameters {
     }
     return python::object();
   }
-
  private:
   static bool MCSAtomComparePyFunc(const MCSAtomCompareParameters &p,
                                    const ROMol &mol1, unsigned int atom1,

@@ -28,32 +28,27 @@ struct RDKIT_FMCS_EXPORT
   std::vector<const Bond*> Bonds;
   std::vector<unsigned int> AtomsIdx;
   std::vector<unsigned int> BondsIdx;  // need for results and size() only !
-  std::map<unsigned int, unsigned>
-      SeedAtomIdxMap;  // Full Query Molecule to Seed
-                       // indices backward conversion
-                       // map
+  std::map<unsigned int, unsigned int> SeedAtomIdxMap;  // Full Query Molecule to Seed
+                                                // indices backward conversion
+                                                // map
 };
 
 struct RDKIT_FMCS_EXPORT NewBond {
-  unsigned int SourceAtomIdx{
-      0};  // index in the seed. Atom is already in the seed
-  unsigned int BondIdx{
-      0};  // index in qmol of new bond scheduled to be added into
-           // seed. This is outgoing bond from SourceAtomIdx
-  unsigned int NewAtomIdx{
-      0};  // index in qmol of new atom scheduled to be added
-           // into seed. Another end of new bond
+  unsigned int SourceAtomIdx{0};  // index in the seed. Atom is already in the seed
+  unsigned int BondIdx{0};  // index in qmol of new bond scheduled to be added into
+                        // seed. This is outgoing bond from SourceAtomIdx
+  unsigned int NewAtomIdx{0};  // index in qmol of new atom scheduled to be added
+                           // into seed. Another end of new bond
   const Atom* NewAtom{nullptr};  // pointer to qmol's new atom scheduled to be
                                  // added into seed. Another end of new bond
-  unsigned int EndAtomIdx{
-      0};  // index in the seed. RING. "New" Atom on the another
-           // end of new bond is already exists in the seed.
+  unsigned int EndAtomIdx{0};  // index in the seed. RING. "New" Atom on the another
+                           // end of new bond is already exists in the seed.
 
   NewBond()
 
   {}
 
-  NewBond(unsigned int from_atom, unsigned bond_idx, unsigned int new_atom,
+  NewBond(unsigned int from_atom, unsigned int bond_idx, unsigned int new_atom,
           unsigned int to_atom, const Atom* a)
       : SourceAtomIdx(from_atom),
         BondIdx(bond_idx),
@@ -69,15 +64,14 @@ class RDKIT_FMCS_EXPORT Seed {
  public:
   bool CopyComplete{false};  // this seed has been completely copied into list.
                              // postponed non-locked copy for MULTI_THREAD
-  mutable unsigned int GrowingStage{
-      0};                        // 0 new seed; -1 finished; n>0 in
-                                 // progress, exact stage of growing for SDF
+  mutable unsigned int GrowingStage{0};  // 0 new seed; -1 finished; n>0 in
+                                     // progress, exact stage of growing for SDF
   MolFragment MoleculeFragment;  // Reference to a fragment of source molecule
   Graph Topology;  // seed topology with references to source molecule
 
   boost::dynamic_bitset<> ExcludedBonds;
   unsigned int LastAddedAtomsBeginIdx{0};  // in this subgraph for improving
-                                           // performance of future growing
+                                       // performance of future growing
   unsigned int LastAddedBondsBeginIdx{0};  // in this subgraph for DEBUG ONLY
   unsigned int RemainingBonds{0};
   unsigned int RemainingAtoms{0};

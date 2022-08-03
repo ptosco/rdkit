@@ -121,11 +121,10 @@ std::string getSmilesOnlyChEMBL(
 
 MCSParameters p;
 
-void testFileMCSB(
-    const char* test, unsigned int timeout = 30,
-    std::vector<unsigned int> test_N =
-        std::vector<unsigned int>()) {  // optional list of some tests
-                                        // for investigation
+void testFileMCSB(const char* test, unsigned int timeout = 30,
+                  std::vector<unsigned int> test_N =
+                      std::vector<unsigned int>()) {  // optional list of some tests
+                                                  // for investigation
   p.Verbose = false;
 
   std::vector<ROMOL_SPTR> mols;  // IT CAN OCCUPY A LOT OF MEMORY. store SMILES
@@ -1777,7 +1776,7 @@ int main(int argc, const char* argv[]) {
         fclose(f);
       } break;
       case 'b': {
-        std::vector<unsigned int> tc;   // empty -> all
+        std::vector<unsigned int> tc;       // empty -> all
         testFileMCSB(argv[2], 30, tc);  // .mcsb
       } break;
       default:
