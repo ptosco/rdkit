@@ -9,6 +9,10 @@
 //
 
 #include "catch.hpp"
+#ifdef RDK_BUILD_THREADSAFE_SSS
+#include <future>
+#include <thread>
+#endif
 
 #include <GraphMol/RDKitBase.h>
 #include <GraphMol/MolPickler.h>
@@ -258,7 +262,7 @@ TEST_CASE("github #2257: writing cxsmiles", "[smiles][cxsmiles]") {
     auto mol = "C[C@H](F)[C@H](C)[C@@H](C)Br |a:1,o1:3,5|"_smiles;
     REQUIRE(mol);
     auto smi = MolToCXSmiles(*mol);
-    CHECK(smi == "C[C@H](F)[C@H](C)[C@@H](C)Br |a:1,o1:3,5|");
+    CHECK(smi == "C[C@@H]([C@H](C)F)[C@@H](C)Br |a:2,o1:1,5|");
   }
 
   SECTION("enhanced stereo 2") {
@@ -273,9 +277,9 @@ TEST_CASE("github #2257: writing cxsmiles", "[smiles][cxsmiles]") {
         "C[C@@H]1N[C@H](C)[C@@H]([C@H](C)[C@@H]1C)C1[C@@H](C)O[C@@H](C)[C@@H](C)[C@H]1C |a:5,o1:1,8,o2:14,16,&1:11,18,&2:3,6,r|"_smiles;
     REQUIRE(mol);
     auto smi = MolToCXSmiles(*mol);
-    CHECK(smi ==
-          "C[C@@H]1N[C@H](C)[C@H](C2[C@@H](C)O[C@@H](C)[C@@H](C)[C@H]2C)[C@H]("
-          "C)[C@@H]1C |a:5,o1:1,18,o2:10,12,&1:3,16,&2:7,14|");
+    CHECK(
+        smi ==
+        "C[C@@H]1[C@H](C)[C@H](C)N[C@H](C)[C@@H]1C1[C@@H](C)O[C@@H](C)[C@@H](C)[C@H]1C |a:9,o1:2,4,o2:14,16,&1:1,7,&2:11,18|");
   }
 
   SECTION("enhanced stereo 4") {
@@ -1426,6 +1430,26 @@ TEST_CASE("Github #4320: Support toggling components of CXSMILES output") {
   }
 }
 
+TEST_CASE("non-tetrahedral chirality") {
+  SECTION("allowed values") {
+    {
+      auto m = "C[Fe@SP3](Cl)(F)N"_smiles;
+      REQUIRE(m);
+      CHECK(m->getAtomWithIdx(1)->getChiralTag() ==
+            Atom::ChiralType::CHI_SQUAREPLANAR);
+      CHECK(m->getAtomWithIdx(1)->getProp<unsigned int>(
+                common_properties::_chiralPermutation) == 3);
+    }
+    {
+      auto m = "C[Fe@SP3](Cl)(F)N"_smiles;
+      REQUIRE(m);
+      CHECK(m->getAtomWithIdx(1)->getChiralTag() ==
+            Atom::ChiralType::CHI_SQUAREPLANAR);
+      CHECK(m->getAtomWithIdx(1)->getProp<unsigned int>(
+                common_properties::_chiralPermutation) == 3);
+    }
+  }
+}
 TEST_CASE(
     "Github #4503: MolFromSmiles and MolFromSmarts incorrectly accepting input "
     "with spaces") {
@@ -1837,12 +1861,12 @@ M  END)CTAB"_ctab;
     REQUIRE(mol);
     auto csmiles = MolToSmiles(*mol);
     std::cerr << csmiles << std::endl;
+    // clang-format off
     CHECK(
         csmiles ==
-        "CC(=O)N[C@@H](CCCC/N=C/C1=C/"
-        "C[C@H]2[C@@]3(CC[C@]2(C)C[C@H]2[C@@H]1C(=O)C[C@@]2(C)O)O[C@@H](C=C(C)"
-        "C)C[C@@H]3C)C(=O)O");
+        "CC(=O)N[C@@H](CCCC/N=C/C1=C/C[C@@H]2[C@](C)(CC[C@@]23O[C@@H](C=C(C)C)C[C@@H]3C)C[C@H]2[C@@H]1C(=O)C[C@@]2(C)O)C(=O)O");
   }
+  // clang-format on
 }
 
 TEST_CASE(
@@ -1894,5 +1918,70 @@ TEST_CASE("Github #4981: Invalid SMARTS for negated single-atoms", "[smarts]") {
     auto mol = "[NX3H2+0,NX4H3+;!$([N][!C]);!$([N]*~[#7,#8,#15,#16])]"_smarts;
     REQUIRE(mol);
     CHECK(MolToSmarts(*mol).find("N!C") == std::string::npos);
+  }
+}
+
+TEST_CASE("Pol and Mod atoms in CXSMILES", "[cxsmiles]") {
+  SECTION("Pol basics") {
+    auto mol = "CC* |$;;Pol_p$|"_smiles;
+    REQUIRE(mol);
+    std::string val;
+    CHECK(mol->getAtomWithIdx(2)->getPropIfPresent(
+        common_properties::dummyLabel, val));
+    CHECK(val == "Pol");
+    auto smi = MolToCXSmiles(*mol);
+    CHECK(smi == "*CC |$Pol_p;;$|");
+  }
+  SECTION("Mod basics") {
+    auto mol = "CC* |$;;Mod_p$|"_smiles;
+    REQUIRE(mol);
+    std::string val;
+    CHECK(mol->getAtomWithIdx(2)->getPropIfPresent(
+        common_properties::dummyLabel, val));
+    CHECK(val == "Mod");
+    auto smi = MolToCXSmiles(*mol);
+    CHECK(smi == "*CC |$Mod_p;;$|");
+  }
+}
+
+TEST_CASE("empty atom label block", "[cxsmiles]") {
+  SECTION("basics") {
+    auto m = R"CTAB(
+  MJ201100
+                        
+  8  8  0  0  0  0  0  0  0  0999 V2000
+   -1.0491    1.5839    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.7635    1.1714    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.7635    0.3463    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.0491   -0.0661    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.3346    0.3463    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.3346    1.1714    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.3798    1.5839    0.0000 R#  0  0  0  0  0  0  0  0  0  0  0  0
+    0.3798   -0.0661    0.0000 R#  0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  2  0  0  0  0
+  2  3  1  0  0  0  0
+  3  4  2  0  0  0  0
+  4  5  1  0  0  0  0
+  5  6  2  0  0  0  0
+  6  1  1  0  0  0  0
+  6  7  1  0  0  2  0
+  5  8  1  0  0  2  0
+M  RGP  2   7   1   8   2
+M  END)CTAB"_ctab;
+    REQUIRE(m);
+    m->clearConformers();
+    auto smi = MolToCXSmiles(*m);
+    CHECK(smi.find("$") == std::string::npos);
+  }
+}
+
+TEST_CASE("Github #5372: errors with fragments and doRandom=True") {
+  SECTION("basics") {
+    auto m = "C.C"_smiles;
+    REQUIRE(m);
+    SmilesWriteParams ps;
+    ps.doRandom = true;
+    auto smi = MolToSmiles(*m, ps);
+    CHECK(smi == "C.C");
   }
 }
