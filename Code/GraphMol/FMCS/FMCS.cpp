@@ -204,8 +204,8 @@ bool checkAtomRingMatch(const MCSAtomCompareParameters& p, const ROMol& mol1,
   if (p.RingMatchesRingOnly) {
     const auto ri1 = mol1.getRingInfo();
     const auto ri2 = mol2.getRingInfo();
-    bool atom1inRing = !ri1->atomMembers(atom1).empty();
-    bool atom2inRing = !ri2->atomMembers(atom2).empty();
+    bool atom1inRing = (ri1->numAtomRings(atom1) > 0);
+    bool atom2inRing = (ri2->numAtomRings(atom2) > 0);
     return atom1inRing == atom2inRing;
   } else {
     return true;
@@ -503,15 +503,43 @@ inline bool ringFusionCheck(const std::uint32_t c1[], const std::uint32_t c2[],
                             const ROMol& mol1, const FMCS::Graph& query,
                             const ROMol& mol2, const FMCS::Graph& target,
                             const MCSParameters &p) {
+  if (boost::num_edges(target) < boost::num_edges(query)) {
+    return true;
+  }
+  std::vector<int> mol1AtomIndices;
+  std::vector<int> mol2AtomIndices;
+  int numSeedAtoms = boost::num_vertices(query);
+  for (int i = 0; i < numSeedAtoms; ++i) {
+    mol1AtomIndices.push_back(query[c1[boost::vertex(i, query)]]);
+    mol2AtomIndices.push_back(target[c2[boost::vertex(i, query)]]);
+  }
+  // if mol1 (query) and mol2 (target) have the same number
+  // of atoms we need to try again swapping molecules
   const auto ri2 = mol2.getRingInfo();
   const auto& br2 = ri2->bondRings();
+  // Number of bonds which are part of MCS in each ring of target (mol2)
   std::vector<unsigned int> numMcsBondsInRing2(br2.size(), 0);
+  // Loop on the query (mol1, seed) edges
   auto bpIter = boost::edges(query);
   for (auto it = bpIter.first; it != bpIter.second; ++it) {
+    // get the corresponding bond (if any) from target (mol2)
     const auto b =
         mol2.getBondBetweenAtoms(target[c2[boost::source(*it, query)]],
                                  target[c2[boost::target(*it, query)]]);
     if (!b) {
+      std::cerr << "0) mol1 " << MolToSmiles(mol1) << " (";
+      std::copy(mol1AtomIndices.begin(), mol1AtomIndices.end(),
+                std::ostream_iterator<int>(std::cerr, ","));
+      std::cerr << ") mol2 " << MolToSmiles(mol2) << " (";
+      std::copy(mol2AtomIndices.begin(), mol2AtomIndices.end(),
+                std::ostream_iterator<int>(std::cerr, ","));
+      std::cerr << ") query edges " << boost::num_edges(query)
+                << " target edges " << boost::num_edges(target)
+                << " missing bond mol1 ("
+                << query[c1[boost::source(*it, query)]] << ","
+                << query[c1[boost::target(*it, query)]] << ")"
+                << " mol2 (" << target[c2[boost::source(*it, query)]] << ","
+                << target[c2[boost::target(*it, query)]] << ")" << std::endl;
       continue;
     }
     unsigned int bi = b->getIdx();
@@ -525,15 +553,15 @@ inline bool ringFusionCheck(const std::uint32_t c1[], const std::uint32_t c2[],
     }
   }
   /* if a ring has at least one bond which is part of the MCS,
-     we need to check how many bonds are actually part of the MCS:
-     if they are greater than the number of fused bonds but lower
-     than the number of non-fused bonds, then the ring is not
-     complete and we should return true straightaway
-     We need to check that the number of bonds in a ring
-     is greater than the number of fused bonds because that
-     guarantees that this ring is actually involved in the
-     MCS and not just adjacent to another ring which is
-     indeed part of the MCS. */
+    we need to check how many bonds are actually part of the MCS:
+    if they are greater than the number of fused bonds but lower
+    than the number of non-fused bonds, then the ring is not
+    complete and we should return true straightaway
+    We need to check that the number of bonds in a ring
+    is greater than the number of fused bonds because that
+    guarantees that this ring is actually involved in the
+    MCS and not just adjacent to another ring which is
+    indeed part of the MCS. */
   bool missingFusedBond = false;
   for (unsigned int ringIdx = 0; ringIdx < br2.size(); ++ringIdx) {
     // nonFusedBonds stores the number of non-fused bonds
@@ -543,6 +571,9 @@ inline bool ringFusionCheck(const std::uint32_t c1[], const std::uint32_t c2[],
         numMcsBondsInRing2[ringIdx] > ri2->numFusedBonds(ringIdx) &&
         numMcsBondsInRing2[ringIdx] < nonFusedBonds) {
       if (p.BondCompareParameters.CompleteRingsOnly) {
+        std::cerr << "1) query edges " << boost::num_edges(query)
+                  << " target edges " << boost::num_edges(target) << " res true"
+                  << std::endl;
         return true;
       } else {
         continue;
@@ -554,28 +585,28 @@ inline bool ringFusionCheck(const std::uint32_t c1[], const std::uint32_t c2[],
     }
   }
   /* If we found that the MCS is missing a fused bond, we may need to
-     check against the smaller molecule as well.
-     Consider this case: MCS between
-     2-methylbicyclo[4.3.0]nonane and 1-methylbicyclo[3.1.0]hexane
+    check against the smaller molecule as well.
+    Consider this case: MCS between
+    2-methylbicyclo[4.3.0]nonane and 1-methylbicyclo[3.1.0]hexane
 
-                   \__
-                   /  \_                          \___
-                   \__/ \                         / \/
+                  \__
+                  /  \_                          \___
+                  \__/ \                         / \/
                       \ /                         \ /
-                       C                           C
-                       H2                          H2
+                      C                           C
+                      H2                          H2
 
-     In permissive mode, we are happy for methylcyclohexane to be the MCS.
-     in strict mode, we don't want methylcyclohexane to be the MCS.
+    In permissive mode, we are happy for methylcyclohexane to be the MCS.
+    in strict mode, we don't want methylcyclohexane to be the MCS.
 
-                                         \__
-                                         /  \
-                                         \__/
+                                        \__
+                                        /  \
+                                        \__/
 
-     When methylcyclohexane is checked against 2-methylbicyclo[4.3.0]nonane
-     there is no missing fused bond. This is OK for permissive mode.
-     In strict mode, we also need to check against 1-methylbicyclo[3.1.0]hexane,
-     where there is indeed a missing fused bond. */
+    When methylcyclohexane is checked against 2-methylbicyclo[4.3.0]nonane
+    there is no missing fused bond. This is OK for permissive mode.
+    In strict mode, we also need to check against 1-methylbicyclo[3.1.0]hexane,
+    where there is indeed a missing fused bond. */
   bool missingFusedBond2 = false;
   if (missingFusedBond ^ p.BondCompareParameters.MatchFusedRingsStrict) {
     // if we are in permissive mode we allow one of the molecules to miss

@@ -39,7 +39,8 @@ class MolMatchFinalCheckFunctor {
 
   bool operator()(const boost::detail::node_id c1[],
                   const boost::detail::node_id c2[]) const {
-    if ((unsigned int)c1[0] >= boost::num_vertices(QueryTopology)) {
+    if (static_cast<unsigned int>(c1[0]) >=
+        boost::num_vertices(QueryTopology)) {
       return false;  // invalid index - match failed, see v2f implementation
     }
     auto compare =

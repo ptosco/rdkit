@@ -65,7 +65,7 @@ struct timezone {
 
 static inline int gettimeofday(struct timeval *tv, struct timezone *tz) {
   FILETIME ft;
-  unsigned int __int64 tmpres = 0;
+  unsigned __int64 tmpres = 0;
   static int tzflag;
 
   if (nullptr != tv) {

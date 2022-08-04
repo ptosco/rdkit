@@ -30,7 +30,8 @@ struct LabelDefinition {
   unsigned int ItemIndex;  // item with this label value
   unsigned int Value;
   LabelDefinition() : ItemIndex(NotSet), Value(NotSet) {}
-  LabelDefinition(unsigned i, unsigned int value) : ItemIndex(i), Value(value) {}
+  LabelDefinition(unsigned int i, unsigned int value)
+      : ItemIndex(i), Value(value) {}
 };
 
 MaximumCommonSubgraph::MaximumCommonSubgraph(const MCSParameters* params) {
@@ -148,8 +149,9 @@ void MaximumCommonSubgraph::init() {
   for (size_t aj = 0; aj < nq; ++aj) {
     const Bond* bond = QueryMolecule->getBondWithIdx(aj);
     unsigned ring = 0;
-    if (!userData && (Parameters.BondCompareParameters.CompleteRingsOnly ||
-                      Parameters.BondCompareParameters.RingMatchesRingOnly)) {
+    if (!Parameters.CompareFunctionsUserData &&
+        (Parameters.BondCompareParameters.CompleteRingsOnly ||
+         Parameters.BondCompareParameters.RingMatchesRingOnly)) {
       // is bond in ring
       ring = QueryMolecule->getRingInfo()->numBondRings(aj) ? 0 : 1;
     }
@@ -791,8 +793,11 @@ MCSResult MaximumCommonSubgraph::find(const std::vector<ROMOL_SPTR>& src_mols) {
 
   // minimal required number of matched targets:
   // at least one target, max all targets
-  ThresholdCount = static_cast<unsigned int>(std::min(static_cast<int>(src_mols.size()) - 1, std::max(1, static_cast<int>(ceil(src_mols.size() * Parameters.Threshold)) -
-                   1)));        
+  ThresholdCount = static_cast<unsigned int>(std::min(
+      static_cast<int>(src_mols.size()) - 1,
+      std::max(
+          1,
+          static_cast<int>(ceil(src_mols.size() * Parameters.Threshold)) - 1)));
 
   // AtomCompareParameters.CompleteRingsOnly implies
   // BondCompareParameters.CompleteRingsOnly
@@ -835,11 +840,10 @@ MCSResult MaximumCommonSubgraph::find(const std::vector<ROMOL_SPTR>& src_mols) {
       break;
     }
     MCSFinalMatchCheckFunction tff = Parameters.FinalMatchChecker;
+    // skip final match check for initial seed to allow future growing
     if (FinalMatchCheckFunction == Parameters.FinalMatchChecker) {
-      Parameters.FinalMatchChecker = nullptr;  // skip final match check for
+      Parameters.FinalMatchChecker = nullptr;
     }
-    // initial seed to allow future growing
-    // of it
     makeInitialSeeds();
     Parameters.FinalMatchChecker = tff;  // restore final functor
 
