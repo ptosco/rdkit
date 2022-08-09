@@ -115,16 +115,13 @@ def patched_to_html(self, *args, **kwargs):
   """A patched version of the to_html method
      that allows rendering molecule images in data frames.
   """
-  # Two things have to be done:
-  # 1. Disable escaping of HTML in order to render img / svg tags
-  # 2. Avoid truncation of data frame values that contain HTML content
   frame = None
   if self.__class__.__name__ == "DataFrameRenderer":
     fmt = self.fmt
     frame = fmt.frame
-  elif self.__class__.__name__ == "DataFrameFormatter" and args:
+  elif self.__class__.__name__ == "DataFrameFormatter":
     fmt = self
-    frame = args[0]
+    frame = fmt.frame
   else:
     raise ValueError(f"patched_to_html: unexpected class {self.__class__.__name__}")
   if not check_rdk_attr(frame, RDK_MOLS_AS_IMAGE_ATTR):
@@ -143,6 +140,7 @@ def patched_to_html(self, *args, **kwargs):
     fmt.formatters = orig_formatters
 
 def patched_write_cell(self, s, *args, **kwargs):
+  """ Disable escaping of HTML in order to render img / svg tags """
   styleTags = f"text-align: {molJustify};"
   def_escape = self.escape
   try:
@@ -164,6 +162,7 @@ def patched_write_cell(self, s, *args, **kwargs):
     self.escape = def_escape
 
 def patched_get_adjustment():
+  """ Avoid truncation of data frame values that contain HTML content """
   adj = orig_get_adjustment()
   orig_len = adj.len
   adj.len = lambda text, *args, **kwargs: (

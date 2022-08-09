@@ -88,23 +88,34 @@ id="{div_uuid}"
 >Loading rdkit-structure-renderer.js...</div>
 <script type="module">
 const jsLoader = document.getElementById('{div_uuid}') || {{}};
-const setError = e => jsLoader.innerHTML = 'Failed to load rdkit-structure-renderer.js:<br>' +
-e.toString() + '<br>' +
-'Interactive molecule rendering will not be available in this Jupyter Notebook.'
-try {{
-import('{rdkitStructureRendererJsUrl}').then(
-  ({{ default: Renderer }}) =>
-    Renderer.init('{minimalLibJsUrl}').then(
-      () => jsLoader.innerHTML = 'Interactive molecule rendering is available in this Jupyter Notebook.'
-    ).catch(
-      e => setError(e)
-    )
-  ).catch(
-    e => setError(e)
+const setError = (e, resolve) => {{
+  jsLoader.innerHTML = (
+    'Failed to load rdkit-structure-renderer.js:<br>' +
+    e.toString() + '<br>' +
+    'Interactive molecule rendering will not be available in this Jupyter Notebook.'
   );
-}} catch(e) {{
-setError(e);
-}}
+  resolve && resolve();
+}};
+window.rdkStrRnr = new Promise(resolve => {{
+  try {{
+    import('{rdkitStructureRendererJsUrl}').then(
+      ({{ default: Renderer }}) =>
+        Renderer.init('{minimalLibJsUrl}').then(
+          Renderer => {{
+            jsLoader.innerHTML = 'Interactive molecule rendering is available in this Jupyter Notebook.';
+            resolve(Renderer);
+          }}
+        ).catch(
+          e => setError(e, resolve)
+        )
+      ).catch(
+        e => setError(e, resolve)
+      );
+  }} catch(e) {{
+    setError(e, resolve);
+  }}
+
+}})
 </script>""")
 
 
@@ -191,27 +202,23 @@ def injectHTMLHeaderBeforeTable(html):
   return html
 
 def generateHTMLHeader(doc, element):
-  div = doc.createElement("div")
+  element_parent = element.parentNode
   script = doc.createElement("script")
   script.setAttribute("type", "module")
   # avoid arrow function as minidom encodes => into HTML (grrr)
   # Also use single quotes to avoid the &quot; encoding
   cmd = doc.createTextNode(f"""\
-try {{
-import('{rdkitStructureRendererJsUrl}').then(
-  function({{ default: Renderer }}) {{
-    Renderer.init('{minimalLibJsUrl}').then(
-      function(Renderer) {{
+if (window.rdkStrRnr) {{
+  window.rdkStrRnr.then(
+    function(Renderer) {{
+      if (Renderer) {{
         Renderer.updateMolDrawDivs();
       }}
-    ).catch()
-  }}
-).catch();
-}} catch {{}}""")
+    }}
+  ).catch();
+}}""")
   script.appendChild(cmd)
-  div.appendChild(script)
-  div.appendChild(element)
-  doc.appendChild(div)
+  element_parent.firstChild.appendChild(script)
   html = doc.toxml()
   return html
 
@@ -283,7 +290,4 @@ def generateHTMLBody(useSvg, mol, size, drawOptions=None):
   if useSvg:
     div.setAttribute("data-use-svg", "true")
   doc.appendChild(div)
-  res = xmlToNewline(div.toxml())
-  with open("/tmp/PrintAsBase64PNGString.log", "a") as hnd:
-    hnd.write(f"generateHTMLBody mol {str(mol.__repr__())} uuid {unique_id} res {res}\n")
-  return res
+  return xmlToNewline(div.toxml())

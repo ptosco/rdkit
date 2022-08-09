@@ -99,6 +99,9 @@ def _wrapHTMLIntoTable(html):
 
 
 def _toHTML(mol):
+  def escape_special_chars(s):
+    return str(s).replace('"', '&quot;').replace("'", "&apos;").replace("<", "&lt;").replace(">", "&gt;").replace("&", "&amp;")
+
   useInteractiveRenderer = InteractiveRenderer.isEnabled(mol)
   if _canUse3D and ipython_3d and mol.GetNumConformers():
     return _toJSON(mol)
@@ -125,14 +128,15 @@ def _toHTML(mol):
     else:
       content = Draw._moltoSVG(mol, molSize, [], nm, kekulize=kekulizeStructures,
                                drawOptions=drawOptions)
-  res.append(f'<tr><td colspan=2 style="text-align:center">{content}</td></tr>')
+  res.append(f'<tr><td colspan="2" style="text-align:center">{content}</td></tr>')
 
   for i, (pn, pv) in enumerate(props.items()):
     if ipython_maxProperties >= 0 and i >= ipython_maxProperties:
       res.append(
-        '<tr><td colspan=2 style="text-align:center">Property list truncated.<br />Increase IPythonConsole.ipython_maxProperties (or set it to -1) to see more properties.</td></tr>'
+        '<tr><td colspan="2" style="text-align:center">Property list truncated.<br />Increase IPythonConsole.ipython_maxProperties (or set it to -1) to see more properties.</td></tr>'
       )
       break
+    pv = escape_special_chars(pv)
     res.append(
       f'<tr><th style="text-align:right">{pn}</th><td style="text-align:left">{pv}</td></tr>')
   res = '\n'.join(res)
@@ -364,14 +368,10 @@ _methodsToDelete = []
 
 
 def InstallIPythonRenderer():
-  with open("/tmp/PrintAsBase64PNGString.log", "a") as hnd:
-    hnd.write(f"1) InstallIPythonRenderer\n")
   global _MolsToGridImageSaved, _DrawRDKitBitSaved, _DrawRDKitBitsSaved, _DrawMorganBitSaved, _DrawMorganBitsSaved
   global _rendererInstalled
   if _rendererInstalled:
     return
-  with open("/tmp/PrintAsBase64PNGString.log", "a") as hnd:
-    hnd.write(f"2) InstallIPythonRenderer\n")
   rdchem.Mol._repr_png_ = _toPNG
   rdchem.Mol._repr_svg_ = _toSVG
   _methodsToDelete.append((rdchem.Mol, '_repr_png_'))

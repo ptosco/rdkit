@@ -139,7 +139,6 @@ import sys
 import logging
 
 import numpy as np
-from regex import P
 import rdkit
 from rdkit import Chem
 from rdkit import DataStructs
@@ -192,8 +191,6 @@ def _molge(x, y):
 def PrintAsBase64PNGString(x):
   '''returns the molecules as base64 encoded PNG image
     '''
-  with open("/tmp/PrintAsBase64PNGString.log", "a") as hnd:
-    hnd.write(f"PrintAsBase64PNGString x {x}\n")
   if highlightSubstructures and hasattr(x, '__sssAtoms'):
     highlightAtoms = x.__sssAtoms
   else:
@@ -685,4 +682,4 @@ if __name__ == '__main__':  # pragma: nocover
     _runDoctests()
     unittest.main()
   else:
-    log.warning("pandas installation >=0.10 not found, skipping tests")
+    log.warning("pandas installation >=0.19 not found, skipping tests")
