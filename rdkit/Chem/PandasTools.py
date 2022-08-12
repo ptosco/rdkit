@@ -190,17 +190,17 @@ def _molge(x, y):
 
 def PrintAsBase64PNGString(x):
   '''returns the molecules as base64 encoded PNG image
-    '''
+  '''
   if highlightSubstructures and hasattr(x, '__sssAtoms'):
     highlightAtoms = x.__sssAtoms
   else:
     highlightAtoms = []
-  useSvg = (molRepresentation.lower() == 'svg')
+  useSVG = (molRepresentation.lower() == 'svg')
   if InteractiveRenderer and InteractiveRenderer.isEnabled(x):
     size = [max(30, s) for s in molSize]
-    return InteractiveRenderer.generateHTMLBody(useSvg, x, size)
+    return InteractiveRenderer.generateHTMLBody(x, size, useSVG=useSVG)
   else:
-    if useSvg:
+    if useSVG:
       svg = Draw._moltoSVG(x, molSize, highlightAtoms, "", kekulize=True, drawOptions=drawOptions)
       svg = minidom.parseString(svg)
       svg = svg.getElementsByTagName('svg')[0]
@@ -221,6 +221,7 @@ try:
   from . import PandasPatcher
   PandasPatcher.PrintAsBase64PNGString = PrintAsBase64PNGString
   PandasPatcher.molJustify = molJustify
+  PandasPatcher.InteractiveRenderer = InteractiveRenderer
 except Exception:
   log.warning("Failed to patch pandas - PandasTools will have limited functionality")
 

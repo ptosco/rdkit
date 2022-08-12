@@ -16,6 +16,7 @@ import re
 from . import rdMolDraw2D
 from IPython.display import HTML
 from rdkit import Chem
+from rdkit.Chem import Draw
 
 rdkitStructureRendererJsUrl = "https://unpkg.com/rdkit-structure-renderer/dist/rdkit-structure-renderer-module.js"
 minimalLibJsUrl = "https://unpkg.com/rdkit-structure-renderer/public/RDKit_minimal.js"
@@ -218,7 +219,8 @@ if (window.rdkStrRnr) {{
   ).catch();
 }}""")
   script.appendChild(cmd)
-  element_parent.firstChild.appendChild(script)
+  append_to = element_parent.firstChild if isinstance(element_parent.firstChild, minidom.Element) else element_parent
+  append_to.appendChild(script)
   html = doc.toxml()
   return html
 
@@ -246,14 +248,15 @@ def camelCaseOptToDataTag(opt):
   return tag
 
 
-def generateHTMLBody(useSvg, mol, size, drawOptions=None):
-  if drawOptions is None:
-    drawOptions = _defaultDrawOptions
+def generateHTMLBody(mol, size, **kwargs):
+  drawOptions = kwargs.get("drawOptions", _defaultDrawOptions)
+  legend = kwargs.get("legend", None)
+  useSVG = kwargs.get("useSVG", False)
   doc = minidom.Document()
   unique_id = str(uuid.uuid1())
   div = doc.createElement("div")
   for key, value in [
-    ("style", f"width: {size[0]}px; height: {size[1]}px;"),
+    ("style", f"width: {size[0]}px; height: {size[1]}px; margin: auto;"),
     ("class", "rdk-str-rnr-mol-container"),
     ("id", f"rdk-str-rnr-mol-{unique_id}"),
     ("data-mol", toDataMol(mol)),
@@ -287,7 +290,55 @@ def generateHTMLBody(useSvg, mol, size, drawOptions=None):
     div.setAttribute(key, value)
   if userDrawOpts:
     div.setAttribute("data-draw-opts", json.dumps(userDrawOpts, separators=(',', ':')))
-  if useSvg:
+  if useSVG:
     div.setAttribute("data-use-svg", "true")
+  if legend:
+    outerTable = doc.createElement("table")
+    outerTable.setAttribute("style", f"margin: auto;")
+    molTr = doc.createElement("tr")
+    molTd = doc.createElement("td")
+    molTd.setAttribute("style", f"padding: 0;")
+    molTd.appendChild(div)
+    molTr.appendChild(molTd)
+    nameTr = doc.createElement("tr")
+    nameTh = doc.createElement("th")
+    legendText = doc.createTextNode(legend)
+    nameTh.appendChild(legendText)
+    nameTh.setAttribute("style", f"text-align: center; background: white;")
+    nameTr.appendChild(nameTh)
+    outerTable.appendChild(molTr)
+    outerTable.appendChild(nameTr)
+    div = outerTable
   doc.appendChild(div)
   return xmlToNewline(div.toxml())
+
+
+def MolsToHTMLTable(mols, molsPerRow=3, subImgSize=(200, 200), legends=None,
+                    highlightAtomLists=None, highlightBondLists=None, useSVG=False,
+                    drawOptions=None, **kwargs):
+  if legends and len(legends) > len(mols):
+    legends = legends[:len(mols)]
+  if highlightAtomLists and len(highlightAtomLists) > len(mols):
+    highlightAtomLists = highlightAtomLists[:len(mols)]
+  if highlightBondLists and len(highlightBondLists) > len(mols):
+    highlightBondLists = highlightBondLists[:len(mols)]
+  nRows = (len(mols) - 1) // molsPerRow + 1 if mols else 0
+  doc = minidom.Document()
+  doc.createElement("table")
+  i = 0
+  for row in range(nRows):
+    tr = doc.createElement("tr")
+    for col in range(molsPerRow):
+      td = doc.createElement("td")
+      highlights = None
+      mol = mols[i]
+      legend = legends[i]
+      i += 1
+      if highlightAtomLists and highlightAtomLists[i]:
+        highlights = highlightAtomLists[i]
+      if highlightBondLists and highlightBondLists[i]:
+        kwargs["highlightBonds"] = highlightBondLists[i]
+      if mol is not None:
+        img = Draw._moltoimg(mol, subImgSize, highlights, legend, **kwargs)
+        res.paste(img, (col * subImgSize[0], row * subImgSize[1]))
+      i += 1

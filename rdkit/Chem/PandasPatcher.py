@@ -7,6 +7,7 @@ from rdkit.Chem import Mol
 
 log = logging.getLogger(__name__)
 RDK_MOLS_AS_IMAGE_ATTR = "__rdkitMolAsImage"
+InteractiveRenderer = None
 PrintAsBase64PNGString = None
 molJustify = None
 pandas_frame = None
@@ -135,7 +136,9 @@ def patched_to_html(self, *args, **kwargs):
       formatters = dict(formatters)
     formatters.update(get_mol_formatters(frame))
     fmt.formatters = formatters
-    return orig_to_html(self, *args, **kwargs)
+    res = orig_to_html(self, *args, **kwargs)
+    should_inject = InteractiveRenderer and InteractiveRenderer.isEnabled()
+    return InteractiveRenderer.injectHTMLHeaderBeforeTable(res) if should_inject else res
   finally:
     fmt.formatters = orig_formatters
 

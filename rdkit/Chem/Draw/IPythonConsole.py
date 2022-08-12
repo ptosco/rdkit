@@ -109,7 +109,7 @@ def _toHTML(mol):
   if not ipython_showProperties or not props:
     if useInteractiveRenderer:
       return _wrapHTMLIntoTable(
-        InteractiveRenderer.generateHTMLBody(ipython_useSVG, mol, molSize, drawOptions))
+        InteractiveRenderer.generateHTMLBody(mol, molSize, useSVG=ipython_useSVG))
     else:
       return _toSVG(mol)
   if mol.HasProp('_Name'):
@@ -119,26 +119,27 @@ def _toHTML(mol):
 
   res = []
   if useInteractiveRenderer:
-    content = InteractiveRenderer.generateHTMLBody(ipython_useSVG, mol, molSize)
+    content = InteractiveRenderer.generateHTMLBody(mol, molSize, legend=nm, useSVG=ipython_useSVG)
   else:
     if not ipython_useSVG:
-      png = Draw._moltoimg(mol, molSize, [], nm, returnPNG=True, drawOptions=drawOptions)
+      png = Draw._moltoimg(mol, molSize, [], nm, returnPNG=True,
+                           kekulize=kekulizeStructures, drawOptions=drawOptions)
       png = base64.b64encode(png)
       content = f'<image src="data:image/png;base64,{png.decode()}">'
     else:
       content = Draw._moltoSVG(mol, molSize, [], nm, kekulize=kekulizeStructures,
                                drawOptions=drawOptions)
-  res.append(f'<tr><td colspan="2" style="text-align:center">{content}</td></tr>')
+  res.append(f'<tr><td colspan="2" style="text-align: center;">{content}</td></tr>')
 
   for i, (pn, pv) in enumerate(props.items()):
     if ipython_maxProperties >= 0 and i >= ipython_maxProperties:
       res.append(
-        '<tr><td colspan="2" style="text-align:center">Property list truncated.<br />Increase IPythonConsole.ipython_maxProperties (or set it to -1) to see more properties.</td></tr>'
+        '<tr><td colspan="2" style="text-align: center">Property list truncated.<br />Increase IPythonConsole.ipython_maxProperties (or set it to -1) to see more properties.</td></tr>'
       )
       break
     pv = escape_special_chars(pv)
     res.append(
-      f'<tr><th style="text-align:right">{pn}</th><td style="text-align:left">{pv}</td></tr>')
+      f'<tr><th style="text-align: right">{pn}</th><td style="text-align: left">{pv}</td></tr>')
   res = '\n'.join(res)
   res = f'<table>{res}</table>'
   if useInteractiveRenderer:
@@ -249,6 +250,8 @@ def ShowMols(mols, maxMols=50, **kwargs):
     kwargs['returnPNG'] = True
   if _MolsToGridImageSaved is not None:
     fn = _MolsToGridImageSaved
+  elif InteractiveRenderer.isEnabled():
+    fn = InteractiveRenderer.MolsToHTMLTable
   else:
     fn = Draw.MolsToGridImage
 
@@ -264,9 +267,11 @@ def ShowMols(mols, maxMols=50, **kwargs):
     kwargs["drawOptions"] = drawOptions
 
   res = fn(mols, **kwargs)
-  if kwargs['useSVG']:
+  if InteractiveRenderer.isEnabled():
+    return HTML(res)
+  elif kwargs['useSVG']:
     return SVG(res)
-  if kwargs['returnPNG']:
+  elif kwargs['returnPNG']:
     return display.Image(data=res, format='png')
   return res
 

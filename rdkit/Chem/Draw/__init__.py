@@ -549,6 +549,8 @@ def _MolsToGridImage(mols, molsPerRow=3, subImgSize=(200, 200), legends=None,
       highlights = None
       if highlightAtomLists and highlightAtomLists[i]:
         highlights = highlightAtomLists[i]
+      if highlightBondLists and highlightBondLists[i]:
+        kwargs["highlightBonds"] = highlightBondLists[i]
       if mol is not None:
         img = _moltoimg(mol, subImgSize, highlights, legends[i], **kwargs)
         res.paste(img, (col * subImgSize[0], row * subImgSize[1]))
