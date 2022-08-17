@@ -63,7 +63,7 @@ def _isDrawOptionEqual(v1, v2):
 def filterDefaultDrawOpts(molDrawOptions):
   global _defaultDrawOptionsDict
   if not isinstance(molDrawOptions, rdMolDraw2D.MolDrawOptions):
-    raise ValueError(f"Bad args for {__name__}.filterDefaultDrawOpts("
+    raise ValueError(f"Bad args ({str(type(molDrawOptions))}) for {__name__}.filterDefaultDrawOpts("
                      "molDrawOptions: Chem.Draw.rdMolDraw2D.MolDrawOptions)")
   molDrawOptionsAsDict = _molDrawOptionsToDict(molDrawOptions)
   if (_defaultDrawOptionsDict is None):
@@ -126,7 +126,7 @@ def isEnabled(mol=None):
 
 def getOpts(mol):
   if not isinstance(mol, Chem.Mol):
-    raise ValueError(f"Bad args for {__name__}.getOpts(mol: Chem.Mol)")
+    raise ValueError(f"Bad args ({str(type(mol))}) for {__name__}.getOpts(mol: Chem.Mol)")
   opts = {}
   if hasattr(mol, _opts):
     opts = getattr(mol, _opts)
@@ -137,7 +137,7 @@ def getOpts(mol):
 
 def setOpts(mol, opts):
   if not isinstance(mol, Chem.Mol) or not isinstance(opts, dict):
-    raise ValueError(f"Bad args for {__name__}.setOpts(mol: Chem.Mol, opts: dict)")
+    raise ValueError(f"Bad args ({str(type(mol)), str(type(opts))}) for {__name__}.setOpts(mol: Chem.Mol, opts: dict)")
   if not all(opts.keys()):
     raise ValueError(
       f"{__name__}.setOpts(mol: Chem.Mol, opts: dict): no key in opts should be null")
@@ -149,7 +149,7 @@ def setOpts(mol, opts):
 
 def setOpt(mol, key, value):
   if not isinstance(mol, Chem.Mol) or not isinstance(key, str) or not key:
-    raise ValueError(f"Bad args for {__name__}.setOpt(mol: Chem.Mol, key: str, value: Any)")
+    raise ValueError(f"Bad args ({str(type(mol))}, {str(type(key))}) for {__name__}.setOpt(mol: Chem.Mol, key: str, value: Any)")
   opts = getOpts(mol)
   opts[key] = value
   setOpts(mol, opts)
@@ -157,13 +157,13 @@ def setOpt(mol, key, value):
 
 def clearOpts(mol):
   if not isinstance(mol, Chem.Mol):
-    raise ValueError(f"Bad args for {__name__}.clearOpts(mol: Chem.Mol)")
+    raise ValueError(f"Bad args ({str(type(mol))}) for {__name__}.clearOpts(mol: Chem.Mol)")
   setOpts(mol, {})
 
 
 def clearOpt(mol, key):
   if not isinstance(mol, Chem.Mol) or not isinstance(key, str):
-    raise ValueError(f"Bad args for {__name__}.clearOpt(mol: Chem.Mol, key: str)")
+    raise ValueError(f"Bad args ({str(type(mol))}, {str(type(key))}) for {__name__}.clearOpt(mol: Chem.Mol, key: str)")
   opts = getOpts(mol)
   if key in opts:
     opts.pop(key)
@@ -186,20 +186,18 @@ def isNoInteractive(mol):
 
 def injectHTMLHeaderBeforeTable(html):
   doc = minidom.parseString(html.replace(" scoped", ""))
-  table = doc.getElementsByTagName("table")
-  if len(table) != 1:
-    return html
-  table = table.pop(0)
-  tbody = table.getElementsByTagName("tbody")
-  if tbody:
-    if len(tbody) != 1:
-      return html
-    tbody = tbody.pop(0)
-  else:
-    tbody = table
-  div_list = tbody.getElementsByTagName("div")
-  if any(div.getAttribute("class") == "rdk-str-rnr-mol-container" for div in div_list):
-    return generateHTMLHeader(doc, table)
+  tables = doc.getElementsByTagName("table")
+  for table in tables:
+    tbody = table.getElementsByTagName("tbody")
+    if tbody:
+      if len(tbody) != 1:
+        return html
+      tbody = tbody.pop(0)
+    else:
+      tbody = table
+    div_list = tbody.getElementsByTagName("div")
+    if any(div.getAttribute("class") == "rdk-str-rnr-mol-container" for div in div_list):
+      return generateHTMLHeader(doc, table)
   return html
 
 def generateHTMLHeader(doc, element):
@@ -252,6 +250,16 @@ def generateHTMLBody(mol, size, **kwargs):
   drawOptions = kwargs.get("drawOptions", _defaultDrawOptions)
   legend = kwargs.get("legend", None)
   useSVG = kwargs.get("useSVG", False)
+  kekulize = kwargs.get("kekulize", True)
+  highlightAtoms = kwargs.get("highlightAtoms", []) or []
+  highlightBonds = kwargs.get("highlightBonds", []) or []
+  if not highlightAtoms and not highlightBonds and hasattr(mol, '__sssAtoms'):
+    highlightAtoms = mol.__sssAtoms
+    highlightBonds = [
+      b.GetIdx() for b in mol.GetBonds()
+      if b.GetBeginAtomIdx() in highlightAtoms
+      and b.GetEndAtomIdx() in highlightAtoms
+    ]
   doc = minidom.Document()
   unique_id = str(uuid.uuid1())
   div = doc.createElement("div")
@@ -281,15 +289,20 @@ def generateHTMLBody(mol, size, **kwargs):
     addAtomIndices = userDrawOpts["addAtomIndices"]
     if addAtomIndices:
       molOptsDashed["data-atom-idx"] = True
-    userDrawOpts.pop('addAtomIndices')
+    userDrawOpts.pop("addAtomIndices")
+  if highlightAtoms or highlightBonds:
+    userDrawOpts["atoms"] = highlightAtoms
+    userDrawOpts["bonds"] = highlightBonds
+  if not kekulize:
+    userDrawOpts["kekulize"] = False
   for key, value in molOptsDashed.items():
     if isinstance(value, Chem.Mol):
       value = toDataMol(value)
     elif not isinstance(value, str):
-      value = json.dumps(value, separators=(',', ':'))
+      value = json.dumps(value, separators=(",", ":"))
     div.setAttribute(key, value)
   if userDrawOpts:
-    div.setAttribute("data-draw-opts", json.dumps(userDrawOpts, separators=(',', ':')))
+    div.setAttribute("data-draw-opts", json.dumps(userDrawOpts, separators=(",", ":")))
   if useSVG:
     div.setAttribute("data-use-svg", "true")
   if legend:
@@ -323,22 +336,35 @@ def MolsToHTMLTable(mols, molsPerRow=3, subImgSize=(200, 200), legends=None,
   if highlightBondLists and len(highlightBondLists) > len(mols):
     highlightBondLists = highlightBondLists[:len(mols)]
   nRows = (len(mols) - 1) // molsPerRow + 1 if mols else 0
-  doc = minidom.Document()
-  doc.createElement("table")
+  if nRows:
+    doc = minidom.Document()
+    table = doc.createElement("table")
+  res = ""
   i = 0
-  for row in range(nRows):
+  for _ in range(nRows):
     tr = doc.createElement("tr")
-    for col in range(molsPerRow):
+    for _ in range(molsPerRow):
       td = doc.createElement("td")
       highlights = None
       mol = mols[i]
-      legend = legends[i]
-      i += 1
-      if highlightAtomLists and highlightAtomLists[i]:
-        highlights = highlightAtomLists[i]
-      if highlightBondLists and highlightBondLists[i]:
-        kwargs["highlightBonds"] = highlightBondLists[i]
+      legend = legends[i] if legends else None 
+      highlights = highlightAtomLists[i] if highlightAtomLists else None
+      kwargs["highlightBonds"] = highlightBondLists[i] if highlightBondLists else None
+      content = None
       if mol is not None:
-        img = Draw._moltoimg(mol, subImgSize, highlights, legend, **kwargs)
-        res.paste(img, (col * subImgSize[0], row * subImgSize[1]))
+        if isEnabled(mol):
+          content = generateHTMLBody(mol, subImgSize, drawOptions=drawOptions, legend=legend, useSVG=useSVG,
+                                 highlightAtoms=highlights, highlightBonds=kwargs["highlightBonds"], **kwargs)
+        else:
+          fn = Draw._moltoSVG if useSVG else Draw._moltoimg
+          content = fn(mol, subImgSize, highlights, legend, **kwargs)
+      if content:
+        content = doc.createTextNode(content)
+        td.appendChild(content)
+      tr.appendChild(td)
       i += 1
+    table.appendChild(tr)
+  if nRows:
+    doc.appendChild(table)
+    res = doc.toxml()
+  return res

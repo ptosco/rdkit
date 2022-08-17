@@ -8,7 +8,7 @@ from rdkit.Chem import Mol
 log = logging.getLogger(__name__)
 RDK_MOLS_AS_IMAGE_ATTR = "__rdkitMolAsImage"
 InteractiveRenderer = None
-PrintAsBase64PNGString = None
+PrintAsImageString = None
 molJustify = None
 pandas_frame = None
 
@@ -94,17 +94,39 @@ def is_molecule_image(s):
 
 styleRegex = re.compile("^(.*style=[\"'][^\"^']*)([\"'].*)$")
 
-def is_mol(x):
-  return isinstance(x, Mol)
+class MolFormatter:
+  """Format molecules as images"""
 
-def default_formatter(x):
-  return pprint_thing(x, escape_chars=("\t", "\r", "\n"))
+  def __init__(self, orig_formatter=None):
+    """Store original formatters (if any)"""
+    self.orig_formatter = orig_formatter
 
-def mol_formatter(x):
-  return is_mol(x) and PrintAsBase64PNGString(x) or default_formatter(x)
+  @staticmethod
+  def default_formatter(x):
+    """Default formatter function"""
+    return pprint_thing(x, escape_chars=("\t", "\r", "\n"))
 
-def get_mol_formatters(df):
-  return {col: mol_formatter for col in df.select_dtypes("object").applymap(is_mol).any().keys()}
+  @staticmethod
+  def is_mol(x):
+    """Return True if x is a Chem.Mol"""
+    return isinstance(x, Mol)
+
+  @classmethod
+  def get_formatters(cls, df, orig_formatters):
+    """Return an instance of MolFormatter for each column that contains Chem.Mol objects"""
+    return {
+      col: cls(orig_formatters.get(col, None))
+        for col in df.select_dtypes("object").applymap(MolFormatter.is_mol).any().keys()
+    }
+
+  def __call__(self, x):
+    """Return x formatted based on its type"""
+    if self.is_mol(x):
+      return PrintAsImageString(x)
+    if callable(self.orig_formatter):
+      return self.orig_formatter(x)
+    return self.default_formatter(x)
+
 
 def check_rdk_attr(frame, attr):
   return hasattr(frame, attr) and getattr(frame, attr)
@@ -134,7 +156,7 @@ def patched_to_html(self, *args, **kwargs):
       formatters = {col: formatters[i] for i, col in enumerate(self.columns)}
     else:
       formatters = dict(formatters)
-    formatters.update(get_mol_formatters(frame))
+    formatters.update(MolFormatter.get_formatters(frame, formatters))
     fmt.formatters = formatters
     res = orig_to_html(self, *args, **kwargs)
     should_inject = InteractiveRenderer and InteractiveRenderer.isEnabled()

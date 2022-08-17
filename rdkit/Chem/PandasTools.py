@@ -189,8 +189,14 @@ def _molge(x, y):
     return False
 
 def PrintAsBase64PNGString(x):
-  '''returns the molecules as base64 encoded PNG image
-  '''
+  """Deprecated, use PrintAsImageString instead"""
+  if not hasattr(PrintAsBase64PNGString, "warning_shown"):
+    setattr(PrintAsBase64PNGString, "warning_shown", True)
+    log.warning("PrintAsBase64PNGString is deprecated - use PrintAsImageString instead")
+  return PrintAsImageString(x)
+
+def PrintAsImageString(x):
+  """Returns the molecules as base64 encoded PNG image or as SVG"""
   if highlightSubstructures and hasattr(x, '__sssAtoms'):
     highlightAtoms = x.__sssAtoms
   else:
@@ -219,7 +225,7 @@ def PrintAsBase64PNGString(x):
 
 try:
   from . import PandasPatcher
-  PandasPatcher.PrintAsBase64PNGString = PrintAsBase64PNGString
+  PandasPatcher.PrintAsImageString = PrintAsImageString
   PandasPatcher.molJustify = molJustify
   PandasPatcher.InteractiveRenderer = InteractiveRenderer
 except Exception:
@@ -603,9 +609,7 @@ def InstallPandasTools():
     pass
   if 'Chem.Mol.__ge__' not in _originalSettings:
     _originalSettings['Chem.Mol.__ge__'] = rdchem.Mol.__ge__
-    # _originalSettings['Chem.Mol.__str__'] = Chem.Mol.__str__
     rdchem.Mol.__ge__ = _molge
-    # rdchem.Mol.__str__ = PrintAsBase64PNGString
 
 
 def UninstallPandasTools():
@@ -616,7 +620,6 @@ def UninstallPandasTools():
     pass
   if 'Chem.Mol.__ge__' in _originalSettings:
     Chem.Mol.__ge__ = _originalSettings['Chem.Mol.__ge__']
-    # Chem.Mol.__str__ = _originalSettings['Chem.Mol.__str__']
   _originalSettings.clear()
 
 

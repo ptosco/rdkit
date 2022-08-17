@@ -248,10 +248,10 @@ def ShowMols(mols, maxMols=50, **kwargs):
     kwargs['useSVG'] = ipython_useSVG
   if 'returnPNG' not in kwargs:
     kwargs['returnPNG'] = True
-  if _MolsToGridImageSaved is not None:
-    fn = _MolsToGridImageSaved
-  elif InteractiveRenderer.isEnabled():
+  if InteractiveRenderer.isEnabled():
     fn = InteractiveRenderer.MolsToHTMLTable
+  elif _MolsToGridImageSaved is not None:
+    fn = _MolsToGridImageSaved
   else:
     fn = Draw.MolsToGridImage
 
