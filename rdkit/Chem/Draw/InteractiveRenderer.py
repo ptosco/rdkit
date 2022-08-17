@@ -13,10 +13,13 @@ from xml.dom import minidom
 import uuid
 import json
 import re
+import logging
 from . import rdMolDraw2D
 from IPython.display import HTML
 from rdkit import Chem
 from rdkit.Chem import Draw
+
+log = logging.getLogger(__name__)
 
 rdkitStructureRendererJsUrl = "https://unpkg.com/rdkit-structure-renderer/dist/rdkit-structure-renderer-module.js"
 minimalLibJsUrl = "https://unpkg.com/rdkit-structure-renderer/public/RDKit_minimal.js"
@@ -322,7 +325,6 @@ def generateHTMLBody(mol, size, **kwargs):
     outerTable.appendChild(molTr)
     outerTable.appendChild(nameTr)
     div = outerTable
-  doc.appendChild(div)
   return xmlToNewline(div.toxml())
 
 
@@ -351,20 +353,24 @@ def MolsToHTMLTable(mols, molsPerRow=3, subImgSize=(200, 200), legends=None,
       highlights = highlightAtomLists[i] if highlightAtomLists else None
       kwargs["highlightBonds"] = highlightBondLists[i] if highlightBondLists else None
       content = None
-      if mol is not None:
+      if isinstance(mol, Chem.Mol):
         if isEnabled(mol):
           content = generateHTMLBody(mol, subImgSize, drawOptions=drawOptions, legend=legend, useSVG=useSVG,
-                                 highlightAtoms=highlights, highlightBonds=kwargs["highlightBonds"], **kwargs)
+                                     highlightAtoms=highlights, **kwargs)
         else:
           fn = Draw._moltoSVG if useSVG else Draw._moltoimg
           content = fn(mol, subImgSize, highlights, legend, **kwargs)
-      if content:
-        content = doc.createTextNode(content)
-        td.appendChild(content)
+      try:
+        content = minidom.parseString(content)
+        td.appendChild(content.firstChild)
+      except Exception as e:
+        log.warning("Failed to parse HTML returned by generateHTMLBody()")
       tr.appendChild(td)
       i += 1
+      if i == len(mols):
+        break
     table.appendChild(tr)
   if nRows:
     doc.appendChild(table)
     res = doc.toxml()
-  return res
+  return injectHTMLHeaderBeforeTable(res)
