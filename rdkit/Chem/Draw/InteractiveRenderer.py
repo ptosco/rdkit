@@ -347,6 +347,7 @@ def MolsToHTMLTable(mols, molsPerRow=3, subImgSize=(200, 200), legends=None,
     tr = doc.createElement("tr")
     for _ in range(molsPerRow):
       td = doc.createElement("td")
+      td.setAttribute("style", f"padding: 0; background-color: white;")
       highlights = None
       mol = mols[i]
       legend = legends[i] if legends else None 
