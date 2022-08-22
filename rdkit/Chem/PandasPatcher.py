@@ -114,9 +114,10 @@ class MolFormatter:
   @classmethod
   def get_formatters(cls, df, orig_formatters):
     """Return an instance of MolFormatter for each column that contains Chem.Mol objects"""
+    df_subset = df.select_dtypes("object")
     return {
       col: cls(orig_formatters.get(col, None))
-        for col in df.columns[df.select_dtypes("object").applymap(MolFormatter.is_mol).any()]
+        for col in df_subset.columns[df_subset.applymap(MolFormatter.is_mol).any()]
     }
 
   def __call__(self, x):
