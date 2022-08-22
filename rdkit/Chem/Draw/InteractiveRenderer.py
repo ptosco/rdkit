@@ -11,6 +11,7 @@
 """ Interactive molecule rendering through rdkit-structure-renderer.js """
 from xml.dom import minidom
 import uuid
+import base64
 import json
 import re
 import logging
@@ -187,7 +188,7 @@ def isNoInteractive(mol):
   return _disabled in opts
 
 
-def injectHTMLHeaderBeforeTable(html):
+def injectHTMLFooterAfterTable(html):
   doc = minidom.parseString(html.replace(" scoped", ""))
   tables = doc.getElementsByTagName("table")
   for table in tables:
@@ -200,11 +201,14 @@ def injectHTMLHeaderBeforeTable(html):
       tbody = table
     div_list = tbody.getElementsByTagName("div")
     if any(div.getAttribute("class") == "rdk-str-rnr-mol-container" for div in div_list):
-      return generateHTMLHeader(doc, table)
+      return generateHTMLFooter(doc, table)
   return html
 
-def generateHTMLHeader(doc, element):
+def generateHTMLFooter(doc, element):
   element_parent = element.parentNode
+  if element_parent.nodeName.lower() != "div":
+    element_parent = doc.createElement("div")
+    element_parent.appendChild(element)
   script = doc.createElement("script")
   script.setAttribute("type", "module")
   # avoid arrow function as minidom encodes => into HTML (grrr)
@@ -220,9 +224,8 @@ if (window.rdkStrRnr) {{
   ).catch();
 }}""")
   script.appendChild(cmd)
-  append_to = element_parent.firstChild if isinstance(element_parent.firstChild, minidom.Element) else element_parent
-  append_to.appendChild(script)
-  html = doc.toxml()
+  element_parent.appendChild(script)
+  html = element_parent.toxml()
   return html
 
 
@@ -235,7 +238,7 @@ def xmlToNewline(xmlblock):
 
 
 def toDataMol(mol):
-  return (mol.GetNumConformers() and newlineToXml(Chem.MolToMolBlock(mol)) or Chem.MolToSmiles(mol))
+  return "pkl_" + base64.b64encode(mol.ToBinary()).decode("utf-8")
 
 
 def _dashLower(m):
@@ -250,13 +253,16 @@ def camelCaseOptToDataTag(opt):
 
 
 def generateHTMLBody(mol, size, **kwargs):
+  def toJson(x):
+    return json.dumps(x, separators=(",", ":"))
+
   drawOptions = kwargs.get("drawOptions", _defaultDrawOptions)
   legend = kwargs.get("legend", None)
   useSVG = kwargs.get("useSVG", False)
   kekulize = kwargs.get("kekulize", True)
   highlightAtoms = kwargs.get("highlightAtoms", []) or []
   highlightBonds = kwargs.get("highlightBonds", []) or []
-  if not highlightAtoms and not highlightBonds and hasattr(mol, '__sssAtoms'):
+  if not highlightAtoms and hasattr(mol, '__sssAtoms'):
     highlightAtoms = mol.__sssAtoms
     highlightBonds = [
       b.GetIdx() for b in mol.GetBonds()
@@ -294,6 +300,7 @@ def generateHTMLBody(mol, size, **kwargs):
       molOptsDashed["data-atom-idx"] = True
     userDrawOpts.pop("addAtomIndices")
   if highlightAtoms or highlightBonds:
+    molOptsDashed["data-scaffold-highlight"] = True
     userDrawOpts["atoms"] = highlightAtoms
     userDrawOpts["bonds"] = highlightBonds
   if not kekulize:
@@ -302,10 +309,10 @@ def generateHTMLBody(mol, size, **kwargs):
     if isinstance(value, Chem.Mol):
       value = toDataMol(value)
     elif not isinstance(value, str):
-      value = json.dumps(value, separators=(",", ":"))
+      value = toJson(value)
     div.setAttribute(key, value)
   if userDrawOpts:
-    div.setAttribute("data-draw-opts", json.dumps(userDrawOpts, separators=(",", ":")))
+    div.setAttribute("data-draw-opts", toJson(userDrawOpts))
   if useSVG:
     div.setAttribute("data-use-svg", "true")
   if legend:
@@ -374,4 +381,4 @@ def MolsToHTMLTable(mols, molsPerRow=3, subImgSize=(200, 200), legends=None,
   if nRows:
     doc.appendChild(table)
     res = doc.toxml()
-  return injectHTMLHeaderBeforeTable(res)
+  return injectHTMLFooterAfterTable(res)

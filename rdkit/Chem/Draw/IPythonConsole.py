@@ -92,7 +92,7 @@ def _toJSON(mol):
 
 
 def _wrapHTMLIntoTable(html):
-  return InteractiveRenderer.injectHTMLHeaderBeforeTable(f'<div><table><tbody><tr><td style="width: {molSize[0]}px; ' +
+  return InteractiveRenderer.injectHTMLFooterAfterTable(f'<div><table><tbody><tr><td style="width: {molSize[0]}px; ' +
                                      f'height: {molSize[1]}px; text-align: center;">' +
                                      html.replace(" scoped", "") +
                                      '</td></tr></tbody></table></div>')
@@ -143,7 +143,7 @@ def _toHTML(mol):
   res = '\n'.join(res)
   res = f'<table>{res}</table>'
   if useInteractiveRenderer:
-    res = InteractiveRenderer.injectHTMLHeaderBeforeTable(res)
+    res = InteractiveRenderer.injectHTMLFooterAfterTable(res)
   return res
 
 

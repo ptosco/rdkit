@@ -1,3 +1,4 @@
+from io import StringIO
 import logging
 import re
 import importlib
@@ -45,25 +46,24 @@ adj = orig_get_adjustment()
 if not hasattr(adj, "len"):
   log.warning(f"Failed to find the pandas {adj.__class.__name__}.len() method to patch")
   raise AttributeError
-write_cell_class = None
+html_formatter_module = None
+html_formatter_class = None
 for html_formatter_module_name in ("format", "html"):
   try:
-    write_cell_class = importlib.import_module(f"{pandas_formats.__name__}.{html_formatter_module_name}")
+    html_formatter_module = importlib.import_module(f"{pandas_formats.__name__}.{html_formatter_module_name}")
   except ModuleNotFoundError:
     continue
-  if hasattr(write_cell_class, "HTMLFormatter"):
-    write_cell_class = getattr(write_cell_class, "HTMLFormatter")
+  if hasattr(html_formatter_module, "HTMLFormatter"):
+    html_formatter_class = getattr(html_formatter_module, "HTMLFormatter")
     break
-  else:
-    write_cell_class = None
-if write_cell_class is None:
+if html_formatter_class is None:
   log.warning("Failed to find the pandas HTMLFormatter class to patch")
   raise AttributeError
 orig_write_cell = None
-if not hasattr(write_cell_class , "_write_cell"):
+if not hasattr(html_formatter_class , "_write_cell"):
   log.warning("Failed to find the HTMLFormatter._write_cell() method to patch")
   raise AttributeError
-orig_write_cell = getattr(write_cell_class , "_write_cell")
+orig_write_cell = getattr(html_formatter_class , "_write_cell")
 if not (hasattr(pandas_formats, "printing") and hasattr(pandas_formats.printing, "pprint_thing")):
   log.warning("Failed to find the pprint_thing function")
   raise AttributeError
@@ -116,7 +116,7 @@ class MolFormatter:
     """Return an instance of MolFormatter for each column that contains Chem.Mol objects"""
     return {
       col: cls(orig_formatters.get(col, None))
-        for col in df.select_dtypes("object").applymap(MolFormatter.is_mol).any().keys()
+        for col in df.columns[df.select_dtypes("object").applymap(MolFormatter.is_mol).any()]
     }
 
   def __call__(self, x):
@@ -159,8 +159,18 @@ def patched_to_html(self, *args, **kwargs):
     formatters.update(MolFormatter.get_formatters(frame, formatters))
     fmt.formatters = formatters
     res = orig_to_html(self, *args, **kwargs)
-    should_inject = InteractiveRenderer and InteractiveRenderer.isEnabled()
-    return InteractiveRenderer.injectHTMLHeaderBeforeTable(res) if should_inject else res
+    # in pandas 0.25 DataFrameFormatter.to_html() returns None
+    if (res is None and not hasattr(html_formatter_class, "get_result")
+      and hasattr(self, "buf") and hasattr(self.buf, "getvalue")):
+      res = self.buf.getvalue()
+    should_inject = res and InteractiveRenderer and InteractiveRenderer.isEnabled()
+    if should_inject:
+      res = InteractiveRenderer.injectHTMLFooterAfterTable(res)
+      # in pandas 0.25 we need to make sure to update buf as return value will be ignored
+      if hasattr(self, "buf") and isinstance(self.buf, StringIO):
+        self.buf.seek(0)
+        self.buf.write(res)
+    return res
   finally:
     fmt.formatters = orig_formatters
 
@@ -210,8 +220,8 @@ def changeMoleculeRendering(frame, renderer='image'):
 def patchPandas():
   if getattr(to_html_class, "to_html") != patched_to_html:
     setattr(to_html_class, "to_html", patched_to_html)
-  if getattr(write_cell_class, "_write_cell") != patched_write_cell:
-    setattr(write_cell_class, "_write_cell", patched_write_cell)
+  if getattr(html_formatter_class, "_write_cell") != patched_write_cell:
+    setattr(html_formatter_class, "_write_cell", patched_write_cell)
   if getattr(pandas_formats.format, get_adjustment_name) != patched_get_adjustment:
     setattr(pandas_formats.format, get_adjustment_name, patched_get_adjustment)
 
@@ -219,6 +229,6 @@ def unpatchPandas():
   if orig_to_html:
     setattr(to_html_class, "to_html", orig_to_html)
   if orig_write_cell:
-    setattr(write_cell_class, "_write_cell", orig_write_cell)
+    setattr(html_formatter_class, "_write_cell", orig_write_cell)
   if orig_get_adjustment:
     setattr(pandas_formats.format, get_adjustment_name, orig_get_adjustment)
