@@ -59,24 +59,24 @@ class JSMol {
   }
   std::string get_rdk_fp(unsigned int fplen, int minPath, int maxPath) const;
   std::string get_rdk_fp(unsigned int fplen, int minPath) const {
-    return get_rdk_fp(fplen, minPath, 30);
+    return get_rdk_fp(fplen, minPath, 7);
   }
   std::string get_rdk_fp(unsigned int fplen) const {
-    return get_rdk_fp(fplen, 1, 30);
+    return get_rdk_fp(fplen, 1, 7);
   }
   std::string get_rdk_fp() const {
-    return get_rdk_fp(2048, 1, 30);
+    return get_rdk_fp(2048, 1, 7);
   }
   std::string get_rdk_fp_as_binary_text(unsigned int fplen, int minPath,
                                         int maxPath) const;
   std::string get_rdk_fp_as_binary_text(unsigned int fplen, int minPath) const {
-    return get_rdk_fp_as_binary_text(fplen, minPath, 30);
+    return get_rdk_fp_as_binary_text(fplen, minPath, 7);
   }
   std::string get_rdk_fp_as_binary_text(unsigned int fplen) const {
-    return get_rdk_fp_as_binary_text(fplen, 1, 30);
+    return get_rdk_fp_as_binary_text(fplen, 1, 7);
   }
   std::string get_rdk_fp_as_binary_text() const {
-    return get_rdk_fp_as_binary_text(2048, 1, 30);
+    return get_rdk_fp_as_binary_text(2048, 1, 7);
   }
   std::string get_atom_pair_fp(unsigned int fplen, int minDistance,
                                int maxDistance) const;

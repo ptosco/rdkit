@@ -344,6 +344,40 @@ void test_fingerprints() {
       fp, "1011111111111111110011111111011101011111111101111111111111011011"));
   free(fp);
 
+  fp = get_topological_torsion_fp(mpkl, mpkl_size, "{\"nBits\":64}");
+  assert(!strcmp(
+      fp, "1100000000000000000000000000000000000000000011000000000011001100"));
+  free(fp);
+  fp = get_topological_torsion_fp_as_bytes(mpkl, mpkl_size, &nbytes, "{\"nBits\":64}");
+  assert(nbytes == 8);
+  free(fp);
+
+  fp = get_atom_pair_fp(mpkl, mpkl_size, "{\"nBits\":64}");
+  assert(!strcmp(
+      fp, "0000000000000000000000001110111011101100000000000000000011001100"));
+  free(fp);
+  fp = get_atom_pair_fp(mpkl, mpkl_size, "{\"nBits\":64,\"minLength\":2}");
+  assert(!strcmp(
+      fp, "0000000000000000000000001000111011100000000000000000000011001100"));
+  free(fp);
+  fp = get_atom_pair_fp(mpkl, mpkl_size, "{\"nBits\":64,\"maxLength\":2}");
+  assert(!strcmp(
+      fp, "0000000000000000000000001110111011001100000000000000000011000000"));
+  free(fp);
+  fp = get_atom_pair_fp_as_bytes(mpkl, mpkl_size, &nbytes, "{\"nBits\":64}");
+  assert(nbytes == 8);
+  free(fp);
+
+#ifdef RDK_BUILD_AVALON_SUPPORT
+  fp = get_avalon_fp(mpkl, mpkl_size, "{\"nBits\":64}");
+  assert(!strcmp(
+      fp, "0001000001100011110001011100011100000110100010001110110001110011"));
+  free(fp);
+  fp = get_avalon_fp_as_bytes(mpkl, mpkl_size, &nbytes, "{\"nBits\":64}");
+  assert(nbytes == 8);
+  free(fp);
+#endif
+
   free(mpkl);
   mpkl = NULL;
   printf("  done\n");

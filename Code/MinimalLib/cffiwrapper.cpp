@@ -28,10 +28,13 @@
 #include <GraphMol/Descriptors/MolDescriptors.h>
 #include <GraphMol/Fingerprints/MorganFingerprints.h>
 #include <GraphMol/Fingerprints/Fingerprints.h>
+#include <GraphMol/Fingerprints/AtomPairs.h>
 #include <GraphMol/Depictor/RDDepictor.h>
 #include <GraphMol/CIPLabeler/CIPLabeler.h>
 #include <GraphMol/Abbreviations/Abbreviations.h>
 #include <GraphMol/DistGeomHelpers/Embedder.h>
+#include <GraphMol/ChemReactions/Reaction.h>
+#include <GraphMol/ChemReactions/ReactionPickler.h>
 #include <DataStructs/BitOps.h>
 
 #include "common.h"
@@ -92,6 +95,15 @@ RWMol mol_from_pkl(const char *pkl, size_t pkl_sz) {
   std::string mol_pkl(pkl, pkl_sz);
   RWMol res(mol_pkl);
   res.setProp(common_properties::_StereochemDone, 1, true);
+  return res;
+}
+
+ChemicalReaction rxn_from_pkl(const char *pkl, size_t pkl_sz) {
+  if (!pkl || !pkl_sz) {
+    return ChemicalReaction();
+  }
+  std::string rxn_pkl(pkl, pkl_sz);
+  ChemicalReaction res(rxn_pkl);
   return res;
 }
 
@@ -215,6 +227,17 @@ extern "C" char *get_svg(const char *pkl, size_t pkl_sz,
   return str_to_c(MinimalLib::mol_to_svg(mol, width, height, details_json));
 }
 
+extern "C" char *get_rxn_svg(const char *pkl, size_t pkl_sz,
+                         const char *details_json) {
+  if (!pkl || !pkl_sz) {
+    return nullptr;
+  }
+  auto rxn = rxn_from_pkl(pkl, pkl_sz);
+  unsigned int width = MinimalLib::d_defaultWidth;
+  unsigned int height = MinimalLib::d_defaultHeight;
+  return str_to_c(MinimalLib::rxn_to_svg(rxn, width, height, details_json));
+}
+
 extern "C" char *get_inchi(const char *pkl, size_t pkl_sz,
                            const char *details_json) {
   if (!pkl || !pkl_sz) {
@@ -280,6 +303,7 @@ extern "C" char *get_mol(const char *input, size_t *pkl_sz,
   MolPickler::pickleMol(*mol, pkl, propFlags);
   return str_to_c(pkl, pkl_sz);
 }
+
 extern "C" char *get_qmol(const char *input, size_t *pkl_sz,
                           const char *details_json) {
   std::unique_ptr<RWMol> mol{MinimalLib::qmol_from_input(input, details_json)};
@@ -291,6 +315,21 @@ extern "C" char *get_qmol(const char *input, size_t *pkl_sz,
   MolPickler::pickleMol(*mol, pkl);
   return str_to_c(pkl, pkl_sz);
 }
+
+extern "C" char *get_rxn(const char *input, size_t *pkl_sz,
+                         const char *details_json) {
+  std::unique_ptr<ChemicalReaction> rxn{MinimalLib::rxn_from_input(input, details_json)};
+  if (!rxn) {
+    *pkl_sz = 0;
+    return NULL;
+  }
+  unsigned int propFlags = PicklerOps::PropertyPickleOptions::AllProps ^
+                           PicklerOps::PropertyPickleOptions::ComputedProps;
+  std::string pkl;
+  ReactionPickler::pickleReaction(*rxn, pkl, propFlags);
+  return str_to_c(pkl, pkl_sz);
+}
+
 extern "C" char *version() { return str_to_c(rdkitVersion); }
 #ifdef RDK_BUILD_THREADSAFE_SSS
 std::atomic_int logging_needs_init{1};
@@ -483,6 +522,73 @@ std::unique_ptr<ExplicitBitVect> pattern_fp_helper(const char *mol_pkl,
                                   tautomericFingerprint);
   return std::unique_ptr<ExplicitBitVect>{fp};
 }
+
+std::unique_ptr<ExplicitBitVect> topological_torsion_fp_helper(const char *mol_pkl,
+                                                   size_t mol_pkl_sz,
+                                                   const char *details_json) {
+  if (!mol_pkl || !mol_pkl_sz) {
+    return nullptr;
+  }
+  auto mol = mol_from_pkl(mol_pkl, mol_pkl_sz);
+  unsigned int nBits = 2048;
+  if (details_json && strlen(details_json)) {
+    // FIX: this should eventually be moved somewhere else
+    std::istringstream ss;
+    ss.str(details_json);
+    boost::property_tree::ptree pt;
+    boost::property_tree::read_json(ss, pt);
+    PT_OPT_GET(nBits);
+  }
+  auto fp = AtomPairs::getHashedTopologicalTorsionFingerprintAsBitVect(mol, nBits);
+  return std::unique_ptr<ExplicitBitVect>{fp};
+}
+
+std::unique_ptr<ExplicitBitVect> atom_pair_fp_helper(const char *mol_pkl,
+                                                   size_t mol_pkl_sz,
+                                                   const char *details_json) {
+  if (!mol_pkl || !mol_pkl_sz) {
+    return nullptr;
+  }
+  auto mol = mol_from_pkl(mol_pkl, mol_pkl_sz);
+  unsigned int nBits = 2048;
+  unsigned int minLength = 1;
+  unsigned int maxLength = 30;
+  if (details_json && strlen(details_json)) {
+    // FIX: this should eventually be moved somewhere else
+    std::istringstream ss;
+    ss.str(details_json);
+    boost::property_tree::ptree pt;
+    boost::property_tree::read_json(ss, pt);
+    PT_OPT_GET(nBits);
+    PT_OPT_GET(minLength);
+    PT_OPT_GET(maxLength);
+  }
+  auto fp = AtomPairs::getHashedAtomPairFingerprintAsBitVect(mol, nBits, minLength, maxLength);
+  return std::unique_ptr<ExplicitBitVect>{fp};
+}
+
+#ifdef RDK_BUILD_AVALON_SUPPORT
+std::unique_ptr<ExplicitBitVect> avalon_fp_helper(const char *mol_pkl,
+                                                   size_t mol_pkl_sz,
+                                                   const char *details_json) {
+  if (!mol_pkl || !mol_pkl_sz) {
+    return nullptr;
+  }
+  auto mol = mol_from_pkl(mol_pkl, mol_pkl_sz);
+  unsigned int nBits = 512;
+  if (details_json && strlen(details_json)) {
+    // FIX: this should eventually be moved somewhere else
+    std::istringstream ss;
+    ss.str(details_json);
+    boost::property_tree::ptree pt;
+    boost::property_tree::read_json(ss, pt);
+    PT_OPT_GET(nBits);
+  }
+  std::unique_ptr<ExplicitBitVect> fp(new ExplicitBitVect(nBits));
+  AvalonTools::getAvalonFP(mol, *fp, nBits);
+  return fp;
+}
+#endif
 }  // namespace
 
 extern "C" char *get_morgan_fp(const char *mol_pkl, size_t mol_pkl_sz,
@@ -529,6 +635,53 @@ extern "C" char *get_pattern_fp_as_bytes(const char *mol_pkl, size_t mol_pkl_sz,
   auto res = BitVectToBinaryText(*fp);
   return str_to_c(res, nbytes);
 }
+
+extern "C" char *get_topological_torsion_fp(const char *mol_pkl, size_t mol_pkl_sz,
+                                const char *details_json) {
+  auto fp = topological_torsion_fp_helper(mol_pkl, mol_pkl_sz, details_json);
+  auto res = BitVectToText(*fp);
+  return str_to_c(res);
+}
+
+extern "C" char *get_topological_torsion_fp_as_bytes(const char *mol_pkl, size_t mol_pkl_sz,
+                                         size_t *nbytes,
+                                         const char *details_json) {
+  auto fp = topological_torsion_fp_helper(mol_pkl, mol_pkl_sz, details_json);
+  auto res = BitVectToBinaryText(*fp);
+  return str_to_c(res, nbytes);
+}
+
+extern "C" char *get_atom_pair_fp(const char *mol_pkl, size_t mol_pkl_sz,
+                                const char *details_json) {
+  auto fp = atom_pair_fp_helper(mol_pkl, mol_pkl_sz, details_json);
+  auto res = BitVectToText(*fp);
+  return str_to_c(res);
+}
+
+extern "C" char *get_atom_pair_fp_as_bytes(const char *mol_pkl, size_t mol_pkl_sz,
+                                         size_t *nbytes,
+                                         const char *details_json) {
+  auto fp = atom_pair_fp_helper(mol_pkl, mol_pkl_sz, details_json);
+  auto res = BitVectToBinaryText(*fp);
+  return str_to_c(res, nbytes);
+}
+
+#ifdef RDK_BUILD_AVALON_SUPPORT
+extern "C" char *get_avalon_fp(const char *mol_pkl, size_t mol_pkl_sz,
+                                const char *details_json) {
+  auto fp = avalon_fp_helper(mol_pkl, mol_pkl_sz, details_json);
+  auto res = BitVectToText(*fp);
+  return str_to_c(res);
+}
+
+extern "C" char *get_avalon_fp_as_bytes(const char *mol_pkl, size_t mol_pkl_sz,
+                                         size_t *nbytes,
+                                         const char *details_json) {
+  auto fp = avalon_fp_helper(mol_pkl, mol_pkl_sz, details_json);
+  auto res = BitVectToBinaryText(*fp);
+  return str_to_c(res, nbytes);
+}
+#endif
 
 extern "C" void prefer_coordgen(short val) {
 #ifdef RDK_BUILD_COORDGEN_SUPPORT
