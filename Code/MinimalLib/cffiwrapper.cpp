@@ -596,7 +596,8 @@ extern "C" short set_2d_coords(char **mol_pkl, size_t *mol_pkl_sz) {
 extern "C" short set_2d_coords_aligned(char **mol_pkl, size_t *mol_pkl_sz,
                                        const char *template_pkl,
                                        size_t template_sz,
-                                       const char *details_json) {
+                                       const char *details_json,
+                                       char **match_json) {
   if (!mol_pkl || !mol_pkl_sz || !*mol_pkl || !*mol_pkl_sz || !template_pkl ||
       !template_sz || !template_pkl || !template_sz) {
     return 0;
@@ -606,36 +607,14 @@ extern "C" short set_2d_coords_aligned(char **mol_pkl, size_t *mol_pkl_sz,
     return 0;
   }
   auto mol = mol_from_pkl(*mol_pkl, *mol_pkl_sz);
-  bool useCoordGen = true;
-  bool allowRGroups = false;
-  bool acceptFailure = true;
-  if (details_json && strlen(details_json)) {
-    std::istringstream ss;
-    ss.str(details_json);
-    boost::property_tree::ptree pt;
-    boost::property_tree::read_json(ss, pt);
-    PT_OPT_GET(useCoordGen);
-    PT_OPT_GET(allowRGroups);
-    PT_OPT_GET(acceptFailure);
-  }
-#ifdef RDK_BUILD_COORDGEN_SUPPORT
-  bool oprefer = RDDepict::preferCoordGen;
-  RDDepict::preferCoordGen = useCoordGen;
-#endif
-
-  int confId = -1;
-  // always accept failure in the original call because
-  // we detect it afterwards
-  bool acceptOrigFailure = true;
-  auto match = RDDepict::generateDepictionMatching2DStructure(
-      mol, templ, confId, nullptr, acceptOrigFailure, false, allowRGroups);
-#ifdef RDK_BUILD_COORDGEN_SUPPORT
-  RDDepict::preferCoordGen = oprefer;
-#endif
-  if (match.empty() && !acceptFailure) {
+  auto match = MinimalLib::generate_aligned_coords(mol, templ, details_json);
+  if (match.empty()) {
     return 0;
   } else {
     mol_to_pkl(mol, mol_pkl, mol_pkl_sz);
+    if (match_json) {
+      *match_json = str_to_c(match);
+    }
     return 1;
   }
 };

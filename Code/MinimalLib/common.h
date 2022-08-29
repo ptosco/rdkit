@@ -30,6 +30,8 @@
 #include <External/AvalonTools/AvalonTools.h>
 #endif
 #include <GraphMol/Depictor/RDDepictor.h>
+#include <GraphMol/Conformer.h>
+#include <GraphMol/MolAlign/AlignMolecules.h>
 #include <GraphMol/CIPLabeler/CIPLabeler.h>
 #include <GraphMol/Abbreviations/Abbreviations.h>
 #include <DataStructs/BitOps.h>
@@ -718,6 +720,79 @@ std::unique_ptr<ExplicitBitVect> avalon_fp_as_bitvect(
   return fp;
 }
 #endif
+
+std::string generate_aligned_coords(ROMol &mol, const ROMol &templateMol,
+                                           const char *details_json) {
+  std::string res;
+  if (!templateMol.getNumConformers()) {
+    return res;
+  }
+
+  bool useCoordGen = true;
+  bool allowRGroups = false;
+  bool acceptFailure = true;
+  bool alignOnly = false;
+  if (details_json && strlen(details_json)) {
+    std::istringstream ss;
+    ss.str(details_json);
+    boost::property_tree::ptree pt;
+    boost::property_tree::read_json(ss, pt);
+    LPT_OPT_GET(useCoordGen);
+    LPT_OPT_GET(allowRGroups);
+    LPT_OPT_GET(acceptFailure);
+    LPT_OPT_GET(alignOnly);
+  }
+  MatchVectType match;
+  int confId = -1;
+  std::unique_ptr<Conformer> origConformer;
+#ifdef RDK_BUILD_COORDGEN_SUPPORT
+  bool oprefer = RDDepict::preferCoordGen;
+  RDDepict::preferCoordGen = useCoordGen;
+#endif
+  if (alignOnly && SubstructMatch(mol, templateMol, match)) {
+    if (!mol.getNumConformers()) {
+      RDDepict::compute2DCoords(mol);
+    }
+    MolAlign::alignMol(mol, templateMol, confId, confId, &match);
+  } else {
+    const RDKit::ROMol *refPattern = nullptr;
+    // always accept failure in the original call because
+    // we detect it afterwards and, in case, restore the
+    // original conformation
+    if (!acceptFailure && mol.getNumConformers()) {
+      origConformer.reset(new Conformer(mol.getConformer()));
+    }
+    bool acceptOrigFailure = true;
+    match = RDDepict::generateDepictionMatching2DStructure(
+        mol, templateMol, confId, refPattern, acceptOrigFailure, false, allowRGroups);
+  }
+#ifdef RDK_BUILD_COORDGEN_SUPPORT
+  RDDepict::preferCoordGen = oprefer;
+#endif
+  if (match.empty()) {
+    if (acceptFailure) {
+      res = "{}";
+    } else {
+      if (origConformer) {
+        mol.removeConformer(origConformer->getId());
+        mol.addConformer(origConformer.release());
+      }
+      res = "";
+    }
+  } else {
+    rj::Document doc;
+    doc.SetObject();
+    MinimalLib::get_sss_json(mol, templateMol, match, doc, doc);
+    rj::StringBuffer buffer;
+    rj::Writer<rj::StringBuffer> writer(buffer);
+    doc.Accept(writer);
+    res = buffer.GetString();
+  }
+#ifdef RDK_BUILD_COORDGEN_SUPPORT
+  RDDepict::preferCoordGen = oprefer;
+#endif
+  return res;
+}
 
 }  // namespace MinimalLib
 }  // namespace RDKit

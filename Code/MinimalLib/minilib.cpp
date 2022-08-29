@@ -28,7 +28,6 @@
 #include <GraphMol/Descriptors/Property.h>
 #include <GraphMol/Descriptors/MolDescriptors.h>
 #include <GraphMol/MolInterchange/MolInterchange.h>
-#include <GraphMol/Depictor/RDDepictor.h>
 #include <GraphMol/CIPLabeler/CIPLabeler.h>
 #include <GraphMol/Abbreviations/Abbreviations.h>
 #include <GraphMol/MolTransforms/MolTransforms.h>
@@ -531,37 +530,11 @@ std::string JSMol::condense_abbreviations_from_defs(
 }
 
 std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
-                                           bool useCoordGen, bool allowRGroups,
-                                           bool acceptFailure) {
-  std::string res;
+                                           const std::string &details) {
   if (!d_mol || !templateMol.d_mol || !templateMol.d_mol->getNumConformers()) {
-    return res;
+    return "";
   }
-
-#ifdef RDK_BUILD_COORDGEN_SUPPORT
-  bool oprefer = RDDepict::preferCoordGen;
-  RDDepict::preferCoordGen = useCoordGen;
-#endif
-  RDKit::ROMol *refPattern = nullptr;
-  int confId = -1;
-  RDKit::MatchVectType match = RDDepict::generateDepictionMatching2DStructure(
-      *d_mol, *(templateMol.d_mol), confId, refPattern, acceptFailure, false,
-      allowRGroups);
-  if (!match.empty()) {
-    rj::Document doc;
-    doc.SetObject();
-    MinimalLib::get_sss_json(*d_mol, *templateMol.d_mol, match, doc, doc);
-    rj::StringBuffer buffer;
-    rj::Writer<rj::StringBuffer> writer(buffer);
-    doc.Accept(writer);
-    res = buffer.GetString();
-  } else {
-    res = "{}";
-  }
-#ifdef RDK_BUILD_COORDGEN_SUPPORT
-  RDDepict::preferCoordGen = oprefer;
-#endif
-  return res;
+  return MinimalLib::generate_aligned_coords(*d_mol, *templateMol.d_mol, details.c_str());
 }
 
 double JSMol::normalize_depiction(int canonicalize, double scaleFactor) {

@@ -84,21 +84,9 @@ class JSMol {
                                                double maxCoverage,
                                                bool areLinkers);
   std::string generate_aligned_coords(const JSMol &templateMol,
-                                      bool useCoordGen,
-                                      bool allowOptionalAttachments,
-                                      bool acceptFailure);
-  std::string generate_aligned_coords(const JSMol &templateMol,
-                                      bool useCoordGen,
-                                      bool allowOptionalAttachments) {
-    return generate_aligned_coords(templateMol, useCoordGen,
-                                   allowOptionalAttachments, true);
-  };
-  std::string generate_aligned_coords(const JSMol &templateMol,
-                                      bool useCoordGen) {
-    return generate_aligned_coords(templateMol, useCoordGen, false, true);
-  }
+                                      const std::string &details);
   std::string generate_aligned_coords(const JSMol &templateMol) {
-    return generate_aligned_coords(templateMol, false, false, true);
+    return generate_aligned_coords(templateMol, "{}");
   }
   bool is_valid() const { return d_mol.get() != nullptr; }
   bool has_coords() const {
