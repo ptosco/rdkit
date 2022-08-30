@@ -32,6 +32,7 @@
 #include <GraphMol/Depictor/RDDepictor.h>
 #include <GraphMol/Conformer.h>
 #include <GraphMol/MolAlign/AlignMolecules.h>
+#include <GraphMol/MolTransforms/MolTransforms.h>
 #include <GraphMol/CIPLabeler/CIPLabeler.h>
 #include <GraphMol/Abbreviations/Abbreviations.h>
 #include <DataStructs/BitOps.h>
@@ -727,8 +728,7 @@ std::string generate_aligned_coords(ROMol &mol, const ROMol &templateMol,
   if (!templateMol.getNumConformers()) {
     return res;
   }
-
-  bool useCoordGen = true;
+  bool useCoordGen = false;
   bool allowRGroups = false;
   bool acceptFailure = true;
   bool alignOnly = false;
@@ -749,11 +749,34 @@ std::string generate_aligned_coords(ROMol &mol, const ROMol &templateMol,
   bool oprefer = RDDepict::preferCoordGen;
   RDDepict::preferCoordGen = useCoordGen;
 #endif
-  if (alignOnly && SubstructMatch(mol, templateMol, match)) {
-    if (!mol.getNumConformers()) {
+  if (alignOnly) {
+    std::vector<MatchVectType> matches;
+    auto minRmsd = std::numeric_limits<double>::max();
+    std::shared_ptr<RDGeom::Transform3D> bestTrans;
+    if (SubstructMatch(mol, templateMol, matches, false)) {
+      MatchVectType atomMap(matches.front().size());
+      for (const auto &matchTmp : matches) {
+        std::transform(matchTmp.begin(), matchTmp.end(), atomMap.begin(), [](const auto &pair) {
+          return std::make_pair(pair.second, pair.first);
+        });
+        std::shared_ptr<RDGeom::Transform3D> trans(new RDGeom::Transform3D());
+        auto rmsd = MolAlign::getAlignmentTransform(mol, templateMol, *trans, confId, confId, &atomMap);
+        if (rmsd < minRmsd) {
+          match = std::move(matchTmp);
+          bestTrans = trans;
+          minRmsd = rmsd;
+          if (minRmsd < 1.e-3) {
+            break;
+          }
+        }
+      }
+    }
+    if ((bestTrans && !mol.getNumConformers()) || (!bestTrans && acceptFailure)) {
       RDDepict::compute2DCoords(mol);
     }
-    MolAlign::alignMol(mol, templateMol, confId, confId, &match);
+    if (bestTrans) {
+      MolTransforms::transformConformer(mol.getConformer(), *bestTrans);
+    }
   } else {
     const RDKit::ROMol *refPattern = nullptr;
     // always accept failure in the original call because

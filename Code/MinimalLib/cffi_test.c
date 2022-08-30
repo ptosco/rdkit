@@ -551,7 +551,7 @@ M  END\n",
   assert(
       set_2d_coords_aligned(&mpkl, &mpkl_size, tpkl, tpkl_size,
                             "{\"allowRGroups\":true,\"acceptFailure\":false}", &match_json));
-  printf("match_json: %s\n", match_json);
+  assert(!strcmp(match_json, "{\"atoms\":[4,3,0,1,2],\"bonds\":[3,5,0,1,2]}"));
   free(tpkl);
   free(match_json);
 
