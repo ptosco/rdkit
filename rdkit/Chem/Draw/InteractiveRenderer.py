@@ -22,8 +22,10 @@ from rdkit.Chem import Draw
 
 log = logging.getLogger(__name__)
 
-rdkitStructureRendererJsUrl = "https://unpkg.com/rdkit-structure-renderer/dist/rdkit-structure-renderer-module.js"
-minimalLibJsUrl = "https://unpkg.com/rdkit-structure-renderer/public/RDKit_minimal.js"
+#rdkitStructureRendererJsUrl = "https://unpkg.com/rdkit-structure-renderer/dist/rdkit-structure-renderer-module.js"
+#minimalLibJsUrl = "https://unpkg.com/rdkit-structure-renderer/public/RDKit_minimal.js"
+rdkitStructureRendererJsUrl = "https://nrchbs-ldl31314.nibr.novartis.net/~toscopa1/minimallib/demo/static/rdkit-structure-renderer-module.js"
+minimalLibJsUrl = "https://nrchbs-ldl31314.nibr.novartis.net/~toscopa1/minimallib/demo/static/RDKit_minimal.js"
 parentNodeQuery = "div[class*=jp-NotebookPanel-notebook]"
 _enabled = False
 _camelCaseOptToTagRe = re.compile("[A-Z]")
@@ -103,23 +105,32 @@ const setError = (e, resolve) => {{
 }};
 window.rdkStrRnr = new Promise(resolve => {{
   try {{
-    import('{rdkitStructureRendererJsUrl}').then(
-      ({{ default: Renderer }}) =>
-        Renderer.init('{minimalLibJsUrl}').then(
-          Renderer => {{
-            jsLoader.innerHTML = 'Interactive molecule rendering is available in this Jupyter Notebook.';
-            resolve(Renderer);
+    fetch('{rdkitStructureRendererJsUrl}').then(
+      r => r.text().then(
+        t => import(URL.createObjectURL(new Blob([t], {{ type: 'application/javascript' }}))).then(
+          ({{ default: Renderer }}) => {{
+            const res = Renderer.init('{minimalLibJsUrl}');
+            return res.then(
+              Renderer => {{
+                jsLoader.innerHTML = 'Interactive molecule rendering is available in this Jupyter Notebook.';
+                resolve(Renderer);
+              }}
+            ).catch(
+              e => setError(e, resolve)
+            );
           }}
         ).catch(
-          e => setError(e, resolve)
+            e => setError(e, resolve)
         )
       ).catch(
         e => setError(e, resolve)
-      );
+      )
+    ).catch(
+      e => setError(e, resolve)
+    );
   }} catch(e) {{
     setError(e, resolve);
   }}
-
 }})
 </script>""")
 
@@ -259,7 +270,7 @@ def generateHTMLBody(mol, size, **kwargs):
   drawOptions = kwargs.get("drawOptions", _defaultDrawOptions)
   legend = kwargs.get("legend", None)
   useSVG = kwargs.get("useSVG", False)
-  kekulize = kwargs.get("kekulize", Draw.shouldKekulize())
+  kekulize = Draw.shouldKekulize(mol, kwargs.get("kekulize", True))
   highlightAtoms = kwargs.get("highlightAtoms", []) or []
   highlightBonds = kwargs.get("highlightBonds", []) or []
   if not highlightAtoms and hasattr(mol, '__sssAtoms'):
