@@ -259,7 +259,7 @@ def generateHTMLBody(mol, size, **kwargs):
   drawOptions = kwargs.get("drawOptions", _defaultDrawOptions)
   legend = kwargs.get("legend", None)
   useSVG = kwargs.get("useSVG", False)
-  kekulize = kwargs.get("kekulize", True)
+  kekulize = kwargs.get("kekulize", Draw.shouldKekulize())
   highlightAtoms = kwargs.get("highlightAtoms", []) or []
   highlightBonds = kwargs.get("highlightBonds", []) or []
   if not highlightAtoms and hasattr(mol, '__sssAtoms'):
@@ -357,7 +357,7 @@ def MolsToHTMLTable(mols, molsPerRow=3, subImgSize=(200, 200), legends=None,
       td.setAttribute("style", f"padding: 0; background-color: white;")
       highlights = None
       mol = mols[i]
-      legend = legends[i] if legends else None 
+      legend = legends[i] if legends else None
       highlights = highlightAtomLists[i] if highlightAtomLists else None
       kwargs["highlightBonds"] = highlightBondLists[i] if highlightBondLists else None
       content = None

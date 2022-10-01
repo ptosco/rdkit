@@ -446,12 +446,9 @@ def _drawerToImage(d2d):
   return Image.open(sio)
 
 
-def _okToKekulizeMol(mol, kekulize):
+def shouldKekulize(mol, kekulize):
   if kekulize:
-    for bond in mol.GetBonds():
-      if bond.GetIsAromatic() and bond.HasQuery():
-        return False
-    return True
+    return not any(bond.GetIsAromatic() and bond.HasQuery() for bond in mol.GetBonds())
   return kekulize
 
 
@@ -462,7 +459,7 @@ def _moltoimg(mol, sz, highlights, legend, returnPNG=False, drawOptions=None, **
   except RuntimeError:
     mol.UpdatePropertyCache(False)
 
-  kekulize = _okToKekulizeMol(mol, kwargs.get('kekulize', True))
+  kekulize = shouldKekulize(mol, kwargs.get('kekulize', True))
   wedge = kwargs.get('wedgeBonds', True)
 
   try:
@@ -505,7 +502,7 @@ def _moltoSVG(mol, sz, highlights, legend, kekulize, drawOptions=None, **kwargs)
   except RuntimeError:
     mol.UpdatePropertyCache(False)
 
-  kekulize = _okToKekulizeMol(mol, kekulize)
+  kekulize = shouldKekulize(mol, kekulize)
 
   try:
     with rdBase.BlockLogs():
