@@ -27,14 +27,12 @@ log = logging.getLogger(__name__)
 rdkitStructureRendererJsUrl = "https://nrchbs-ldl31314.nibr.novartis.net/~toscopa1/minimallib/demo/static/rdkit-structure-renderer-module.js"
 minimalLibJsUrl = "https://nrchbs-ldl31314.nibr.novartis.net/~toscopa1/minimallib/demo/static/RDKit_minimal.js"
 parentNodeQuery = "div[class*=jp-NotebookPanel-notebook]"
-_enabled = False
+_enabled_div_uuid = None
 _camelCaseOptToTagRe = re.compile("[A-Z]")
 _opts = "__rnrOpts"
 _disabled = "_disabled"
 _defaultDrawOptions = None
 _defaultDrawOptionsDict = None
-
-_enabled = False
 
 
 def _isAcceptedKeyValue(key, value):
@@ -83,60 +81,69 @@ def filterDefaultDrawOpts(molDrawOptions):
 
 def setEnabled():
   """ Enable interactive molecule rendering """
-  global _enabled
-  if _enabled:
-    return
-  _enabled = True
-  div_uuid = str(uuid.uuid1())
-  return HTML(f"""\
-<div
-class="lm-Widget p-Widget jp-RenderedText jp-mod-trusted jp-OutputArea-output"
-id="{div_uuid}"
->Loading rdkit-structure-renderer.js...</div>
-<script type="module">
-const jsLoader = document.getElementById('{div_uuid}') || {{}};
+
+  def _wrapMsgIntoDiv(uuid, msg):
+    return ('<div '
+      'class="lm-Widget p-Widget jp-RenderedText jp-mod-trusted jp-OutputArea-output"'
+      f'id="{uuid}">{msg}</div>')
+
+  global _enabled_div_uuid
+  loadingMsg = "Loading rdkit-structure-renderer.js..."
+  failedToLoadMsg = "Failed to load rdkit-structure-renderer.js:"
+  renderingAvailableMsg = "Interactive molecule rendering is available in this Jupyter Notebook."
+  renderingUnavailableMsg = "Interactive molecule rendering will not be available in this Jupyter Notebook."
+  if _enabled_div_uuid:
+    return HTML(_wrapMsgIntoDiv(_enabled_div_uuid, renderingAvailableMsg))
+  _enabled_div_uuid = str(uuid.uuid1())
+  return HTML(_wrapMsgIntoDiv(_enabled_div_uuid, loadingMsg) +
+f"""<script type="module">
+const jsLoader = document.getElementById('{_enabled_div_uuid}') || {{}};
 const setError = (e, resolve) => {{
   jsLoader.innerHTML = (
-    'Failed to load rdkit-structure-renderer.js:<br>' +
+    '{failedToLoadMsg}<br>' +
     e.toString() + '<br>' +
-    'Interactive molecule rendering will not be available in this Jupyter Notebook.'
+    '{renderingUnavailableMsg}'
   );
   resolve && resolve();
 }};
-window.rdkStrRnr = new Promise(resolve => {{
-  try {{
-    fetch('{rdkitStructureRendererJsUrl}').then(
-      r => r.text().then(
-        t => import(URL.createObjectURL(new Blob([t], {{ type: 'application/javascript' }}))).then(
-          ({{ default: Renderer }}) => {{
-            const res = Renderer.init('{minimalLibJsUrl}');
-            return res.then(
-              Renderer => {{
-                jsLoader.innerHTML = 'Interactive molecule rendering is available in this Jupyter Notebook.';
-                resolve(Renderer);
-              }}
-            ).catch(
+if (window.rdkStrRnr) {{
+  jsLoader.innerHTML = '{renderingAvailableMsg}';
+}} else {{
+  window.rdkStrRnr = new Promise(resolve => {{
+    try {{
+      fetch('{rdkitStructureRendererJsUrl}').then(
+        r => r.text().then(
+          t => import(URL.createObjectURL(new Blob([t], {{ type: 'application/javascript' }}))).then(
+            ({{ default: Renderer }}) => {{
+              const res = Renderer.init('{minimalLibJsUrl}');
+              return res.then(
+                Renderer => {{
+                  jsLoader.innerHTML = '{renderingAvailableMsg}';
+                  resolve(Renderer);
+                }}
+              ).catch(
+                e => setError(e, resolve)
+              );
+            }}
+          ).catch(
               e => setError(e, resolve)
-            );
-          }}
+          )
         ).catch(
-            e => setError(e, resolve)
+          e => setError(e, resolve)
         )
       ).catch(
         e => setError(e, resolve)
-      )
-    ).catch(
-      e => setError(e, resolve)
-    );
-  }} catch(e) {{
-    setError(e, resolve);
-  }}
-}})
+      );
+    }} catch(e) {{
+      setError(e, resolve);
+    }}
+  }});
+}}
 </script>""")
 
 
 def isEnabled(mol=None):
-  return _enabled and (mol is None or not isNoInteractive(mol))
+  return _enabled_div_uuid and (mol is None or not isNoInteractive(mol))
 
 
 def getOpts(mol):
