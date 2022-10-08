@@ -22,10 +22,8 @@ from rdkit.Chem import Draw
 
 log = logging.getLogger(__name__)
 
-#rdkitStructureRendererJsUrl = "https://unpkg.com/rdkit-structure-renderer/dist/rdkit-structure-renderer-module.js"
-#minimalLibJsUrl = "https://unpkg.com/rdkit-structure-renderer/public/RDKit_minimal.js"
-rdkitStructureRendererJsUrl = "https://nrchbs-ldl31314.nibr.novartis.net/~toscopa1/minimallib/demo/static/rdkit-structure-renderer-module.js"
-minimalLibJsUrl = "https://nrchbs-ldl31314.nibr.novartis.net/~toscopa1/minimallib/demo/static/RDKit_minimal.js"
+rdkitStructureRendererJsUrl = "https://unpkg.com/rdkit-structure-renderer/dist/rdkit-structure-renderer-module.js"
+minimalLibJsUrl = "https://unpkg.com/rdkit-structure-renderer/public/RDKit_minimal.js"
 parentNodeQuery = "div[class*=jp-NotebookPanel-notebook]"
 _enabled_div_uuid = None
 _camelCaseOptToTagRe = re.compile("[A-Z]")

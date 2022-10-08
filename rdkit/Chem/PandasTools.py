@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2013, Novartis Institutes for BioMedical Research Inc.
+#  Copyright (c) 2013-2022, Novartis Institutes for BioMedical Research Inc.
 #  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -389,7 +389,7 @@ def AddMoleculeColumnToFrame(frame, smilesCol='Smiles', molCol='ROMol', includeF
   ChangeMoleculeRendering(frame)
 
 
-def ChangeMoleculeRendering(frame, renderer='image'):
+def ChangeMoleculeRendering(frame=None, renderer='image'):
   '''Allows to change the rendering of the molecules between image and string
     representations.
     This serves two purposes: First it allows to avoid the generation of images if this is
@@ -399,6 +399,9 @@ def ChangeMoleculeRendering(frame, renderer='image'):
     returns a new dataframe instance that uses the default pandas rendering (thus not drawing
     images for molecules) instead of the monkey-patched one.
     '''
+  # if frame is None this is is a no-op; we keep just for backwards compatibility
+  if frame is None:
+    return
   try:
     PandasPatcher.changeMoleculeRendering(frame, renderer)
   except NameError:
