@@ -344,24 +344,23 @@ bool doLinesIntersect(const Point2D &l1s, const Point2D &l1f,
                       const Point2D &l2s, const Point2D &l2f, Point2D *ip) {
   // using spell from answer 2 of
   // https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
-  double s1_x = l1f.x - l1s.x;
-  double s1_y = l1f.y - l1s.y;
-  double s2_x = l2f.x - l2s.x;
-  double s2_y = l2f.y - l2s.y;
+  auto s1 = l1f - l1s;
+  auto s2 = l2f - l2s;
 
-  double d = (-s2_x * s1_y + s1_x * s2_y);
-  if (d == 0.0) {
+  double d = (-s2.x * s1.y + s1.x * s2.y);
+  if (fabs(d) < 1.0e-4) {
     // parallel lines.
     return false;
   }
+  auto s12 = l1s - l2s;
   double s, t;
-  s = (-s1_y * (l1s.x - l2s.x) + s1_x * (l1s.y - l2s.y)) / d;
-  t = (s2_x * (l1s.y - l2s.y) - s2_y * (l1s.x - l2s.x)) / d;
+  s = (-s1.y * s12.x + s1.x * s12.y) / d;
+  t = (s2.x * s12.y - s2.y * s12.x) / d;
 
   if (s >= 0 && s <= 1 && t >= 0 && t <= 1) {
     if (ip) {
-      ip->x = l1s.x + t * s1_x;
-      ip->y = l1s.y + t * s1_y;
+      ip->x = l1s.x + t * s1.x;
+      ip->y = l1s.y + t * s1.y;
     }
     return true;
   }
@@ -372,11 +371,15 @@ bool doLinesIntersect(const Point2D &l1s, const Point2D &l1f,
 // ****************************************************************************
 bool isPointInTriangle(const Point2D &pt, const Point2D &t1, const Point2D &t2,
                        const Point2D &t3) {
-  double d = ((t2.y - t3.y) * (t1.x - t3.x) + (t3.x - t2.x) * (t1.y - t3.y));
-  double a =
-      ((t2.y - t3.y) * (pt.x - t3.x) + (t3.x - t2.x) * (pt.y - t3.y)) / d;
-  double b =
-      ((t3.y - t1.y) * (pt.x - t3.x) + (t1.x - t3.x) * (pt.y - t3.y)) / d;
+  auto t13 = t1 - t3;
+  auto t23 = t2 - t3;
+  auto ptt3 = pt - t3;
+  double d = (t23.y * t13.x - t23.x * t13.y);
+  if (fabs(d) < 1.0e-4) {
+    return false;
+  }
+  double a = (t23.y * ptt3.x - t23.x * ptt3.y) / d;
+  double b = (-t13.y * ptt3.x + t13.x * ptt3.y) / d;
   double c = 1 - a - b;
   return 0 <= a && a <= 1 && 0 <= b && b <= 1 && 0 <= c && c <= 1;
 }

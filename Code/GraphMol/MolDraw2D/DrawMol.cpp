@@ -33,6 +33,8 @@
 #include <GraphMol/MolTransforms/MolTransforms.h>
 #include <GraphMol/Depictor/RDDepictor.h>
 
+#define DEBUG_PERP 1
+
 namespace RDKit {
 namespace MolDraw2D_detail {
 
@@ -1710,6 +1712,9 @@ void DrawMol::makeDoubleBondLines(
   atCds_[at2Idx] = end2;
   calcDoubleBondLines(doubleBondOffset, *bond, l1s, l1f, l2s, l2f);
   int bondIdx = bond->getIdx();
+#ifdef DEBUG_PERP
+  std::cerr << "1) line l1s (" << l1s.x << "," << l1s.y << "), l1f (" << l1f.x << "," << l1f.y << ")" << std::endl;
+#endif
   newBondLine(l1s, l1f, cols.first, cols.second, at1Idx, at2Idx, bondIdx,
               noDash);
   if (bond->getBondType() == Bond::AROMATIC) {
@@ -1723,23 +1728,44 @@ void DrawMol::makeDoubleBondLines(
     // want to change colour at halfway
     auto l1 = (l1s - l1f).lengthSq();
     auto l2 = (l2s - l2f).lengthSq();
+#ifdef DEBUG_PERP
+    std::cerr << "l1 " << l1 << ", l2 " << l2 << std::endl;
+#endif
     if ((bond->getBeginAtom()->getDegree() == 1 ||
          bond->getEndAtom()->getDegree() == 1) &&
         cols.first != cols.second && fabs(l1 - l2) > 0.01) {
       double midlen = sqrt(l1) / 2.0;
+#ifdef DEBUG_PERP
+      std::cerr << "midlen " << midlen << std::endl;
+#endif
       Point2D notMid;
       if (bond->getBeginAtom()->getDegree() == 1) {
         Point2D lineDir = l2s.directionVector(l2f);
         notMid = l2s + lineDir * midlen;
+#ifdef DEBUG_PERP
+        std::cerr << "1) notMid (" << notMid.x << "," << notMid.y << ")" << std::endl;
+#endif
       } else {
         Point2D lineDir = l2f.directionVector(l2s);
         notMid = l2f + lineDir * midlen;
+#ifdef DEBUG_PERP
+        std::cerr << "2) notMid (" << notMid.x << "," << notMid.y << ")" << std::endl;
+#endif
       }
+#ifdef DEBUG_PERP
+      std::cerr << "1) line l2s (" << l2s.x << "," << l2s.y << "), notMid (" << notMid.x << "," << notMid.y << ")" << std::endl;
+#endif
       newBondLine(l2s, notMid, cols.first, cols.first, at1Idx, at2Idx, bondIdx,
                   noDash);
+#ifdef DEBUG_PERP
+      std::cerr << "2) line notMid (" << notMid.x << "," << notMid.y << "), l2f (" << l2f.x << "," << l2f.y << ")" << std::endl;
+#endif
       newBondLine(notMid, l2f, cols.second, cols.second, at1Idx, at2Idx,
                   bondIdx, noDash);
     } else {
+#ifdef DEBUG_PERP
+      std::cerr << "1) line l2s (" << l2s.x << "," << l2s.y << "), l2f (" << l2f.x << "," << l2f.y << ")" << std::endl;
+#endif
       newBondLine(l2s, l2f, cols.first, cols.second, at1Idx, at2Idx, bondIdx,
                   noDash);
     }
@@ -2891,17 +2917,29 @@ void DrawMol::bondNonRing(const Bond &bond, double offset, Point2D &l2s,
 void DrawMol::doubleBondTerminal(Atom *at1, Atom *at2, double offset,
                                  Point2D &l1s, Point2D &l1f, Point2D &l2s,
                                  Point2D &l2f) const {
+#ifdef DEBUG_PERP
+  std::cerr << "1) DrawMol::doubleBondTerminal at1 " << at1->getIdx() << ", at2 " << at2->getIdx() << " offset " << offset << std::endl;
+#endif
   bool swapped = false;
   if (at1->getDegree() > 1 && at2->getDegree() == 1) {
     std::swap(at1, at2);
     swapped = true;
+    std::cerr << "2) DrawMol::doubleBondTerminal at1 " << at1->getIdx() << ", at2 " << at2->getIdx() << std::endl;
   }
   const Point2D &at1_cds = atCds_[at1->getIdx()];
+  std::cerr << "3) DrawMol::doubleBondTerminal at1 " << at1->getIdx() << " (" << at1_cds.x << "," << at1_cds.y << ")" << std::endl;
   const Point2D &at2_cds = atCds_[at2->getIdx()];
+  std::cerr << "3) DrawMol::doubleBondTerminal at2 " << at2->getIdx() << " (" << at2_cds.x << "," << at2_cds.y << ")" << std::endl;
   if (atomLabels_[at2->getIdx()]) {
+#ifdef DEBUG_PERP
+    std::cerr << "4) DrawMol::doubleBondTerminal at2->getIdx() " << at2->getIdx() << std::endl;
+#endif
     // either side of the bond line if going ot a label
     offset /= 2.0;
     Point2D perp = calcPerpendicular(at1_cds, at2_cds) * offset;
+#ifdef DEBUG_PERP
+    std::cerr << "4) doubleBondTerminal perp (" << perp.x << "," << perp.y << ")" << std::endl;
+#endif
     l1s = at1_cds + perp;
     l1f = at2_cds + perp;
     l2s = at1_cds - perp;
@@ -2910,8 +2948,14 @@ void DrawMol::doubleBondTerminal(Atom *at1, Atom *at2, double offset,
     // lines either side of the bond line but at the at2 end,
     // the bonds extend to the intersection of the other bonds.
     // only need 1/2 the offset in this case.
+#ifdef DEBUG_PERP
+    std::cerr << "5) doubleBondTerminal" << std::endl;
+#endif
     offset /= 2.0;
     Point2D perp = calcPerpendicular(at1_cds, at2_cds) * offset;
+#ifdef DEBUG_PERP
+    std::cerr << "5) doubleBondTerminal perp (" << perp.x << "," << perp.y << ")" << std::endl;
+#endif
     l1s = at1_cds + perp;
     l1f = at2_cds + perp;
     l2s = at1_cds - perp;
@@ -2922,14 +2966,24 @@ void DrawMol::doubleBondTerminal(Atom *at1, Atom *at2, double offset,
     l1f = l1s + l1 * 2.0;
     Point2D l2 = l2s.directionVector(l2f);
     l2f = l2s + l2 * 2.0;
+#ifdef DEBUG_PERP
+    std::cerr << "6) l1f (" << l1f.x << "," << l1f.y << ")" << std::endl;
+    std::cerr << "6) l2f (" << l2f.x << "," << l2f.y << ")" << std::endl;
+#endif
     Point2D ip;
     for (auto nbr : make_iterator_range(drawMol_->getAtomNeighbors(at2))) {
       auto nbr_cds = atCds_[nbr];
       if (doLinesIntersect(l1s, l1f, at2_cds, nbr_cds, &ip)) {
         l1f = ip;
+#ifdef DEBUG_PERP
+        std::cerr << "7) l1f (" << l1f.x << "," << l1f.y << ")" << std::endl;
+#endif
       }
       if (doLinesIntersect(l2s, l2f, at2_cds, nbr_cds, &ip)) {
         l2f = ip;
+#ifdef DEBUG_PERP
+        std::cerr << "8) l2f (" << l2f.x << "," << l2f.y << ")" << std::endl;
+#endif
       }
     }
   } else {
@@ -2937,11 +2991,26 @@ void DrawMol::doubleBondTerminal(Atom *at1, Atom *at2, double offset,
     l1s = at1_cds;
     l1f = at2_cds;
     const Atom *thirdAtom = otherNeighbor(at2, at1, 0, *drawMol_);
+    std::cerr << "9) calling calcInnerPerpendicular at1 " << at1->getIdx() << ", at2 " << at2->getIdx() << ", at3 " << at3->getIdx() << std::endl;
     Point2D perp =
         calcInnerPerpendicular(at1_cds, at2_cds, atCds_[thirdAtom->getIdx()]);
-    l2s = at1_cds + perp * offset;
+#ifdef DEBUG_PERP
+    std::cerr << "10) doubleBondTerminal perp (" << perp.x << "," << perp.y << ")" << std::endl;
+#endif
+    auto tmp = perp * offset;
+#ifdef DEBUG_PERP
+    std::cerr << "11) doubleBondTerminal offset " << offset << ", tmp (" << tmp.x << "," << tmp.y << ")" << std::endl;
+#endif
+    l2s = at1_cds + tmp;
+#ifdef DEBUG_PERP
+    std::cerr << "12) l2s (" << l2s.x << "," << l2s.y << ")" << std::endl;
+    std::cerr << "13) doubleBondEnd(" << at1->getIdx() << "," << at2->getIdx() << "," << thirdAtom->getIdx() << "," << offset << ",true)" << std::endl;
+#endif
     l2f = doubleBondEnd(at1->getIdx(), at2->getIdx(), thirdAtom->getIdx(),
                         offset, true);
+#ifdef DEBUG_PERP
+    std::cerr << "14) l2f (" << l2f.x << "," << l2f.y << ")" << std::endl;
+#endif
     // if at1 has a label, need to move it so it's centred in between the
     // two lines (Github 5511).
     if (atomLabels_[at1->getIdx()]) {
@@ -2959,23 +3028,55 @@ Point2D DrawMol::doubleBondEnd(unsigned int at1, unsigned int at2,
                                unsigned int at3, double offset,
                                bool trunc) const {
   Point2D v21 = atCds_[at2].directionVector(atCds_[at1]);
+#ifdef DEBUG_PERP
+  std::cerr << "1) doubleBondEnd v21 (" << v21.x << "," << v21.y << ")" << std::endl;
+#endif
   Point2D v23 = atCds_[at2].directionVector(atCds_[at3]);
+#ifdef DEBUG_PERP
+  std::cerr << "1) doubleBondEnd v23 (" << v23.x << "," << v23.y << ")" << std::endl;
+#endif
   Point2D bis = v21 + v23;
-  bis.normalize();
+#ifdef DEBUG_PERP
+  std::cerr << "1) doubleBondEnd bis (" << bis.x << "," << bis.y << ")" << std::endl;
+#endif
+  if (bis.lengthSq() > 1.0e-8) {
+    bis.normalize();
+  }
+#ifdef DEBUG_PERP
+  std::cerr << "2) doubleBondEnd bis (" << bis.x << "," << bis.y << ")" << std::endl;
+#endif
   Point2D v23perp(-v23.y, v23.x);
-  v23perp.normalize();
+#ifdef DEBUG_PERP
+  std::cerr << "1) doubleBondEnd v23perp (" << v23perp.x << "," << v23perp.y << ")" << std::endl;
+#endif
+  if (v23perp.lengthSq() > 1.0e-8) {
+    v23perp.normalize();
+  }
+#ifdef DEBUG_PERP
+  std::cerr << "2) doubleBondEnd v23perp (" << v23perp.x << "," << v23perp.y << ")" << std::endl;
+#endif
   if (v23perp.dotProduct(bis) < 0.0) {
     v23perp = v23perp * -1.0;
+#ifdef DEBUG_PERP
+    std::cerr << "3) doubleBondEnd v23perp (" << v23perp.x << "," << v23perp.y << ")" << std::endl;
+#endif
   }
   Point2D ip;
   // if there's an atom label, we don't need to step the bond end back
   // because both ends are shortened to accommodate the letters.
   if (trunc) {
-    doLinesIntersect(atCds_[at2], atCds_[at2] + bis,
+    trunc = doLinesIntersect(atCds_[at2], atCds_[at2] + bis,
                      atCds_[at2] + v23perp * offset,
                      atCds_[at3] + v23perp * offset, &ip);
-  } else {
+#ifdef DEBUG_PERP
+    std::cerr << "1) doubleBondEnd ip (" << ip.x << "," << ip.y << ")" << std::endl;
+#endif
+  }
+  if (!trunc) {
     ip = atCds_[at2] + v23perp * offset;
+#ifdef DEBUG_PERP
+    std::cerr << "2) doubleBondEnd ip (" << ip.x << "," << ip.y << ")" << std::endl;
+#endif
   }
   return ip;
 }
@@ -3452,13 +3553,18 @@ double getHighlightBondWidth(
 // ****************************************************************************
 // calculate normalised perpendicular to vector between two coords
 Point2D calcPerpendicular(const Point2D &cds1, const Point2D &cds2) {
-  double bv[2] = {cds1.x - cds2.x, cds1.y - cds2.y};
-  double perp[2] = {-bv[1], bv[0]};
-  double perp_len = sqrt(perp[0] * perp[0] + perp[1] * perp[1]);
-  perp[0] /= perp_len;
-  perp[1] /= perp_len;
+  auto bv = cds1 - cds2;
+  Point2D perp(-bv.y, bv.x);
+#ifdef DEBUG_PERP
+  std::cerr << "1) calcPerpendicular bv (" << bv[0] << "," << bv[1] << ")" << std::endl;
+  std::cerr << "2) calcPerpendicular perp (" << perp[0] << "," << perp[1] << ")" << std::endl;
+#endif
+  perp.normalize();
+#ifdef DEBUG_PERP
+  std::cerr << "3) calcPerpendicular perp (" << perp[0] << "," << perp[1] << ")" << std::endl;
+#endif
 
-  return Point2D(perp[0], perp[1]);
+  return perp;
 }
 
 // ****************************************************************************
@@ -3466,16 +3572,35 @@ Point2D calcPerpendicular(const Point2D &cds1, const Point2D &cds2) {
 // it's inside the angle made between (1 and 2) and (2 and 3).
 Point2D calcInnerPerpendicular(const Point2D &cds1, const Point2D &cds2,
                                const Point2D &cds3) {
+#ifdef DEBUG_PERP
+  std::cerr << "0) calcInnerPerpendicular cds1 (" << cds1.x << "," << cds1.y << ")" << std::endl;
+  std::cerr << "0) calcInnerPerpendicular cds2 (" << cds2.x << "," << cds2.y << ")" << std::endl;
+  std::cerr << "0) calcInnerPerpendicular cds3 (" << cds3.x << "," << cds3.y << ")" << std::endl;
+#endif
   Point2D perp = calcPerpendicular(cds1, cds2);
-  double v1[2] = {cds1.x - cds2.x, cds1.y - cds2.y};
-  double v2[2] = {cds2.x - cds3.x, cds2.y - cds3.y};
-  double obv[2] = {v1[0] - v2[0], v1[1] - v2[1]};
+#ifdef DEBUG_PERP
+  std::cerr << "1) calcInnerPerpendicular perp (" << perp.x << "," << perp.y << ")" << std::endl;
+#endif
+  auto v1 = cds1 - cds2;
+#ifdef DEBUG_PERP
+  std::cerr << "1) calcInnerPerpendicular v1 (" << v1[0] << "," << v1[1] << ")" << std::endl;
+#endif
+  auto v2 = cds2 - cds3;
+#ifdef DEBUG_PERP
+  std::cerr << "1) calcInnerPerpendicular v2 (" << v2[0] << "," << v2[1] << ")" << std::endl;
+#endif
+  auto obv = v1 - v2;
 
   // if dot product of centre_dir and perp < 0.0, they're pointing in opposite
   // directions, so reverse perp
-  if (obv[0] * perp.x + obv[1] * perp.y < 0.0) {
-    perp.x *= -1.0;
-    perp.y *= -1.0;
+#ifdef DEBUG_PERP
+  std::cerr << "1) calcInnerPerpendicular obv (" << obv[0] << "," << obv[1] << ")" << std::endl;
+#endif
+  if (obv.dotProduct(perp) < 0.0) {
+#ifdef DEBUG_PERP
+    std::cerr << "2) calcInnerPerpendicular obv (" << obv[0] << "," << obv[1] << ")" << std::endl;
+#endif
+    perp *= -1.0;
   }
 
   return perp;
