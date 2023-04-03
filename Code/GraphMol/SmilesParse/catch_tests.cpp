@@ -18,11 +18,14 @@
 #include <GraphMol/MolPickler.h>
 #include <GraphMol/QueryAtom.h>
 #include <GraphMol/QueryBond.h>
+#include <GraphMol/QueryOps.h>
+#include <GraphMol/Chirality.h>
 #include <GraphMol/SmilesParse/SmilesParse.h>
 #include <GraphMol/SmilesParse/SmilesWrite.h>
 #include <GraphMol/SmilesParse/SmartsWrite.h>
 #include <GraphMol/Substruct/SubstructMatch.h>
 #include <GraphMol/FileParsers/FileParsers.h>
+#include <GraphMol/FileParsers/MolFileStereochem.h>
 
 using namespace RDKit;
 
@@ -262,7 +265,7 @@ TEST_CASE("github #2257: writing cxsmiles", "[smiles][cxsmiles]") {
     auto mol = "C[C@H](F)[C@H](C)[C@@H](C)Br |a:1,o1:3,5|"_smiles;
     REQUIRE(mol);
     auto smi = MolToCXSmiles(*mol);
-    CHECK(smi == "C[C@@H]([C@H](C)F)[C@@H](C)Br |a:2,o1:1,5|");
+    CHECK(smi == "C[C@H](F)[C@@H](C)[C@H](C)Br |a:1,o1:3,5|");
   }
 
   SECTION("enhanced stereo 2") {
@@ -279,7 +282,7 @@ TEST_CASE("github #2257: writing cxsmiles", "[smiles][cxsmiles]") {
     auto smi = MolToCXSmiles(*mol);
     CHECK(
         smi ==
-        "C[C@@H]1[C@H](C)[C@H](C)N[C@H](C)[C@@H]1C1[C@@H](C)O[C@@H](C)[C@@H](C)[C@H]1C |a:9,o1:2,4,o2:14,16,&1:1,7,&2:11,18|");
+        "C[C@H]1N[C@H](C)[C@H](C2[C@H](C)O[C@H](C)[C@H](C)[C@@H]2C)[C@H](C)[C@H]1C |a:5,o1:1,18,o2:10,12,&1:3,16,&2:7,14|");
   }
 
   SECTION("enhanced stereo 4") {
@@ -693,9 +696,10 @@ TEST_CASE(
     auto smarts = MolToSmarts(*m);
     // this will change if/when the definition of the query changes, just have
     // to update then
-    CHECK(smarts ==
-          "[#6]-[!#2&!#5&!#6&!#7&!#8&!#9&!#10&!#14&!#15&!#16&!#17&!#18&!#33&!#"
-          "34&!#35&!#36&!#52&!#53&!#54&!#85&!#86&!#1]");
+    CHECK(
+        smarts ==
+        "[#6]-[!#0&!#2&!#5&!#6&!#7&!#8&!#9&!#10&!#14&!#15&!#16&!#17&!#18&!#33&!#"
+        "34&!#35&!#36&!#52&!#53&!#54&!#85&!#86&!#1]");
   }
   SECTION("serialization") {
     std::string pkl;
@@ -1316,6 +1320,16 @@ TEST_CASE("smilesBondOutputOrder") {
     m->getProp(common_properties::_smilesBondOutputOrder, order);
     CHECK(order == std::vector<unsigned int>{3, 4, 2, 1, 0});
   }
+  SECTION("Github #5585: incorrect ordering for ring closures") {
+    auto m = "OC1CCCN1"_smiles;
+    REQUIRE(m);
+    CHECK(MolToSmiles(*m) == "OC1CCCN1");
+    std::vector<unsigned int> order;
+    m->getProp(common_properties::_smilesAtomOutputOrder, order);
+    CHECK(order == std::vector<unsigned int>{0, 1, 2, 3, 4, 5});
+    m->getProp(common_properties::_smilesBondOutputOrder, order);
+    CHECK(order == std::vector<unsigned int>{0, 1, 2, 3, 4, 5});
+  }
 }
 
 TEST_CASE("Github #4320: Support toggling components of CXSMILES output") {
@@ -1716,7 +1730,7 @@ M  END)CTAB"_ctab;
 TEST_CASE("Github #4582 continued: double bonds and ring closures") {
   SECTION("basics") {
     auto mol = R"CTAB(
-  Mrv2108 10072106112D          
+  Mrv2108 10072106112D
 
  11 11  0  0  0  0            999 V2000
     1.2097   -1.0517    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
@@ -1744,7 +1758,6 @@ TEST_CASE("Github #4582 continued: double bonds and ring closures") {
 M  END)CTAB"_ctab;
     REQUIRE(mol);
     auto csmiles = MolToSmiles(*mol);
-    std::cerr << csmiles << std::endl;
     CHECK(csmiles == "C/N=C/C1=C/CCCCCC1");
   }
   SECTION("github #3967 part 1") {
@@ -1860,7 +1873,6 @@ M  END)CTAB"_ctab;
 M  END)CTAB"_ctab;
     REQUIRE(mol);
     auto csmiles = MolToSmiles(*mol);
-    std::cerr << csmiles << std::endl;
     // clang-format off
     CHECK(
         csmiles ==
@@ -1948,7 +1960,7 @@ TEST_CASE("empty atom label block", "[cxsmiles]") {
   SECTION("basics") {
     auto m = R"CTAB(
   MJ201100
-                        
+
   8  8  0  0  0  0  0  0  0  0999 V2000
    -1.0491    1.5839    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
    -1.7635    1.1714    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
@@ -1983,5 +1995,429 @@ TEST_CASE("Github #5372: errors with fragments and doRandom=True") {
     ps.doRandom = true;
     auto smi = MolToSmiles(*m, ps);
     CHECK(smi == "C.C");
+  }
+}
+
+TEST_CASE("github #5466 writing floating point atom props cxsmiles",
+          "[smiles][cxsmiles]") {
+  SECTION("simple") {
+    auto mol = "C"_smiles;
+    REQUIRE(mol);
+
+    mol->getAtomWithIdx(0)->setProp<std::string>("foo", "7.6");
+    auto smi = MolToCXSmiles(*mol);
+    CHECK(smi == "C |atomProp:0.foo.7&#46;6|");
+
+    // 7.5 is exactly representable in IEEE so this helps :)
+    mol->getAtomWithIdx(0)->setProp<double>("foo", 7.5);
+    smi = MolToCXSmiles(*mol);
+    CHECK(smi == "C |atomProp:0.foo.7&#46;5|");
+  }
+  SECTION("label with .") {
+    auto mol = "C"_smiles;
+    REQUIRE(mol);
+
+    mol->getAtomWithIdx(0)->setProp<int>("foo.foo", 7);
+    auto smi = MolToCXSmiles(*mol);
+    CHECK(smi == "C |atomProp:0.foo&#46;foo.7|");
+  }
+}
+
+TEST_CASE("CXSMILES and 3d conformers") {
+  SECTION("detect 3d and perceive stereo") {
+    auto m =
+        "CC(O)(F)Cl |(0.856693,-0.0843716,-0.11692;-0.539611,0.360041,0.18126;-1.47941,-0.628083,-0.170155;-0.665621,0.560167,1.55524;-0.999017,1.83232,-0.693661)|"_smiles;
+    REQUIRE(m);
+    REQUIRE(m->getNumConformers() == 1);
+    CHECK(m->getConformer().is3D());
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() !=
+          Atom::ChiralType::CHI_UNSPECIFIED);
+  }
+  SECTION("detect 2d") {
+    auto m =
+        "CC(O)Cl |(-3.9163,5.4767,;-3.9163,3.9367,;-2.5826,3.1667,;-5.25,3.1667,)|"_smiles;
+    REQUIRE(m);
+    REQUIRE(m->getNumConformers() == 1);
+    CHECK(!m->getConformer().is3D());
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() ==
+          Atom::ChiralType::CHI_UNSPECIFIED);
+  }
+  SECTION("detect 2d when z coords are all zero") {
+    auto m =
+        "CC(O)Cl |(-3.9163,5.4767,0;-3.9163,3.9367,0;-2.5826,3.1667,0;-5.25,3.1667,0)|"_smiles;
+    REQUIRE(m);
+    REQUIRE(m->getNumConformers() == 1);
+    CHECK(!m->getConformer().is3D());
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() ==
+          Atom::ChiralType::CHI_UNSPECIFIED);
+  }
+}
+
+TEST_CASE("wiggly and wedged bonds in CXSMILES") {
+  SECTION("basic reading/writing") {
+    auto m = "CC(O)F |w:1.2|"_smiles;
+    REQUIRE(m);
+    unsigned int bondcfg;
+    CHECK(m->getBondWithIdx(2)->getPropIfPresent("_MolFileBondCfg", bondcfg));
+    CHECK(bondcfg == 2);
+    // make sure we end up with a wiggly bond in output mol blocks:
+    reapplyMolBlockWedging(*m);
+    auto mb = MolToV3KMolBlock(*m);
+    CHECK(mb.find("CFG=2") != std::string::npos);
+    // make sure we end up with the wiggly bond in the output CXSMILES:
+    auto cxsmi = MolToCXSmiles(*m);
+    CHECK(cxsmi == "CC(O)F |w:1.2|");
+    // but we can turn that off
+    SmilesWriteParams ps;
+    cxsmi =
+        MolToCXSmiles(*m, ps, SmilesWrite::CX_ALL ^ SmilesWrite::CX_BOND_CFG);
+    CHECK(cxsmi == "CC(O)F");
+  }
+
+  SECTION("CXSMILES wiggly bond over-rides atomic stereo") {
+    auto m = "C[C@H](O)F |w:1.2|"_smiles;
+    REQUIRE(m);
+    unsigned int bondcfg;
+    CHECK(m->getBondWithIdx(2)->getPropIfPresent("_MolFileBondCfg", bondcfg));
+    CHECK(bondcfg == 2);
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() ==
+          Atom::ChiralType::CHI_UNSPECIFIED);
+
+    // make sure we end up with a wiggly bond in output mol blocks:
+    reapplyMolBlockWedging(*m);
+    auto mb = MolToV3KMolBlock(*m);
+    CHECK(mb.find("CFG=2") != std::string::npos);
+    // make sure we end up with the wiggly bond in the output CXSMILES:
+    auto cxsmi = MolToCXSmiles(*m);
+    CHECK(cxsmi == "CC(O)F |w:1.2|");
+  }
+  SECTION("make sure order gets reversed when needed") {
+    auto m = "CC(O)Cl |w:1.0|"_smiles;
+    REQUIRE(m);
+    CHECK(m->getBondWithIdx(0)->getBeginAtomIdx() == 1);
+    unsigned int bondcfg;
+    CHECK(m->getBondWithIdx(0)->getPropIfPresent("_MolFileBondCfg", bondcfg));
+    CHECK(bondcfg == 2);
+  }
+
+  SECTION("make sure wedging gets applied when coordinates are there") {
+    auto m =
+        "CC(O)Cl |(-3.9163,5.4767,;-3.9163,3.9367,;-2.5826,3.1667,;-5.25,3.1667,),wU:1.0|"_smiles;
+    REQUIRE(m);
+    unsigned int bondcfg;
+    CHECK(m->getBondWithIdx(0)->getPropIfPresent("_MolFileBondCfg", bondcfg));
+    CHECK(bondcfg == 1);
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() ==
+          Atom::ChiralType::CHI_TETRAHEDRAL_CW);
+    m = "CC(O)Cl |(-3.9163,5.4767,;-3.9163,3.9367,;-2.5826,3.1667,;-5.25,3.1667,),wD:1.0|"_smiles;
+    REQUIRE(m);
+    CHECK(m->getBondWithIdx(0)->getPropIfPresent("_MolFileBondCfg", bondcfg));
+    CHECK(bondcfg == 3);
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() ==
+          Atom::ChiralType::CHI_TETRAHEDRAL_CCW);
+    invertMolBlockWedgingInfo(*m);
+    CHECK(m->getBondWithIdx(0)->getPropIfPresent("_MolFileBondCfg", bondcfg));
+    CHECK(bondcfg == 1);
+    reapplyMolBlockWedging(*m);
+    MolOps::assignChiralTypesFromBondDirs(*m);
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() ==
+          Atom::ChiralType::CHI_TETRAHEDRAL_CW);
+    invertMolBlockWedgingInfo(*m);
+    CHECK(m->getBondWithIdx(0)->getPropIfPresent("_MolFileBondCfg", bondcfg));
+    CHECK(bondcfg == 3);
+    reapplyMolBlockWedging(*m);
+    MolOps::assignChiralTypesFromBondDirs(*m);
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() ==
+          Atom::ChiralType::CHI_TETRAHEDRAL_CCW);
+    clearMolBlockWedgingInfo(*m);
+    m->getAtomWithIdx(1)->setChiralTag(Atom::ChiralType::CHI_UNSPECIFIED);
+    CHECK(!m->getBondWithIdx(0)->getPropIfPresent("_MolFileBondCfg", bondcfg));
+    reapplyMolBlockWedging(*m);
+    MolOps::assignChiralTypesFromBondDirs(*m);
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() ==
+          Atom::ChiralType::CHI_UNSPECIFIED);
+  }
+
+  SECTION("writing examples") {
+    auto m = "OC(C)Cl"_smiles;
+    REQUIRE(m);
+    {
+      ROMol nm(*m);
+      nm.getBondWithIdx(1)->setBondDir(Bond::BondDir::UNKNOWN);
+      auto cxsmi = MolToCXSmiles(nm);
+      CHECK(cxsmi == "CC(O)Cl |w:1.0|");
+    }
+    {
+      ROMol nm(*m);
+      nm.getBondWithIdx(1)->setProp(common_properties::_MolFileBondCfg, 2);
+      auto cxsmi = MolToCXSmiles(nm);
+      CHECK(cxsmi == "CC(O)Cl |w:1.0|");
+    }
+  }
+
+  SECTION("writing wedges and dashes") {
+    auto m = R"CTAB(
+  RDKit             2D
+
+  0  0  0     0  0            999 V3000
+M  V30 BEGIN CTAB
+M  V30 COUNTS 4 3 0 0 0
+M  V30 BEGIN ATOM
+M  V30 1 Cl -5.25 3.1667 0 0
+M  V30 2 C -3.9163 3.9367 0 0
+M  V30 3 O -2.5826 3.1667 0 0
+M  V30 4 C -3.9163 5.4767 0 0
+M  V30 END ATOM
+M  V30 BEGIN BOND
+M  V30 1 1 1 2
+M  V30 2 1 2 3
+M  V30 3 1 2 4 CFG=1
+M  V30 END BOND
+M  V30 END CTAB
+M  END
+)CTAB"_ctab;
+    REQUIRE(m);
+    auto cxsmi = MolToCXSmiles(*m);
+    CHECK(cxsmi.find("wU:1.0") != std::string::npos);
+    SmilesWriteParams ps;
+    cxsmi =
+        MolToCXSmiles(*m, ps, SmilesWrite::CXSmilesFields::CX_ALL_BUT_COORDS);
+    CHECK(cxsmi.find("wU:1.0") == std::string::npos);
+    // change the bond dir. This also tests that the wedging overrides the
+    // CFG property
+    m->getBondWithIdx(2)->setBondDir(Bond::BondDir::BEGINDASH);
+    cxsmi = MolToCXSmiles(*m);
+    CHECK(cxsmi.find("wD:1.0") != std::string::npos);
+    cxsmi =
+        MolToCXSmiles(*m, ps, SmilesWrite::CXSmilesFields::CX_ALL_BUT_COORDS);
+    CHECK(cxsmi.find("wD:1.0") == std::string::npos);
+    m->getBondWithIdx(2)->setBondDir(Bond::BondDir::UNKNOWN);
+    cxsmi = MolToCXSmiles(*m);
+    CHECK(cxsmi.find("w:1.0") != std::string::npos);
+    // wiggly bonds get written even if we don't output coords:
+    cxsmi =
+        MolToCXSmiles(*m, ps, SmilesWrite::CXSmilesFields::CX_ALL_BUT_COORDS);
+    CHECK(cxsmi.find("w:1.0") != std::string::npos);
+  }
+
+  SECTION("double bond stereo") {
+    auto m_from_ctab = R"CTAB(
+  Mrv2211 09152216122D
+
+  0  0  0     0  0            999 V3000
+M  V30 BEGIN CTAB
+M  V30 COUNTS 4 3 0 0 0
+M  V30 BEGIN ATOM
+M  V30 1 C -7.125 -12.0417 0 0
+M  V30 2 C -5.7913 -11.2717 0 0
+M  V30 3 C -4.4576 -12.0417 0 0
+M  V30 4 C -8.4587 -11.2717 0 0
+M  V30 END ATOM
+M  V30 BEGIN BOND
+M  V30 1 2 1 2
+M  V30 2 1 2 3 CFG=2
+M  V30 3 1 1 4
+M  V30 END BOND
+M  V30 END CTAB
+M  END
+)CTAB"_ctab;
+    REQUIRE(m_from_ctab);
+    auto m = "CC=CC |w:2.2|"_smiles;
+    REQUIRE(m);
+    unsigned int bondcfg;
+    CHECK(m->getBondWithIdx(2)->getPropIfPresent("_MolFileBondCfg", bondcfg));
+    CHECK(bondcfg == 2);
+  }
+
+  SECTION("some invalid cxsmiles") {
+    std::vector<std::string> smileses = {"CC(O)Cl |wU:0.0,wU:1.0|",
+                                         "CC(O)Cl |wUP:1.0|", "CC(O)Cl |wU:1|"};
+    for (const auto &smi : smileses) {
+      INFO(smi);
+      CHECK_THROWS_AS(SmilesToMol(smi), SmilesParseException);
+    }
+  }
+}
+
+TEST_CASE("ring bond stereochemistry in CXSMILES") {
+  auto oval = Chirality::getUseLegacyStereoPerception();
+  Chirality::setUseLegacyStereoPerception(false);
+  SECTION("basic reading") {
+    std::vector<std::pair<std::string, Bond::BondStereo>> tests = {
+        {"C1CCCC/C=C/CCC1 |t:5|", Bond::BondStereo::STEREOTRANS},
+        {"C1CCCCC=CCCC1 |t:5|", Bond::BondStereo::STEREOTRANS},
+        {"C1CCCCC=CCCC1 |c:5|", Bond::BondStereo::STEREOCIS},
+        {"C1CCCC/C=C/CCC1 |c:5|", Bond::BondStereo::STEREOCIS},
+        {"C1CCCCC=CCCC1 |ctu:5|", Bond::BondStereo::STEREOANY},
+        {"C1CCCC/C=C/CCC1 |ctu:5|", Bond::BondStereo::STEREOANY},
+    };
+    for (const auto &[smi, val] : tests) {
+      std::unique_ptr<RWMol> m{SmilesToMol(smi)};
+      INFO(smi);
+      REQUIRE(m);
+      CHECK(m->getBondWithIdx(5)->getBondType() == Bond::BondType::DOUBLE);
+      CHECK(m->getBondWithIdx(5)->getStereo() == val);
+    }
+  }
+  SECTION("read multiple values") {
+    std::unique_ptr<RWMol> m{SmilesToMol("C1CCCCC=CCCC=1 |t:5,9|")};
+    REQUIRE(m);
+    CHECK(m->getBondWithIdx(5)->getBondType() == Bond::BondType::DOUBLE);
+    CHECK(m->getBondWithIdx(5)->getStereo() == Bond::BondStereo::STEREOTRANS);
+    CHECK(m->getBondWithIdx(9)->getBondType() == Bond::BondType::DOUBLE);
+    CHECK(m->getBondWithIdx(9)->getStereo() == Bond::BondStereo::STEREOTRANS);
+  }
+  SECTION("skip small rings") {
+    std::vector<std::pair<std::string, Bond::BondStereo>> tests = {
+        {"C1=CCCCC1 |ctu:0|", Bond::BondStereo::STEREONONE},
+        {"C1=CCCCC1 |c:0|", Bond::BondStereo::STEREONONE}};
+    for (const auto &[smi, val] : tests) {
+      std::unique_ptr<RWMol> m{SmilesToMol(smi)};
+      INFO(smi);
+      REQUIRE(m);
+      CHECK(m->getBondWithIdx(0)->getBondType() == Bond::BondType::DOUBLE);
+      CHECK(m->getBondWithIdx(0)->getStereo() == val);
+    }
+  }
+  SECTION("basic writing") {
+    std::vector<std::pair<std::string, std::string>> tests = {
+        {"C1CCCC/C=C/CCC1 |t:5|", "C1=C/CCCCCCCC/1 |t:0|"},
+        {"C1CCCCC=CCCC1 |t:5|", "C1=C/CCCCCCCC/1 |t:0|"},
+        {"C1CCCCC=CCCC1 |c:5|", "C1=C\\CCCCCCCC/1 |c:0|"},
+        {"C1CCCC/C=C/CCC1 |c:5|", "C1=C\\CCCCCCCC/1 |c:0|"},
+        {"C1=CCCCCCCCC1 |ctu:0|", "C1=CCCCCCCCC1 |ctu:0|"},
+        {"C=CCCCCCCCC |ctu:0|",
+         "C=CCCCCCCCC"}  // we don't write the markers for non-ring bonds
+    };
+    for (const auto &[smi, val] : tests) {
+      std::unique_ptr<RWMol> m{SmilesToMol(smi)};
+      INFO(smi);
+      REQUIRE(m);
+      SmilesWriteParams ops;
+      auto cxsmi = MolToCXSmiles(
+          *m, ops, SmilesWrite::CXSmilesFields::CX_ALL_BUT_COORDS);
+      CHECK(cxsmi == val);
+    }
+  }
+  Chirality::setUseLegacyStereoPerception(oval);
+}
+
+TEST_CASE(
+    "Github #5722: check w/c/t/ctu CX labels use bond positions from SMILES",
+    "[SMILES][bug]") {
+  SECTION("'w:' label") {
+    auto m = "CC1CN1C=CC1CC1 |w:4.5|"_smiles;
+    REQUIRE(m);
+    auto b = m->getBondWithIdx(4);
+    REQUIRE(b->getBondType() == Bond::BondType::DOUBLE);
+    CHECK(b->getBondDir() == Bond::BondDir::UNKNOWN);
+  }
+  SECTION("'ctu:' label") {
+    auto m = "CC1CN1C=CC1CC1 |ctu:5|"_smiles;
+    REQUIRE(m);
+    auto b = m->getBondWithIdx(4);
+    REQUIRE(b->getBondType() == Bond::BondType::DOUBLE);
+    CHECK(b->getStereo() == Bond::STEREOANY);
+  }
+  SECTION("'c:' label") {
+    auto oval = Chirality::getUseLegacyStereoPerception();
+    Chirality::setUseLegacyStereoPerception(false);
+
+    auto m = "CC1CN1C=CC1CC1 |c:5|"_smiles;
+    REQUIRE(m);
+    auto b = m->getBondWithIdx(4);
+    REQUIRE(b->getBondType() == Bond::BondType::DOUBLE);
+    CHECK(b->getStereo() == Bond::STEREOCIS);
+
+    Chirality::setUseLegacyStereoPerception(oval);
+  }
+  SECTION("'t:' label") {
+    auto oval = Chirality::getUseLegacyStereoPerception();
+    Chirality::setUseLegacyStereoPerception(false);
+
+    auto m = "CC1CN1C=CC1CC1 |t:5|"_smiles;
+    REQUIRE(m);
+    auto b = m->getBondWithIdx(4);
+    REQUIRE(b->getBondType() == Bond::BondType::DOUBLE);
+    CHECK(b->getStereo() == Bond::STEREOTRANS);
+
+    Chirality::setUseLegacyStereoPerception(oval);
+  }
+}
+
+TEST_CASE("Github #5683: SMARTS bond ordering should be the same as SMILES") {
+  SECTION("basics") {
+    auto m = "C(OC)C"_smarts;
+    REQUIRE(m);
+    CHECK(m->getBondBetweenAtoms(0, 1)->getIdx() == 0);
+    CHECK(m->getBondBetweenAtoms(1, 2)->getIdx() == 1);
+    CHECK(m->getBondBetweenAtoms(0, 3)->getIdx() == 2);
+  }
+  SECTION("as reported: SMARTS which should generate an exception") {
+    auto sma = "O=C(C=CCC1CCCCC1)N1N=Cc2ccccc2C1c1ccccc1 |w:3.1|";
+    CHECK_THROWS_AS(SmartsToMol(sma), SmilesParseException);
+  }
+}
+
+TEST_CASE("SMARTS for molecule with zero order bond should match itself") {
+  auto m = "CN(<-[Li+])C"_smiles;
+  m->getBondBetweenAtoms(1, 2)->setBondType(Bond::BondType::ZERO);
+  const auto sma = MolToSmarts(*m);
+  std::unique_ptr<ROMol> q{SmartsToMol(sma)};
+  SubstructMatchParameters ps;
+  ps.maxMatches = 1;
+  CHECK(SubstructMatch(*m, *q, ps).size() == 1);
+}
+
+TEST_CASE("smilesSymbol in SMARTS", "[smarts][smilesSymbol]") {
+  // Probably just the first case is going to be useful to people
+  SECTION("smilesSymbol without queries") {
+    auto m = "CC*"_smiles;
+    REQUIRE(m);
+    m->getAtomWithIdx(2)->setProp(common_properties::smilesSymbol, "Xa");
+    CHECK(MolToSmarts(*m) == "[#6]-[#6]-[Xa]");
+  }
+  SECTION("smilesSymbol with query on other atoms") {
+    auto m = "[#6]cc"_smarts;
+    REQUIRE(m);
+    m->getAtomWithIdx(0)->setProp(common_properties::smilesSymbol, "Xa");
+    CHECK(MolToSmarts(*m) == "[Xa]cc");
+  }
+  SECTION("smilesSymbol with aromaticity query") {
+    auto m = "ccc"_smarts;
+    REQUIRE(m);
+    m->getAtomWithIdx(0)->setProp(common_properties::smilesSymbol, "Xa");
+    CHECK(MolToSmarts(*m) == "[Xa;a]cc");
+  }
+  SECTION("smilesSymbol with aliphatic query") {
+    auto m = "CCC"_smarts;
+    REQUIRE(m);
+    m->getAtomWithIdx(0)->setProp(common_properties::smilesSymbol, "Xa");
+    CHECK(MolToSmarts(*m) == "[Xa;A]CC");
+  }
+  SECTION("smilesSymbol with additional queries") {
+    auto m = "[#6]C[#6]"_smarts;
+    REQUIRE(m);
+    auto atom = m->getAtomWithIdx(1);
+
+    atom->expandQuery(makeAtomExplicitDegreeQuery(3), Queries::COMPOSITE_AND);
+    atom->expandQuery(makeAtomTotalValenceQuery(4), Queries::COMPOSITE_AND);
+    atom->expandQuery(makeAtomFormalChargeQuery(2), Queries::COMPOSITE_AND);
+
+    atom->setProp(common_properties::smilesSymbol, "Xa");
+
+    CHECK(MolToSmarts(*m) == "[#6][Xa;A&D3&v4&+2][#6]");
+  }
+  SECTION("degree query") {
+    auto m = "[X3]-C"_smarts;
+    REQUIRE(m);
+    m->getAtomWithIdx(0)->setProp(common_properties::smilesSymbol, "Xa");
+    CHECK(MolToSmarts(*m) == "[Xa;X3]-C");
+  }
+  SECTION("atom list") {
+    auto m = "[C,N,O]C"_smarts;
+    REQUIRE(m);
+    m->getAtomWithIdx(0)->setProp(common_properties::smilesSymbol, "Xa");
+    CHECK(MolToSmarts(*m) == "[Xa;C,N,O]C");
   }
 }

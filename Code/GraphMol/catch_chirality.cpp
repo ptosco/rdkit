@@ -8,7 +8,11 @@
 //  of the RDKit source tree.
 //
 
+#include <cstdlib>
+
 #include "catch.hpp"
+
+#include <boost/noncopyable.hpp>
 
 #include <GraphMol/RDKitBase.h>
 #include <GraphMol/StereoGroup.h>
@@ -22,6 +26,59 @@
 #include <GraphMol/SmilesParse/SmilesWrite.h>
 
 using namespace RDKit;
+
+class TestFixtureTemplate : public boost::noncopyable {
+ public:
+  TestFixtureTemplate() = delete;
+
+  TestFixtureTemplate(std::string var, bool (*getter_func)(),
+                      void (*setter_func)(bool))
+      : m_var{std::move(var)},
+        m_getter_func{getter_func},
+        m_setter_func{setter_func} {
+    auto evar = std::getenv(m_var.c_str());
+    m_env_var_set = evar == nullptr;
+    m_flag_state = (*m_getter_func)();
+  }
+
+  ~TestFixtureTemplate() {
+    if (m_env_var_set) {
+      (*m_setter_func)(m_flag_state);
+    } else {
+#ifdef _WIN32
+      _putenv_s(m_var.c_str(), "");
+#else
+      unsetenv(m_var.c_str());
+#endif
+    }
+  }
+
+ private:
+  std::string m_var;
+
+  bool (*m_getter_func)();
+  void (*m_setter_func)(bool);
+
+  bool m_flag_state;
+  bool m_env_var_set;
+};
+
+class UseLegacyStereoPerceptionFixture : private TestFixtureTemplate {
+ public:
+  UseLegacyStereoPerceptionFixture()
+      : TestFixtureTemplate(RDKit::Chirality::useLegacyStereoEnvVar,
+                            &RDKit::Chirality::getUseLegacyStereoPerception,
+                            &RDKit::Chirality::setUseLegacyStereoPerception) {}
+};
+
+class AllowNontetrahedralChiralityFixture : private TestFixtureTemplate {
+ public:
+  AllowNontetrahedralChiralityFixture()
+      : TestFixtureTemplate(
+            RDKit::Chirality::nonTetrahedralStereoEnvVar,
+            &RDKit::Chirality::getAllowNontetrahedralChirality,
+            &RDKit::Chirality::setAllowNontetrahedralChirality) {}
+};
 
 TEST_CASE("bond StereoInfo", "[unittest]") {
   SECTION("basics") {
@@ -486,7 +543,7 @@ TEST_CASE("possible stereochemistry on bonds", "[chirality]") {
       REQUIRE(stereoInfo.size() == 1);
       CHECK(stereoInfo[0].type == Chirality::StereoType::Bond_Double);
       CHECK(stereoInfo[0].centeredOn == 2);
-      std::vector<unsigned> catoms = {0, 2, 4, 5};
+      std::vector<unsigned> catoms = {2, 0, 4, 5};
       CHECK(stereoInfo[0].controllingAtoms == catoms);
     }
     {
@@ -585,6 +642,22 @@ TEST_CASE("para-stereocenters and assignStereochemistry", "[chirality]") {
 }
 
 TEST_CASE("ring stereochemistry", "[chirality]") {
+  SECTION("partially specified") {
+    SmilesParserParams ps;
+    ps.sanitize = false;
+    std::unique_ptr<RWMol> mol{SmilesToMol("C[C@H]1CCC(C)CC1", ps)};
+    REQUIRE(mol);
+    // std::cerr << "------------ 3 -------------" << std::endl;
+    auto stereoInfo = Chirality::findPotentialStereo(*mol);
+    REQUIRE(stereoInfo.size() == 2);
+    CHECK(stereoInfo[0].type == Chirality::StereoType::Atom_Tetrahedral);
+    CHECK(stereoInfo[0].centeredOn == 1);
+    CHECK(stereoInfo[0].specified == Chirality::StereoSpecified::Unspecified);
+
+    CHECK(stereoInfo[1].type == Chirality::StereoType::Atom_Tetrahedral);
+    CHECK(stereoInfo[1].centeredOn == 4);
+    CHECK(stereoInfo[1].specified == Chirality::StereoSpecified::Unspecified);
+  }
   SECTION("specified") {
     auto mol = "C[C@H]1CC[C@@H](C)CC1"_smiles;
     REQUIRE(mol);
@@ -638,23 +711,21 @@ TEST_CASE("ring stereochemistry", "[chirality]") {
     CHECK(stereoInfo[1].specified == Chirality::StereoSpecified::Unspecified);
   }
 }
-#if 0
-// FIX: the double bond stereo in rings isn't working. This also fails with the canonicalizer, so it's not unique to this code
+
 TEST_CASE("tricky recursive example from Dan Nealschneider", "[chirality]") {
   SECTION("adapted") {
     auto mol = "CC=C1CCC(O)CC1"_smiles;
     REQUIRE(mol);
     mol->updatePropertyCache();
     MolOps::setBondStereoFromDirections(*mol);
-    std::cerr << "------------ 1 -------------" << std::endl;
     auto stereoInfo = Chirality::findPotentialStereo(*mol);
     REQUIRE(stereoInfo.size() == 2);
     CHECK(stereoInfo[0].type == Chirality::StereoType::Atom_Tetrahedral);
     CHECK(stereoInfo[0].centeredOn == 5);
-    CHECK(stereoInfo[0].specified == Chirality::StereoSpecified::Specified);
+    CHECK(stereoInfo[0].specified == Chirality::StereoSpecified::Unspecified);
     CHECK(stereoInfo[1].type == Chirality::StereoType::Bond_Double);
     CHECK(stereoInfo[1].centeredOn == 1);
-    CHECK(stereoInfo[1].specified == Chirality::StereoSpecified::Specified);
+    CHECK(stereoInfo[1].specified == Chirality::StereoSpecified::Unspecified);
   }
   SECTION("simplified") {
     // can't sanitize this because the current (2020.03) assignStereochemistry
@@ -666,7 +737,6 @@ TEST_CASE("tricky recursive example from Dan Nealschneider", "[chirality]") {
     REQUIRE(mol);
     mol->updatePropertyCache();
     MolOps::setBondStereoFromDirections(*mol);
-    std::cerr << "------------ 2 -------------" << std::endl;
     auto stereoInfo = Chirality::findPotentialStereo(*mol);
     REQUIRE(stereoInfo.size() == 2);
     CHECK(stereoInfo[0].type == Chirality::StereoType::Atom_Tetrahedral);
@@ -680,7 +750,6 @@ TEST_CASE("tricky recursive example from Dan Nealschneider", "[chirality]") {
   SECTION("unspecified") {
     auto mol = "CC=C1C[CH](O)C1"_smiles;
     REQUIRE(mol);
-    std::cerr << "------------ 3 -------------" << std::endl;
     auto stereoInfo = Chirality::findPotentialStereo(*mol);
     REQUIRE(stereoInfo.size() == 2);
     CHECK(stereoInfo[0].type == Chirality::StereoType::Atom_Tetrahedral);
@@ -691,7 +760,6 @@ TEST_CASE("tricky recursive example from Dan Nealschneider", "[chirality]") {
     CHECK(stereoInfo[1].specified == Chirality::StereoSpecified::Unspecified);
   }
 }
-#endif
 
 TEST_CASE("unknown stereo", "[chirality]") {
   SECTION("atoms") {
@@ -1574,17 +1642,43 @@ TEST_CASE("addWavyBondsForStereoAny()") {
 TEST_CASE("Github #4215: Ring stereo being discarded in spiro systems") {
   // Note: this bug is still there when using the legacy stereochemistry
   // assignment. It's "non-trivial" to fix there and we've opted not to
-  SmilesParserParams ps;
-  ps.useLegacyStereo = false;
+  UseLegacyStereoPerceptionFixture reset_stereo_perception;
+  Chirality::setUseLegacyStereoPerception(false);
+
   SECTION("original failing example") {
-    std::unique_ptr<RWMol> m{
-        SmilesToMol("C[C@H]1CCC2(CC1)CC[C@H](C)C(C)C2", ps)};
+    auto m = "C[C@H]1CCC2(CC1)CC[C@H](C)C(C)C2"_smiles;
     REQUIRE(m);
-    CHECK(m->getAtomWithIdx(1)->getChiralTag() != Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() == Atom::CHI_UNSPECIFIED);
     CHECK(m->getAtomWithIdx(9)->getChiralTag() != Atom::CHI_UNSPECIFIED);
   }
+  SECTION("original failing example, findPossible") {
+    UseLegacyStereoPerceptionFixture inner_reset_stereo_perception;
+    Chirality::setUseLegacyStereoPerception(true);
+    SmilesParserParams ps2;
+    ps2.sanitize = false;
+    std::unique_ptr<RWMol> m{
+        SmilesToMol("C[C@H]1CCC2(CC1)CC[C@H](C)C(C)C2", ps2)};
+    REQUIRE(m);
+    MolOps::sanitizeMol(*m);
+    auto stereoInfo = Chirality::findPotentialStereo(*m, true, true);
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() == Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(4)->getChiralTag() == Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(9)->getChiralTag() != Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(11)->getChiralTag() == Atom::CHI_UNSPECIFIED);
+    REQUIRE(stereoInfo.size() == 4);
+    for (const auto &si : stereoInfo) {
+      CHECK(si.type == Chirality::StereoType::Atom_Tetrahedral);
+      if (si.centeredOn != 9) {
+        CHECK(si.specified == Chirality::StereoSpecified::Unspecified);
+        CHECK(si.descriptor == Chirality::StereoDescriptor::None);
+      } else {
+        CHECK(si.specified == Chirality::StereoSpecified::Specified);
+        CHECK(si.descriptor != Chirality::StereoDescriptor::None);
+      }
+    }
+  }
   SECTION("original passing example") {
-    std::unique_ptr<RWMol> m{SmilesToMol("C[C@H]1CCC2(CC1)CC[C@H](C)CC2", ps)};
+    auto m = "C[C@H]1CCC2(CC1)CC[C@H](C)CC2"_smiles;
     REQUIRE(m);
     // if the middle is unspecified, the two ends can't be specified
     CHECK(m->getAtomWithIdx(1)->getChiralTag() == Atom::CHI_UNSPECIFIED);
@@ -1613,8 +1707,146 @@ TEST_CASE("Github #4215: Ring stereo being discarded in spiro systems") {
     }
   }
   SECTION("specified chirality on spiro atom") {
+    auto m = "C[C@H]1CC[C@@]2(CC[C@H](C)CC2)CC1"_smiles;
+    REQUIRE(m);
+    // now the middle is specified, so the two ends are as well
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() != Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(7)->getChiralTag() != Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(4)->getChiralTag() != Atom::CHI_UNSPECIFIED);
+    {
+      bool cleanIt = true;
+      bool flagPossible = true;
+      RWMol m2(*m);
+      auto stereoInfo =
+          Chirality::findPotentialStereo(m2, cleanIt, flagPossible);
+      CHECK(stereoInfo.size() == 3);
+      for (const auto &si : stereoInfo) {
+        CHECK(si.type == Chirality::StereoType::Atom_Tetrahedral);
+        CHECK(si.specified == Chirality::StereoSpecified::Specified);
+        CHECK(si.descriptor != Chirality::StereoDescriptor::None);
+      }
+    }
+    {
+      bool cleanIt = true;
+      bool flagPossible = false;
+      RWMol m2(*m);
+      auto stereoInfo =
+          Chirality::findPotentialStereo(m2, cleanIt, flagPossible);
+      CHECK(stereoInfo.size() == 3);
+      for (const auto &si : stereoInfo) {
+        CHECK(si.type == Chirality::StereoType::Atom_Tetrahedral);
+        CHECK(si.specified == Chirality::StereoSpecified::Specified);
+        CHECK(si.descriptor != Chirality::StereoDescriptor::None);
+      }
+    }
+  }
+  SECTION("three spiro rings, unspecified spiro links") {
+    auto m = "C[C@H]1CCC2(CC1)CCC1(CC[C@H](C)CC1)CC2"_smiles;
+    REQUIRE(m);
+    {
+      bool cleanIt = true;
+      bool flagPossible = true;
+      RWMol m2(*m);
+      auto stereoInfo =
+          Chirality::findPotentialStereo(m2, cleanIt, flagPossible);
+      CHECK(stereoInfo.size() == 4);
+      for (const auto &si : stereoInfo) {
+        CHECK(si.type == Chirality::StereoType::Atom_Tetrahedral);
+        CHECK(si.specified == Chirality::StereoSpecified::Unspecified);
+        CHECK(si.descriptor == Chirality::StereoDescriptor::None);
+      }
+    }
+  }
+  SECTION("three spiro rings, specified spiro links") {
+    auto m = "C[C@H]1CC[C@@]2(CC1)CC[C@]1(CC[C@H](C)CC1)CC2"_smiles;
+    REQUIRE(m);
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() != Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(4)->getChiralTag() != Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(9)->getChiralTag() != Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(12)->getChiralTag() != Atom::CHI_UNSPECIFIED);
+    {
+      bool cleanIt = true;
+      bool flagPossible = true;
+      RWMol m2(*m);
+      auto stereoInfo =
+          Chirality::findPotentialStereo(m2, cleanIt, flagPossible);
+      CHECK(stereoInfo.size() == 4);
+      for (const auto &si : stereoInfo) {
+        CHECK(si.type == Chirality::StereoType::Atom_Tetrahedral);
+        CHECK(si.specified == Chirality::StereoSpecified::Specified);
+        CHECK(si.descriptor != Chirality::StereoDescriptor::None);
+      }
+    }
+  }
+}
+
+TEST_CASE(
+    "Github #4215: Ring stereo being discarded in spiro systems, using deprecated useLegacyStereo option") {
+  // Note: this bug is still there when using the legacy stereochemistry
+  // assignment. It's "non-trivial" to fix there and we've opted not to
+  UseLegacyStereoPerceptionFixture reset_stereo_perception;
+  Chirality::setUseLegacyStereoPerception(false);
+  SECTION("original failing example") {
+    std::unique_ptr<RWMol> m{SmilesToMol("C[C@H]1CCC2(CC1)CC[C@H](C)C(C)C2")};
+    REQUIRE(m);
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() == Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(9)->getChiralTag() != Atom::CHI_UNSPECIFIED);
+  }
+  SECTION("original failing example, findPossible") {
+    SmilesParserParams ps2;
+    ps2.sanitize = false;
     std::unique_ptr<RWMol> m{
-        SmilesToMol("C[C@H]1CC[C@@]2(CC[C@H](C)CC2)CC1", ps)};
+        SmilesToMol("C[C@H]1CCC2(CC1)CC[C@H](C)C(C)C2", ps2)};
+    REQUIRE(m);
+    MolOps::sanitizeMol(*m);
+    auto stereoInfo = Chirality::findPotentialStereo(*m, true, true);
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() == Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(4)->getChiralTag() == Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(9)->getChiralTag() != Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(11)->getChiralTag() == Atom::CHI_UNSPECIFIED);
+    REQUIRE(stereoInfo.size() == 4);
+    for (const auto &si : stereoInfo) {
+      CHECK(si.type == Chirality::StereoType::Atom_Tetrahedral);
+      if (si.centeredOn != 9) {
+        CHECK(si.specified == Chirality::StereoSpecified::Unspecified);
+        CHECK(si.descriptor == Chirality::StereoDescriptor::None);
+      } else {
+        CHECK(si.specified == Chirality::StereoSpecified::Specified);
+        CHECK(si.descriptor != Chirality::StereoDescriptor::None);
+      }
+    }
+  }
+  SECTION("original passing example") {
+    std::unique_ptr<RWMol> m{SmilesToMol("C[C@H]1CCC2(CC1)CC[C@H](C)CC2")};
+    REQUIRE(m);
+    // if the middle is unspecified, the two ends can't be specified
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() == Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(9)->getChiralTag() == Atom::CHI_UNSPECIFIED);
+
+    {
+      bool cleanIt = true;
+      bool flagPossible = true;
+      RWMol m2(*m);
+      auto stereoInfo =
+          Chirality::findPotentialStereo(m2, cleanIt, flagPossible);
+      CHECK(stereoInfo.size() == 3);
+      for (const auto &si : stereoInfo) {
+        CHECK(si.type == Chirality::StereoType::Atom_Tetrahedral);
+        CHECK(si.specified == Chirality::StereoSpecified::Unspecified);
+        CHECK(si.descriptor == Chirality::StereoDescriptor::None);
+      }
+    }
+    {
+      bool cleanIt = true;
+      bool flagPossible = false;
+      RWMol m2(*m);
+      auto stereoInfo =
+          Chirality::findPotentialStereo(m2, cleanIt, flagPossible);
+      CHECK(stereoInfo.empty());
+    }
+  }
+  SECTION("specified chirality on spiro atom") {
+    std::unique_ptr<RWMol> m{SmilesToMol("C[C@H]1CC[C@@]2(CC[C@H](C)CC2)CC1")};
     REQUIRE(m);
     // now the middle is specified, so the two ends are as well
     CHECK(m->getAtomWithIdx(1)->getChiralTag() != Atom::CHI_UNSPECIFIED);
@@ -1649,7 +1881,7 @@ TEST_CASE("Github #4215: Ring stereo being discarded in spiro systems") {
   }
   SECTION("three spiro rings, unspecified spiro links") {
     std::unique_ptr<RWMol> m{
-        SmilesToMol("C[C@H]1CCC2(CC1)CCC1(CC[C@H](C)CC1)CC2", ps)};
+        SmilesToMol("C[C@H]1CCC2(CC1)CCC1(CC[C@H](C)CC1)CC2")};
     REQUIRE(m);
     {
       bool cleanIt = true;
@@ -1667,7 +1899,7 @@ TEST_CASE("Github #4215: Ring stereo being discarded in spiro systems") {
   }
   SECTION("three spiro rings, specified spiro links") {
     std::unique_ptr<RWMol> m{
-        SmilesToMol("C[C@H]1CC[C@@]2(CC1)CC[C@]1(CC[C@H](C)CC1)CC2", ps)};
+        SmilesToMol("C[C@H]1CC[C@@]2(CC1)CC[C@]1(CC[C@H](C)CC1)CC2")};
     REQUIRE(m);
     CHECK(m->getAtomWithIdx(1)->getChiralTag() != Atom::CHI_UNSPECIFIED);
     CHECK(m->getAtomWithIdx(4)->getChiralTag() != Atom::CHI_UNSPECIFIED);
@@ -1990,6 +2222,7 @@ TEST_CASE("nontetrahedral stereo from 3D", "[nontetrahedral]") {
     }
   }
   SECTION("disable nontetrahedral stereo") {
+    AllowNontetrahedralChiralityFixture reset_non_tetrahedral_allowed;
     Chirality::setAllowNontetrahedralChirality(false);
     SDMolSupplier suppl(pathName);
     while (!suppl.atEnd()) {
@@ -2005,7 +2238,6 @@ TEST_CASE("nontetrahedral stereo from 3D", "[nontetrahedral]") {
         CHECK(atom->getChiralTag() == Atom::ChiralType::CHI_UNSPECIFIED);
       }
     }
-    Chirality::setAllowNontetrahedralChirality(true);
   }
 }
 
@@ -2445,6 +2677,8 @@ M  END
 }
 
 TEST_CASE("useLegacyStereoPerception feature flag") {
+  UseLegacyStereoPerceptionFixture reset_stereo_perception;
+
   SECTION("original failing example") {
     Chirality::setUseLegacyStereoPerception(true);
     auto m = "C[C@H]1CCC2(CC1)CC[C@H](C)C(C)C2"_smiles;
@@ -2456,7 +2690,7 @@ TEST_CASE("useLegacyStereoPerception feature flag") {
     Chirality::setUseLegacyStereoPerception(false);
     auto m = "C[C@H]1CCC2(CC1)CC[C@H](C)C(C)C2"_smiles;
     REQUIRE(m);
-    CHECK(m->getAtomWithIdx(1)->getChiralTag() != Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(1)->getChiralTag() == Atom::CHI_UNSPECIFIED);
     CHECK(m->getAtomWithIdx(9)->getChiralTag() != Atom::CHI_UNSPECIFIED);
   }
   std::string molblock = R"CTAB(
@@ -2511,7 +2745,7 @@ M  END
     Chirality::setUseLegacyStereoPerception(false);
     std::unique_ptr<RWMol> m{MolBlockToMol(molblock)};
     CHECK(m->getAtomWithIdx(3)->getChiralTag() != Atom::CHI_UNSPECIFIED);
-    CHECK(m->getAtomWithIdx(8)->getChiralTag() != Atom::CHI_UNSPECIFIED);
+    CHECK(m->getAtomWithIdx(8)->getChiralTag() == Atom::CHI_UNSPECIFIED);
   }
 }
 
@@ -2537,7 +2771,7 @@ M  V30 END ATOM
 M  V30 BEGIN BOND
 M  V30 1 1 1 2
 M  V30 2 1 2 3
-M  V30 3 1 3 4 
+M  V30 3 1 3 4
 M  V30 4 1 4 5 CFG=1
 M  V30 5 2 5 6
 M  V30 6 1 6 7
@@ -2614,21 +2848,668 @@ M  END
 TEST_CASE(
     "github 5403: Incorrect perception of pseudoasymmetric centers on "
     "non-canonical molecules") {
-  auto mol1 = "N[C@@]12CC[C@@](CC1)(C2)C(F)F"_smiles;
-  REQUIRE(mol1);
+  SECTION("basics") {
+    auto mol1 = "N[C@@]12CC[C@@](CC1)(C2)C(F)F"_smiles;
+    REQUIRE(mol1);
 
-  bool clean = true;
+    bool clean = true;
 
-  auto stereoInfo1 = Chirality::findPotentialStereo(*mol1, clean);
-  REQUIRE(stereoInfo1.size() == 2);
-  REQUIRE(stereoInfo1[0].centeredOn == 1);
-  REQUIRE(stereoInfo1[1].centeredOn == 4);
+    auto stereoInfo1 = Chirality::findPotentialStereo(*mol1, clean);
+    REQUIRE(stereoInfo1.size() == 2);
+    REQUIRE(stereoInfo1[0].centeredOn == 1);
+    REQUIRE(stereoInfo1[1].centeredOn == 4);
+    CHECK(mol1->getAtomWithIdx(1)->getChiralTag() !=
+          Atom::ChiralType::CHI_UNSPECIFIED);
+    CHECK(mol1->getAtomWithIdx(4)->getChiralTag() !=
+          Atom::ChiralType::CHI_UNSPECIFIED);
 
-  auto mol2 = "C1C[C@]2(C(F)F)CC[C@@]1(N)C2"_smiles;
-  REQUIRE(mol2);
+    auto mol2 = "C1C[C@]2(C(F)F)CC[C@@]1(N)C2"_smiles;
+    REQUIRE(mol2);
 
-  auto stereoInfo2 = Chirality::findPotentialStereo(*mol2, clean);
-  REQUIRE(stereoInfo2.size() == 2);
-  CHECK(stereoInfo2[0].centeredOn == 2);
-  CHECK(stereoInfo2[1].centeredOn == 8);
+    auto stereoInfo2 = Chirality::findPotentialStereo(*mol2, clean);
+    REQUIRE(stereoInfo2.size() == 2);
+    CHECK(stereoInfo2[0].centeredOn == 2);
+    CHECK(stereoInfo2[1].centeredOn == 8);
+    {
+      RWMol cp(*mol2);
+      Chirality::findPotentialStereo(cp, true, false);
+      CHECK(cp.getAtomWithIdx(2)->getChiralTag() !=
+            Atom::ChiralType::CHI_UNSPECIFIED);
+      CHECK(cp.getAtomWithIdx(8)->getChiralTag() !=
+            Atom::ChiralType::CHI_UNSPECIFIED);
+    }
+  }
+  SECTION("new stereo") {
+    UseLegacyStereoPerceptionFixture reset_stereo_perception;
+    Chirality::setUseLegacyStereoPerception(false);
+
+    auto mol1 = "N[C@@]12CC[C@@](CC1)(C2)C(F)F"_smiles;
+    REQUIRE(mol1);
+    CHECK(mol1->getAtomWithIdx(1)->getChiralTag() !=
+          Atom::ChiralType::CHI_UNSPECIFIED);
+    CHECK(mol1->getAtomWithIdx(4)->getChiralTag() !=
+          Atom::ChiralType::CHI_UNSPECIFIED);
+  }
+}
+TEST_CASE("assignStereochemistry sets bond stereo with new stereo perception") {
+  SECTION("basics") {
+    UseLegacyStereoPerceptionFixture reset_stereo_perception;
+    Chirality::setUseLegacyStereoPerception(false);
+    {
+      auto m = "C/C=C/C"_smiles;
+      REQUIRE(m);
+      CHECK(m->getBondWithIdx(1)->getStereo() == Bond::BondStereo::STEREOTRANS);
+      CHECK(m->getBondWithIdx(1)->getStereoAtoms() == std::vector<int>{0, 3});
+    }
+    {
+      auto m = "C/C=C\\C"_smiles;
+      REQUIRE(m);
+      CHECK(m->getBondWithIdx(1)->getStereo() == Bond::BondStereo::STEREOCIS);
+      CHECK(m->getBondWithIdx(1)->getStereoAtoms() == std::vector<int>{0, 3});
+    }
+    {
+      auto m = "C(/C)=C/C"_smiles;
+      REQUIRE(m);
+      CHECK(m->getBondWithIdx(1)->getStereo() == Bond::BondStereo::STEREOCIS);
+      CHECK(m->getBondWithIdx(1)->getStereoAtoms() == std::vector<int>{1, 3});
+    }
+    {
+      auto m = "FC(/C)=C/C"_smiles;
+      REQUIRE(m);
+      CHECK(m->getBondWithIdx(2)->getStereo() == Bond::BondStereo::STEREOTRANS);
+      CHECK(m->getBondWithIdx(2)->getStereoAtoms() == std::vector<int>{0, 4});
+    }
+    {
+      auto m = "FC(/C)=C(F)/C"_smiles;
+      REQUIRE(m);
+      CHECK(m->getBondWithIdx(2)->getStereo() == Bond::BondStereo::STEREOCIS);
+      CHECK(m->getBondWithIdx(2)->getStereoAtoms() == std::vector<int>{0, 4});
+    }
+  }
+}
+
+TEST_CASE("chiral duplicates") {
+  UseLegacyStereoPerceptionFixture reset_stereo_perception;
+  Chirality::setUseLegacyStereoPerception(false);
+  SECTION("atom basics") {
+    auto mol = "C[C@](F)([C@H](F)Cl)[C@H](F)Cl"_smiles;
+    REQUIRE(mol);
+    CHECK(mol->getAtomWithIdx(3)->getChiralTag() ==
+          Atom::ChiralType::CHI_TETRAHEDRAL_CCW);
+    CHECK(mol->getAtomWithIdx(6)->getChiralTag() ==
+          Atom::ChiralType::CHI_TETRAHEDRAL_CCW);
+    CHECK(mol->getAtomWithIdx(1)->getChiralTag() ==
+          Atom::ChiralType::CHI_UNSPECIFIED);
+  }
+  SECTION("double bonds and atoms") {
+    auto mol = "C/C(O)=C([C@H](F)Cl)/[C@H](F)Cl"_smiles;
+    REQUIRE(mol);
+    CHECK(mol->getAtomWithIdx(4)->getChiralTag() ==
+          Atom::ChiralType::CHI_TETRAHEDRAL_CCW);
+    CHECK(mol->getAtomWithIdx(7)->getChiralTag() ==
+          Atom::ChiralType::CHI_TETRAHEDRAL_CCW);
+    CHECK(mol->getBondWithIdx(2)->getStereo() == Bond::BondStereo::STEREONONE);
+  }
+  SECTION("double bonds and atoms 2") {
+    auto mol = "C/C(O)=C([C@H](F)Cl)/[C@@H](F)Cl"_smiles;
+    REQUIRE(mol);
+    CHECK(mol->getAtomWithIdx(4)->getChiralTag() ==
+          Atom::ChiralType::CHI_TETRAHEDRAL_CCW);
+    CHECK(mol->getAtomWithIdx(7)->getChiralTag() ==
+          Atom::ChiralType::CHI_TETRAHEDRAL_CW);
+    CHECK(mol->getBondWithIdx(2)->getStereo() != Bond::BondStereo::STEREONONE);
+  }
+  SECTION("double bonds and double bonds") {
+    auto mol = "C/C(O)=C(/C=C/C)/C=C/C"_smiles;
+    REQUIRE(mol);
+    CHECK(mol->getBondWithIdx(4)->getStereo() == Bond::BondStereo::STEREOTRANS);
+    CHECK(mol->getBondWithIdx(7)->getStereo() == Bond::BondStereo::STEREOTRANS);
+    CHECK(mol->getBondWithIdx(2)->getStereo() == Bond::BondStereo::STEREONONE);
+  }
+  SECTION("double bonds and double bonds 2") {
+    auto mol = "C/C(O)=C(/C=C/C)/C=C\\C"_smiles;
+    REQUIRE(mol);
+    CHECK(mol->getBondWithIdx(4)->getStereo() == Bond::BondStereo::STEREOTRANS);
+    CHECK(mol->getBondWithIdx(7)->getStereo() == Bond::BondStereo::STEREOCIS);
+    CHECK(mol->getBondWithIdx(2)->getStereo() != Bond::BondStereo::STEREONONE);
+  }
+}
+
+TEST_CASE("more findPotential") {
+  UseLegacyStereoPerceptionFixture reset_stereo_perception;
+  Chirality::setUseLegacyStereoPerception(false);
+  SECTION("basics") {
+    {
+      auto m = "O[C@H](C)CC(C)C[C@@H](C)O"_smiles;
+      REQUIRE(m);
+      auto si = Chirality::findPotentialStereo(*m, true, true);
+      CHECK(si.size() == 2);
+    }
+    {
+      auto m = "O[C@H](C)CC(C)C[C@H](C)O"_smiles;
+      REQUIRE(m);
+      auto si = Chirality::findPotentialStereo(*m, true, true);
+      CHECK(si.size() == 3);
+    }
+    {
+      auto m = "O[CH](C)C[C@H](C)C[CH](C)O"_smiles;
+      REQUIRE(m);
+      auto si = Chirality::findPotentialStereo(*m, true, true);
+      CHECK(si.size() == 3);
+    }
+    {
+      auto m = "O[CH](C)C[CH](C)C[CH](C)O"_smiles;
+      REQUIRE(m);
+      auto si = Chirality::findPotentialStereo(*m, true, true);
+      CHECK(si.size() == 3);
+    }
+  }
+  SECTION("double bond impact on atoms") {
+    {
+      auto m = "C[CH](/C=C/C)/C=C\\C"_smiles;
+      REQUIRE(m);
+      auto si = Chirality::findPotentialStereo(*m, true, true);
+      CHECK(si.size() == 3);
+    }
+    {
+      auto m = "C[CH](/C=C/C)/C=C/C"_smiles;
+      REQUIRE(m);
+      auto si = Chirality::findPotentialStereo(*m, true, true);
+      CHECK(si.size() == 2);
+    }
+    {
+      auto m = "C[CH](C=CC)C=CC"_smiles;
+      REQUIRE(m);
+      auto si = Chirality::findPotentialStereo(*m, true, true);
+      CHECK(si.size() == 3);
+    }
+    {
+      auto m = "C[CH](C=CC)C=CC"_smiles;
+      REQUIRE(m);
+      m->getBondWithIdx(2)->setStereo(Bond::BondStereo::STEREOANY);
+      m->getBondWithIdx(5)->setStereo(Bond::BondStereo::STEREOANY);
+      auto si = Chirality::findPotentialStereo(*m, true, true);
+      CHECK(si.size() == 3);
+    }
+  }
+  SECTION("atom impact on double bonds") {
+    {
+      auto m = "CC=C([C@H](F)Cl)[C@@H](F)Cl"_smiles;
+      REQUIRE(m);
+      auto si = Chirality::findPotentialStereo(*m, true, true);
+      CHECK(si.size() == 3);
+    }
+    {
+      auto m = "CC=C([C@H](F)Cl)[C@H](F)Cl"_smiles;
+      REQUIRE(m);
+      auto si = Chirality::findPotentialStereo(*m, true, true);
+      CHECK(si.size() == 2);
+    }
+    {
+      auto m = "CC=C([CH](F)Cl)[CH](F)Cl"_smiles;
+      REQUIRE(m);
+      auto si = Chirality::findPotentialStereo(*m, true, true);
+      CHECK(si.size() == 3);
+    }
+    {
+      auto m = "CC=C([CH](F)Cl)[CH](F)Cl"_smiles;
+      REQUIRE(m);
+      m->getBondBetweenAtoms(2, 3)->setBondDir(Bond::UNKNOWN);
+      m->getBondBetweenAtoms(2, 6)->setBondDir(Bond::UNKNOWN);
+      auto si = Chirality::findPotentialStereo(*m, true, true);
+      CHECK(si.size() == 3);
+    }
+  }
+}
+TEST_CASE("more findPotential and ring stereo") {
+  UseLegacyStereoPerceptionFixture reset_stereo_perception;
+  Chirality::setUseLegacyStereoPerception(false);
+  SECTION("simple") {
+    {
+      auto m = "CC1CCC(C)CC1"_smiles;
+      REQUIRE(m);
+      auto stereoInfo = Chirality::findPotentialStereo(*m, true, true);
+      REQUIRE(stereoInfo.size() == 2);
+      CHECK(stereoInfo[0].type == Chirality::StereoType::Atom_Tetrahedral);
+      CHECK(stereoInfo[0].centeredOn == 1);
+      CHECK(stereoInfo[0].specified == Chirality::StereoSpecified::Unspecified);
+
+      CHECK(stereoInfo[1].type == Chirality::StereoType::Atom_Tetrahedral);
+      CHECK(stereoInfo[1].centeredOn == 4);
+      CHECK(stereoInfo[1].specified == Chirality::StereoSpecified::Unspecified);
+    }
+  }
+}
+
+TEST_CASE(
+    "github 2984: RDKit misplaces stereochemistry/chirality information for "
+    "small ring") {
+  using namespace RDKit::Chirality;
+
+  UseLegacyStereoPerceptionFixture reset_stereo_perception;
+
+  SECTION("The mol with the issue") {
+    for (auto use_legacy : {false, true}) {
+      Chirality::setUseLegacyStereoPerception(use_legacy);
+
+      // With Legacy stereo, parsing the SMILES string will discard the
+      // problematic stereo features, so findPotentialStereo (which uses
+      // the new algorithm) will still find them, but they will be unspecified.
+      // Parsing with the new algorithm will preserve the features, so they
+      // can be correctly resolved.
+
+      auto specified_status = use_legacy ? StereoSpecified::Unspecified
+                                         : StereoSpecified::Specified;
+
+      auto mol = R"SMI(CC/C=C1\C[C@H](O)C1)SMI"_smiles;
+      REQUIRE(mol);
+      auto stereoInfo = Chirality::findPotentialStereo(*mol);
+      REQUIRE(stereoInfo.size() == 2);
+      CHECK(stereoInfo[0].centeredOn == 5);
+      CHECK(stereoInfo[0].type == StereoType::Atom_Tetrahedral);
+      CHECK(stereoInfo[0].specified == specified_status);
+      CHECK(stereoInfo[1].centeredOn == 2);
+      CHECK(stereoInfo[1].type == StereoType::Bond_Double);
+      CHECK(stereoInfo[1].specified == specified_status);
+    }
+  }
+
+  // The other sections should yield the same results independently
+  // of which stereo algoritm is used, new or legacy
+
+  SECTION("Unspecified, but still potentially stereo") {
+    for (auto use_legacy : {false, true}) {
+      Chirality::setUseLegacyStereoPerception(use_legacy);
+
+      auto mol = R"SMI(CCC=C1CC(O)C1)SMI"_smiles;
+      REQUIRE(mol);
+      auto stereoInfo = Chirality::findPotentialStereo(*mol);
+      REQUIRE(stereoInfo.size() == 2);
+      CHECK(stereoInfo[0].centeredOn == 5);
+      CHECK(stereoInfo[0].type == StereoType::Atom_Tetrahedral);
+      CHECK(stereoInfo[0].specified == StereoSpecified::Unspecified);
+      CHECK(stereoInfo[1].centeredOn == 2);
+      CHECK(stereoInfo[1].type == StereoType::Bond_Double);
+      CHECK(stereoInfo[1].specified == StereoSpecified::Unspecified);
+    }
+  }
+
+  SECTION("Specified") {
+    for (auto use_legacy : {false, true}) {
+      Chirality::setUseLegacyStereoPerception(use_legacy);
+
+      auto mol = R"SMI(CC/C=C1\CC[C@H]1O)SMI"_smiles;
+      REQUIRE(mol);
+      auto stereoInfo = Chirality::findPotentialStereo(*mol);
+      REQUIRE(stereoInfo.size() == 2);
+      CHECK(stereoInfo[0].centeredOn == 6);
+      CHECK(stereoInfo[0].type == StereoType::Atom_Tetrahedral);
+      CHECK(stereoInfo[0].specified == StereoSpecified::Specified);
+      CHECK(stereoInfo[1].centeredOn == 2);
+      CHECK(stereoInfo[1].type == StereoType::Bond_Double);
+      CHECK(stereoInfo[1].specified == StereoSpecified::Specified);
+    }
+  }
+
+  SECTION("More than one ring (1)") {
+    for (auto use_legacy : {false, true}) {
+      Chirality::setUseLegacyStereoPerception(use_legacy);
+
+      auto mol = R"SMI(CC\C=C/1C2CCC1[C@H]2O)SMI"_smiles;
+      REQUIRE(mol);
+      auto stereoInfo = Chirality::findPotentialStereo(*mol);
+      REQUIRE(stereoInfo.size() == 4);
+      CHECK(stereoInfo[0].centeredOn == 4);
+      CHECK(stereoInfo[0].type == StereoType::Atom_Tetrahedral);
+      CHECK(stereoInfo[0].specified == StereoSpecified::Unspecified);
+      CHECK(stereoInfo[1].centeredOn == 7);
+      CHECK(stereoInfo[1].type == StereoType::Atom_Tetrahedral);
+      CHECK(stereoInfo[1].specified == StereoSpecified::Unspecified);
+      CHECK(stereoInfo[2].centeredOn == 8);
+      CHECK(stereoInfo[2].type == StereoType::Atom_Tetrahedral);
+      CHECK(stereoInfo[2].specified == (use_legacy
+                                            ? StereoSpecified::Unspecified
+                                            : StereoSpecified::Specified));
+      CHECK(stereoInfo[3].centeredOn == 2);
+      CHECK(stereoInfo[3].type == StereoType::Bond_Double);
+      CHECK(stereoInfo[3].specified == (use_legacy
+                                            ? StereoSpecified::Unspecified
+                                            : StereoSpecified::Specified));
+    }
+  }
+
+  SECTION("More than one ring (2)") {
+    for (auto use_legacy : {false, true}) {
+      Chirality::setUseLegacyStereoPerception(use_legacy);
+
+      // This is the same structure as previos section, but
+      // the rings are defined in the opposite order
+      auto mol = R"SMI(CC\C=C/1C2[C@H](O)C1CC2)SMI"_smiles;
+      REQUIRE(mol);
+      auto stereoInfo = Chirality::findPotentialStereo(*mol);
+      REQUIRE(stereoInfo.size() == 4);
+      CHECK(stereoInfo[0].centeredOn == 4);
+      CHECK(stereoInfo[0].type == StereoType::Atom_Tetrahedral);
+      CHECK(stereoInfo[0].specified == StereoSpecified::Unspecified);
+
+      CHECK(stereoInfo[1].centeredOn == 5);
+      CHECK(stereoInfo[1].type == StereoType::Atom_Tetrahedral);
+      CHECK(stereoInfo[1].specified == (use_legacy
+                                            ? StereoSpecified::Unspecified
+                                            : StereoSpecified::Specified));
+
+      CHECK(stereoInfo[2].centeredOn == 7);
+      CHECK(stereoInfo[2].type == StereoType::Atom_Tetrahedral);
+      CHECK(stereoInfo[2].specified == StereoSpecified::Unspecified);
+
+      CHECK(stereoInfo[3].centeredOn == 2);
+      CHECK(stereoInfo[3].type == StereoType::Bond_Double);
+      CHECK(stereoInfo[3].specified == (use_legacy
+                                            ? StereoSpecified::Unspecified
+                                            : StereoSpecified::Specified));
+    }
+  }
+
+  SECTION("Stereo not possible: symmetric opposite atom") {
+    for (auto use_legacy : {false, true}) {
+      Chirality::setUseLegacyStereoPerception(use_legacy);
+
+      auto mol = R"SMI(CCC=C1CC(O)(O)C1)SMI"_smiles;
+      REQUIRE(mol);
+      auto stereoInfo = Chirality::findPotentialStereo(*mol);
+      CHECK(stereoInfo.empty());
+    }
+  }
+
+  SECTION("Stereo not possible: odd-sized ring") {
+    for (auto use_legacy : {false, true}) {
+      Chirality::setUseLegacyStereoPerception(use_legacy);
+
+      auto mol = R"SMI(CCC=C1CCCC1)SMI"_smiles;
+      REQUIRE(mol);
+      auto stereoInfo = Chirality::findPotentialStereo(*mol);
+      CHECK(stereoInfo.empty());
+    }
+  }
+}
+
+TEST_CASE("double bond stereo with new chirality perception") {
+  UseLegacyStereoPerceptionFixture reset_stereo_perception;
+  Chirality::setUseLegacyStereoPerception(false);
+  SECTION("chain bonds") {
+    {
+      auto m = "C/C=C/C"_smiles;
+      REQUIRE(m);
+      CHECK(m->getBondWithIdx(1)->getStereo() == Bond::BondStereo::STEREOTRANS);
+      CHECK(m->getBondWithIdx(1)->getStereoAtoms() == std::vector<int>{0, 3});
+    }
+  }
+  SECTION("ring bonds") {
+    {
+      auto m = "C1/C=C/CCCCCCC1"_smiles;
+      REQUIRE(m);
+      CHECK(m->getBondWithIdx(1)->getStereo() == Bond::BondStereo::STEREOTRANS);
+      CHECK(m->getBondWithIdx(1)->getStereoAtoms() == std::vector<int>{0, 3});
+    }
+  }
+}
+
+TEST_CASE("false positives from new stereo code") {
+  SECTION("elements") {
+    std::vector<std::string> examples{"P", "PC", "S", "SC", "S(F)C"};
+    for (auto &smi : examples) {
+      INFO(smi);
+      std::unique_ptr<RWMol> m{SmilesToMol(smi)};
+      REQUIRE(m);
+      auto si = Chirality::findPotentialStereo(*m);
+      CHECK(si.empty());
+    }
+  }
+  SECTION("non-tetrahedral and implicit Hs") {
+    std::vector<std::string> examples{
+        "[SiH4]",         "[SiH3]C",      "[SH4]",     "[PH5]",
+        "[PH4]C",         "[SH6]",        "[SH5]C",    "[SiH2](C)C",
+        "[PH3](C)C",      "[PH2](C)(C)C", "[SH4](C)C", "[SH3](C)(C)C",
+        "[SH2](C)(C)(C)C"};
+    {
+      AllowNontetrahedralChiralityFixture reset_non_tetrahedral_allowed;
+      Chirality::setAllowNontetrahedralChirality(false);
+      for (auto &smi : examples) {
+        INFO(smi);
+        std::unique_ptr<RWMol> m{SmilesToMol(smi)};
+        REQUIRE(m);
+        auto si = Chirality::findPotentialStereo(*m);
+        CHECK(si.empty());
+      }
+    }
+    {
+      AllowNontetrahedralChiralityFixture reset_non_tetrahedral_allowed;
+      Chirality::setAllowNontetrahedralChirality(true);
+      for (auto &smi : examples) {
+        INFO(smi);
+        std::unique_ptr<RWMol> m{SmilesToMol(smi)};
+        REQUIRE(m);
+        auto si = Chirality::findPotentialStereo(*m);
+        CHECK(si.size() == 1);
+      }
+    }
+  }
+}
+
+TEST_CASE(
+    "Github #6049: Cyclobutyl group in a macrocycle triggers a stereo center") {
+  SECTION("as reported") {
+    auto mol = "O=S1(=O)C=CC=C2CCCCC3CC(C3)N21"_smiles;
+    REQUIRE(mol);
+    auto stereoInfo = Chirality::findPotentialStereo(*mol);
+    for (const auto &sg : stereoInfo) {
+      CHECK(sg.centeredOn != 15);
+    }
+  }
+}
+
+TEST_CASE(
+    "assignStereochemistry should clear crossed double bonds that can't have stereo") {
+  SECTION("basics") {
+    auto m = "CC=C(C)C"_smiles;
+    REQUIRE(m);
+    m->getBondWithIdx(1)->setBondDir(Bond::BondDir::EITHERDOUBLE);
+    bool clean = true;
+    bool flag = true;
+    bool force = true;
+    {
+      UseLegacyStereoPerceptionFixture reset_stereo_perception;
+      Chirality::setUseLegacyStereoPerception(false);
+      auto cp(*m);
+      RDKit::MolOps::assignStereochemistry(cp, clean, force, flag);
+      CHECK(cp.getBondWithIdx(1)->getBondDir() == Bond::BondDir::NONE);
+    }
+    {
+      UseLegacyStereoPerceptionFixture reset_stereo_perception;
+      Chirality::setUseLegacyStereoPerception(true);
+      auto cp(*m);
+      RDKit::MolOps::assignStereochemistry(cp, clean, force, flag);
+      CHECK(cp.getBondWithIdx(1)->getBondDir() == Bond::BondDir::NONE);
+    }
+  }
+  SECTION("make sure we don't mess with actual potential stereosystems") {
+    auto m = "CC=C(C)[13CH3]"_smiles;
+    REQUIRE(m);
+    m->getBondWithIdx(1)->setBondDir(Bond::BondDir::EITHERDOUBLE);
+    bool clean = true;
+    bool flag = true;
+    bool force = true;
+    {
+      UseLegacyStereoPerceptionFixture reset_stereo_perception;
+      Chirality::setUseLegacyStereoPerception(false);
+      auto cp(*m);
+      RDKit::MolOps::assignStereochemistry(cp, clean, force, flag);
+      // the crossed bond dir has been translated to unknown stereo:
+      CHECK(cp.getBondWithIdx(1)->getBondDir() == Bond::BondDir::NONE);
+      CHECK(cp.getBondWithIdx(1)->getStereo() == Bond::BondStereo::STEREOANY);
+    }
+    {
+      UseLegacyStereoPerceptionFixture reset_stereo_perception;
+      Chirality::setUseLegacyStereoPerception(true);
+      auto cp(*m);
+      RDKit::MolOps::assignStereochemistry(cp, clean, force, flag);
+      // the crossed bond dir has been translated to unknown stereo:
+      CHECK(cp.getBondWithIdx(1)->getBondDir() == Bond::BondDir::NONE);
+      CHECK(cp.getBondWithIdx(1)->getStereo() == Bond::BondStereo::STEREOANY);
+    }
+  }
+  SECTION("make sure stereoatoms are also cleared") {
+    auto m = "CC=C(C)C"_smiles;
+    REQUIRE(m);
+    m->getBondWithIdx(1)->setBondDir(Bond::BondDir::EITHERDOUBLE);
+    m->getBondWithIdx(1)->setStereoAtoms(0, 3);
+    bool clean = true;
+    bool flag = true;
+    bool force = true;
+    {
+      UseLegacyStereoPerceptionFixture reset_stereo_perception;
+      Chirality::setUseLegacyStereoPerception(false);
+      auto cp(*m);
+      RDKit::MolOps::assignStereochemistry(cp, clean, force, flag);
+      CHECK(cp.getBondWithIdx(1)->getBondDir() == Bond::BondDir::NONE);
+      CHECK(cp.getBondWithIdx(1)->getStereoAtoms().empty());
+    }
+    {
+      UseLegacyStereoPerceptionFixture reset_stereo_perception;
+      Chirality::setUseLegacyStereoPerception(true);
+      auto cp(*m);
+      RDKit::MolOps::assignStereochemistry(cp, clean, force, flag);
+      CHECK(cp.getBondWithIdx(1)->getBondDir() == Bond::BondDir::NONE);
+      CHECK(cp.getBondWithIdx(1)->getStereoAtoms().empty());
+    }
+  }
+}
+
+TEST_CASE("adding two wedges to chiral centers") {
+  SECTION("basics") {
+    auto mol = R"CTAB(
+  Mrv2219 02112315062D          
+
+  0  0  0     0  0            999 V3000
+M  V30 BEGIN CTAB
+M  V30 COUNTS 5 4 0 0 0
+M  V30 BEGIN ATOM
+M  V30 1 O -3.6667 2.5 0 0
+M  V30 2 C -2.333 3.27 0 0 CFG=1
+M  V30 3 F -0.9993 2.5 0 0
+M  V30 4 C -3.103 4.6037 0 0
+M  V30 5 N -1.3955 4.4918 0 0
+M  V30 END ATOM
+M  V30 BEGIN BOND
+M  V30 1 1 1 2
+M  V30 2 1 2 3
+M  V30 3 1 2 4
+M  V30 4 1 2 5 CFG=1
+M  V30 END BOND
+M  V30 END CTAB
+M  END
+)CTAB"_ctab;
+    REQUIRE(mol);
+    CHECK(mol->getNumAtoms() == 5);
+    {
+      RWMol cp(*mol);
+      Chirality::wedgeMolBonds(cp);
+      CHECK(cp.getBondBetweenAtoms(1, 3)->getBondDir() != Bond::BondDir::NONE);
+      CHECK(cp.getBondBetweenAtoms(1, 4)->getBondDir() == Bond::BondDir::NONE);
+      CHECK(cp.getBondBetweenAtoms(1, 0)->getBondDir() == Bond::BondDir::NONE);
+      CHECK(cp.getBondBetweenAtoms(1, 2)->getBondDir() == Bond::BondDir::NONE);
+    }
+    {
+      RWMol cp(*mol);
+      Chirality::BondWedgingParameters ps;
+      ps.wedgeTwoBondsIfPossible = true;
+      Chirality::wedgeMolBonds(cp, nullptr, &ps);
+      CHECK(cp.getBondBetweenAtoms(1, 3)->getBondDir() != Bond::BondDir::NONE);
+      CHECK(cp.getBondBetweenAtoms(1, 4)->getBondDir() != Bond::BondDir::NONE);
+      CHECK(cp.getBondBetweenAtoms(1, 4)->getBondDir() !=
+            cp.getBondBetweenAtoms(1, 3)->getBondDir());
+      CHECK(cp.getBondBetweenAtoms(1, 0)->getBondDir() == Bond::BondDir::NONE);
+      CHECK(cp.getBondBetweenAtoms(1, 2)->getBondDir() == Bond::BondDir::NONE);
+    }
+  }
+  SECTION(
+      "more complex 1, this should only have one wedge for each of the two chiral centers") {
+    std::string smi =
+        "[H][C@@]12CC(=O)N1[C@@H](C(=O)O)C(C)(C)S2(=O)=O |(-2.78382,0.183015,;-1.38222,-0.351313,;-2.12923,-1.65207,;-0.828466,-2.39908,;-0.436905,-3.84707,;-0.0814577,-1.09832,;1.03095,-0.0920638,;2.49888,-0.400554,;2.96569,-1.82607,;3.50001,0.71647,;0.41769,1.27685,;1.8432,1.74365,;0.102447,2.74335,;-1.07373,1.11662,;-1.07718,2.61662,;-2.56587,1.26998,)|";
+    SmilesParserParams spps;
+    spps.removeHs = false;
+    auto m = SmilesToMol(smi, spps);
+    REQUIRE(m);
+    Chirality::BondWedgingParameters bwps;
+    bwps.wedgeTwoBondsIfPossible = true;
+    Chirality::wedgeMolBonds(*m, &m->getConformer(), &bwps);
+    unsigned nWedged = 0;
+    for (const auto bond : m->bonds()) {
+      if (bond->getBondDir() != Bond::BondDir::NONE) {
+        ++nWedged;
+      }
+    }
+    CHECK(nWedged == 2);
+  }
+  SECTION("more complex 2, have two wedges around the chiral center") {
+    std::string smi =
+        "[H][C@@]12CCCN1C(=O)CN1C(=O)[C@](C)(N)O[C@]12O |(-0.888297,0.626611,;-1.19852,-0.840959,;-1.94707,-2.14084,;-3.41464,-1.83061,;-3.5731,-0.339006,;-2.20347,0.272634,;-1.74154,1.69974,;-2.74648,2.81333,;-0.274666,2.01325,;0.730277,0.899655,;2.23028,0.901335,;3.11059,2.11585,;2.6954,-0.52473,;3.44685,-1.82293,;4.06503,0.0869091,;1.48286,-1.40777,;0.26835,-0.527448,;-0.0418744,-1.99502,)|";
+    SmilesParserParams spps;
+    spps.removeHs = false;
+    auto m = SmilesToMol(smi, spps);
+    REQUIRE(m);
+    Chirality::BondWedgingParameters bwps;
+    bwps.wedgeTwoBondsIfPossible = true;
+    Chirality::wedgeMolBonds(*m, &m->getConformer(), &bwps);
+    CHECK(m->getBondWithIdx(12)->getBondDir() != Bond::BondDir::NONE);
+    CHECK(m->getBondWithIdx(13)->getBondDir() != Bond::BondDir::NONE);
+  }
+  SECTION("another one") {
+    auto m =
+        "CC[C@@]1(O)C(=O)OCc2c1cc1-c3nc4ccccc4cc3Cn1c2=O |(-2.67178,3.55256,;-2.43493,2.07138,;-3.59925,1.12567,;-4.32841,2.43652,;-5.01681,0.635215,;-6.15033,1.61763,;-5.30084,-0.837648,;-4.16731,-1.82006,;-2.74976,-1.3296,;-2.46573,0.143259,;-1.04818,0.633713,;0.085343,-0.348697,;1.57389,-0.163687,;2.43243,1.06631,;3.92692,0.937796,;4.78546,2.1678,;6.27994,2.03928,;6.91588,0.680758,;6.05734,-0.549244,;4.56286,-0.420725,;3.70432,-1.65073,;2.20983,-1.52221,;1.11432,-2.54683,;-0.198688,-1.82156,;-1.61624,-2.31201,;-1.90027,-3.78488,)|"_smiles;
+    REQUIRE(m);
+    Chirality::BondWedgingParameters bwps;
+    bwps.wedgeTwoBondsIfPossible = true;
+    Chirality::wedgeMolBonds(*m, &m->getConformer(), &bwps);
+    CHECK(m->getBondWithIdx(1)->getBondDir() != Bond::BondDir::NONE);
+    CHECK(m->getBondWithIdx(1)->getBeginAtomIdx() == 2);
+    CHECK(m->getBondWithIdx(2)->getBondDir() != Bond::BondDir::NONE);
+    CHECK(m->getBondWithIdx(2)->getBeginAtomIdx() == 2);
+  }
+  SECTION("favor degree 1") {
+    auto m =
+        "[H][C@@]12CC[C@@](C)(O)[C@H](CC[C@@](C)(O)C=C)[C@@]1(C)CCCC2(C)C |(3.59567,-1.0058,;2.33379,-0.194852,;2.4456,-1.69068,;1.20608,-2.53542,;-0.145252,-1.88434,;-1.63777,-1.73471,;-0.551787,-3.3282,;-0.257063,-0.388514,;-1.60839,0.262569,;-2.84791,-0.582176,;-4.19924,0.068907,;-5.55057,0.71999,;-4.85032,-1.28242,;-3.54816,1.42024,;-4.3929,2.65976,;0.982456,0.456231,;-0.368873,1.10731,;0.870645,1.95206,;2.11016,2.7968,;3.46149,2.14572,;3.5733,0.649893,;5.02699,1.01975,;4.35205,-0.632117,)|"_smiles;
+    REQUIRE(m);
+    Chirality::BondWedgingParameters bwps;
+    bwps.wedgeTwoBondsIfPossible = true;
+    Chirality::wedgeMolBonds(*m, &m->getConformer(), &bwps);
+    CHECK(m->getBondWithIdx(9)->getBondDir() != Bond::BondDir::NONE);
+    CHECK(m->getBondWithIdx(10)->getBondDir() != Bond::BondDir::NONE);
+    CHECK(m->getBondWithIdx(11)->getBondDir() == Bond::BondDir::NONE);
+  }
+}
+
+TEST_CASE(
+    "RDKit Issue #6217: Atoms may get flagged with non-tetrahedral stereo even when it is not allowed",
+    "[bug][stereo][non-tetrahedral]") {
+  UseLegacyStereoPerceptionFixture reset_stereo_perception;
+  Chirality::setUseLegacyStereoPerception(false);
+
+  AllowNontetrahedralChiralityFixture reset_non_tetrahedral_allowed;
+  Chirality::setAllowNontetrahedralChirality(false);
+
+  auto m = "CS(=O)(=O)O"_smiles;
+  REQUIRE(m);
+  REQUIRE(m->getNumAtoms() == 5);
+
+  auto stereoInfo = Chirality::findPotentialStereo(*m);
+  CHECK(stereoInfo.size() == 0);
+
+  auto at = m->getAtomWithIdx(1);
+
+  auto sinfo = Chirality::detail::getStereoInfo(at);
+  CHECK(sinfo.type == Chirality::StereoType::Atom_Tetrahedral);
+
+  REQUIRE(at->getAtomicNum() == 16);
+  CHECK(!at->hasProp(common_properties::_ChiralityPossible));
 }

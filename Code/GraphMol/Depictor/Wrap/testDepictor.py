@@ -1,18 +1,19 @@
 # Automatically adapted for numpy.oldnumeric Jun 27, 2008 by -c
 
+import os
+import sys
 #
 #  $Id: testDepictor.py 2112 2012-07-02 09:47:45Z glandrum $
 #
 # pylint:disable=E1101,C0111,C0103,R0904
 import unittest
-import os
-import sys
-import numpy as np
 
+import numpy as np
 from rdkit import Chem
-from rdkit.Chem import rdDepictor
 from rdkit import Geometry
 from rdkit import RDConfig
+from rdkit.Chem import rdDepictor
+from rdkit.Chem import rdMolAlign
 from rdkit.Chem.ChemUtils import AlignDepict
 
 
@@ -28,7 +29,7 @@ def getDistMat(mol):
     conf = mol.GetConformer()
     nat = mol.GetNumAtoms()
     nl = nat * (nat - 1) // 2
-    res = np.zeros(nl, np.float)
+    res = np.zeros(nl, float)
 
     for i in range(1, nat):
         pi = conf.GetAtomPosition(i)
@@ -402,14 +403,6 @@ M  END""")
             self.assertAlmostEqual(msd, 0.0)
 
     def testNormalizeStraighten(self):
-        def computeRmsd(c1, c2):
-            self.assertEqual(c1.GetNumAtoms(), c2.GetNumAtoms())
-            msd = 0.0
-            for i in range(c1.GetNumAtoms()):
-                msd += (c1.GetAtomPosition(i) - c2.GetAtomPosition(i)).LengthSq()
-            msd /= c1.GetNumAtoms()
-            return np.sqrt(msd)
-
         noradrenalineMJ = Chem.MolFromMolBlock("""
   MJ201100                      
 
@@ -441,71 +434,272 @@ M  END""")
 M  END)""")
 
         noradrenalineMJCopy = Chem.Mol(noradrenalineMJ)
-        conformerCopy = Chem.Conformer(noradrenalineMJCopy.GetConformer())
-        noradrenalineMJCopy.AddConformer(conformerCopy, True)
-        self.assertAlmostEqual(computeRmsd(noradrenalineMJ.GetConformer(0), noradrenalineMJCopy.GetConformer(0)), 0., 3)
-        self.assertAlmostEqual(computeRmsd(noradrenalineMJ.GetConformer(0), noradrenalineMJCopy.GetConformer(1)), 0., 3)
+        conformer0 = noradrenalineMJCopy.GetConformer(0)
+        conformer1 = Chem.Conformer(conformer0)
+        noradrenalineMJCopy.AddConformer(conformer1, True)
+        conformer1 = noradrenalineMJCopy.GetConformer(1)
+        self.assertLess(rdMolAlign.CalcRMS(noradrenalineMJ, noradrenalineMJCopy, 0, 0), 1.e-5)
+        self.assertLess(rdMolAlign.CalcRMS(noradrenalineMJ, noradrenalineMJCopy, 0, 1), 1.e-5)
         scalingFactor = rdDepictor.NormalizeDepiction(noradrenalineMJCopy, 1)
-        self.assertAlmostEqual(computeRmsd(noradrenalineMJ.GetConformer(0), noradrenalineMJCopy.GetConformer(0)), 0.0, 3)
-        self.assertGreater(computeRmsd(noradrenalineMJ.GetConformer(0), noradrenalineMJCopy.GetConformer(1)), 0.1)
+        self.assertLess(rdMolAlign.CalcRMS(noradrenalineMJ, noradrenalineMJCopy, 0, 0), 1.e-5)
+        self.assertGreater(rdMolAlign.CalcRMS(noradrenalineMJ, noradrenalineMJCopy, 0, 1), 1.e-5)
         self.assertAlmostEqual(scalingFactor, 1.875, 3)
-        bond10_11Conf0 = noradrenalineMJCopy.GetConformer(0).GetAtomPosition(11) - noradrenalineMJCopy.GetConformer(0).GetAtomPosition(10)
+        conformer2 = Chem.Conformer(conformer1)
+        noradrenalineMJCopy.AddConformer(conformer2, True)
+        conformer2 = noradrenalineMJCopy.GetConformer(2)
+        bond10_11Conf0 = conformer0.GetAtomPosition(11) - conformer0.GetAtomPosition(10)
         self.assertAlmostEqual(bond10_11Conf0.x, 0.825, 3)
         self.assertAlmostEqual(bond10_11Conf0.y, 0., 3)
-        bond10_11Conf1 = noradrenalineMJCopy.GetConformer(1).GetAtomPosition(11) - noradrenalineMJCopy.GetConformer(1).GetAtomPosition(10)
+        bond10_11Conf1 = conformer1.GetAtomPosition(11) - conformer1.GetAtomPosition(10)
         self.assertAlmostEqual(bond10_11Conf1.x, 1.513, 3)
         self.assertAlmostEqual(bond10_11Conf1.y, -0.321, 3)
         rdDepictor.StraightenDepiction(noradrenalineMJCopy, 1)
-        bond10_11Conf1 = noradrenalineMJCopy.GetConformer(1).GetAtomPosition(11) - noradrenalineMJCopy.GetConformer(1).GetAtomPosition(10)
-        self.assertAlmostEqual(bond10_11Conf1.x, 1.34, 3)
+        bond10_11Conf1 = conformer1.GetAtomPosition(11) - conformer1.GetAtomPosition(10)
+        self.assertAlmostEqual(bond10_11Conf1.x, 1.340, 3)
         self.assertAlmostEqual(bond10_11Conf1.y, -0.773, 3)
-        bond4_11Conf1 = noradrenalineMJCopy.GetConformer(1).GetAtomPosition(11) - noradrenalineMJCopy.GetConformer(1).GetAtomPosition(4)
+        bond4_11Conf1 = conformer1.GetAtomPosition(11) - conformer1.GetAtomPosition(4)
         self.assertAlmostEqual(bond4_11Conf1.x, 0., 3)
         self.assertAlmostEqual(bond4_11Conf1.y, 1.547, 3)
+        rdDepictor.StraightenDepiction(noradrenalineMJCopy, 2, True)
+        bond10_11Conf2 = conformer2.GetAtomPosition(11) - conformer2.GetAtomPosition(10)
+        self.assertAlmostEqual(bond10_11Conf2.x, 1.547, 3)
+        self.assertAlmostEqual(bond10_11Conf2.y, 0.0, 3)
+        bond4_11Conf2 = conformer2.GetAtomPosition(11) - conformer2.GetAtomPosition(4)
+        self.assertAlmostEqual(bond4_11Conf2.x, -0.773, 3)
+        self.assertAlmostEqual(bond4_11Conf2.y, 1.339, 3)
 
         noradrenalineMJCopy = Chem.Mol(noradrenalineMJ)
-        conformerCopy = Chem.Conformer(noradrenalineMJCopy.GetConformer())
-        noradrenalineMJCopy.AddConformer(conformerCopy, True)
-        self.assertAlmostEqual(computeRmsd(noradrenalineMJ.GetConformer(0), noradrenalineMJCopy.GetConformer(0)), 0., 3)
-        self.assertAlmostEqual(computeRmsd(noradrenalineMJ.GetConformer(0), noradrenalineMJCopy.GetConformer(1)), 0., 3)
+        conformer0 = noradrenalineMJCopy.GetConformer(0)
+        conformer1 = Chem.Conformer(conformer0)
+        noradrenalineMJCopy.AddConformer(conformer1, True)
+        conformer1 = noradrenalineMJCopy.GetConformer(1)
         scalingFactor = rdDepictor.NormalizeDepiction(noradrenalineMJCopy, 1, -1)
-        self.assertAlmostEqual(computeRmsd(noradrenalineMJ.GetConformer(0), noradrenalineMJCopy.GetConformer(0)), 0.0, 3)
-        self.assertGreater(computeRmsd(noradrenalineMJ.GetConformer(0), noradrenalineMJCopy.GetConformer(1)), 0.1)
+        self.assertLess(rdMolAlign.CalcRMS(noradrenalineMJ, noradrenalineMJCopy, 0, 0), 1.e-5)
+        self.assertGreater(rdMolAlign.CalcRMS(noradrenalineMJ, noradrenalineMJCopy, 0, 1), 1.e-5)
         self.assertAlmostEqual(scalingFactor, 1.875, 3)
-        bond10_11Conf0 = noradrenalineMJCopy.GetConformer(0).GetAtomPosition(11) - noradrenalineMJCopy.GetConformer(0).GetAtomPosition(10)
+        conformer2 = Chem.Conformer(conformer1)
+        noradrenalineMJCopy.AddConformer(conformer2, True)
+        conformer2 = noradrenalineMJCopy.GetConformer(2)
+        bond10_11Conf0 = conformer0.GetAtomPosition(11) - conformer0.GetAtomPosition(10)
         self.assertAlmostEqual(bond10_11Conf0.x, 0.825, 3)
         self.assertAlmostEqual(bond10_11Conf0.y, 0., 3)
-        bond10_11Conf1 = noradrenalineMJCopy.GetConformer(1).GetAtomPosition(11) - noradrenalineMJCopy.GetConformer(1).GetAtomPosition(10)
+        bond10_11Conf1 = conformer1.GetAtomPosition(11) - conformer1.GetAtomPosition(10)
         self.assertAlmostEqual(bond10_11Conf1.x, 0.321, 3)
         self.assertAlmostEqual(bond10_11Conf1.y, 1.513, 3)
         rdDepictor.StraightenDepiction(noradrenalineMJCopy, 1)
-        bond10_11Conf1 = noradrenalineMJCopy.GetConformer(1).GetAtomPosition(11) - noradrenalineMJCopy.GetConformer(1).GetAtomPosition(10)
-        self.assertAlmostEqual(bond10_11Conf1.x, 0., 3)
+        bond10_11Conf1 = conformer1.GetAtomPosition(11) - conformer1.GetAtomPosition(10)
+        self.assertAlmostEqual(bond10_11Conf1.x, 0.0, 3)
         self.assertAlmostEqual(bond10_11Conf1.y, 1.547, 3)
+        rdDepictor.StraightenDepiction(noradrenalineMJCopy, 2, True)
+        bond10_11Conf2 = conformer2.GetAtomPosition(11) - conformer2.GetAtomPosition(10)
+        self.assertAlmostEqual(bond10_11Conf2.x, bond10_11Conf1.x, 3)
+        self.assertAlmostEqual(bond10_11Conf2.y, bond10_11Conf1.y, 3)
 
         noradrenalineMJCopy = Chem.Mol(noradrenalineMJ)
-        conformerCopy = Chem.Conformer(noradrenalineMJCopy.GetConformer())
-        noradrenalineMJCopy.AddConformer(conformerCopy, True)
-        self.assertAlmostEqual(computeRmsd(noradrenalineMJ.GetConformer(0), noradrenalineMJCopy.GetConformer(0)), 0., 3)
-        self.assertAlmostEqual(computeRmsd(noradrenalineMJ.GetConformer(0), noradrenalineMJCopy.GetConformer(1)), 0., 3)
+        conformer0 = noradrenalineMJCopy.GetConformer(0)
+        conformer1 = Chem.Conformer(conformer0)
+        noradrenalineMJCopy.AddConformer(conformer1, True)
+        conformer1 = noradrenalineMJCopy.GetConformer(1)
         scalingFactor = rdDepictor.NormalizeDepiction(noradrenalineMJCopy, 1, 0, 3.0)
-        self.assertAlmostEqual(computeRmsd(noradrenalineMJ.GetConformer(0), noradrenalineMJCopy.GetConformer(0)), 0.0, 3)
-        self.assertGreater(computeRmsd(noradrenalineMJ.GetConformer(0), noradrenalineMJCopy.GetConformer(1)), 0.1)
-        self.assertAlmostEqual(scalingFactor, 3., 3)
-        bond10_11Conf0 = noradrenalineMJCopy.GetConformer(0).GetAtomPosition(11) - noradrenalineMJCopy.GetConformer(0).GetAtomPosition(10)
+        self.assertLess(rdMolAlign.CalcRMS(noradrenalineMJ, noradrenalineMJCopy, 0, 0), 1.e-5)
+        self.assertGreater(rdMolAlign.CalcRMS(noradrenalineMJ, noradrenalineMJCopy, 0, 1), 1.e-5)
+        self.assertAlmostEqual(scalingFactor, 3.0, 3)
+        conformer2 = Chem.Conformer(conformer1)
+        noradrenalineMJCopy.AddConformer(conformer2, True)
+        conformer2 = noradrenalineMJCopy.GetConformer(2)
+        conformer3 = Chem.Conformer(conformer1)
+        noradrenalineMJCopy.AddConformer(conformer3, True)
+        conformer3 = noradrenalineMJCopy.GetConformer(3)
+        bond10_11Conf0 = conformer0.GetAtomPosition(11) - conformer0.GetAtomPosition(10)
         self.assertAlmostEqual(bond10_11Conf0.x, 0.825, 3)
         self.assertAlmostEqual(bond10_11Conf0.y, 0., 3)
-        bond10_11Conf1 = noradrenalineMJCopy.GetConformer(1).GetAtomPosition(11) - noradrenalineMJCopy.GetConformer(1).GetAtomPosition(10)
+        bond10_11Conf1 = conformer1.GetAtomPosition(11) - conformer1.GetAtomPosition(10)
         self.assertAlmostEqual(bond10_11Conf1.x, 2.475, 3)
         self.assertAlmostEqual(bond10_11Conf1.y, 0., 3)
         rdDepictor.StraightenDepiction(noradrenalineMJCopy, 1)
-        bond10_11Conf1 = noradrenalineMJCopy.GetConformer(1).GetAtomPosition(11) - noradrenalineMJCopy.GetConformer(1).GetAtomPosition(10)
+        bond10_11Conf1 = conformer1.GetAtomPosition(11) - conformer1.GetAtomPosition(10)
         self.assertAlmostEqual(bond10_11Conf1.x, 2.143, 3)
         self.assertAlmostEqual(bond10_11Conf1.y, -1.237, 3)
-        bond4_11Conf1 = noradrenalineMJCopy.GetConformer(1).GetAtomPosition(11) - noradrenalineMJCopy.GetConformer(1).GetAtomPosition(4)
+        bond4_11Conf1 = conformer1.GetAtomPosition(11) - conformer1.GetAtomPosition(4)
         self.assertAlmostEqual(bond4_11Conf1.x, 0., 3)
         self.assertAlmostEqual(bond4_11Conf1.y, 2.475, 3)
+        rdDepictor.StraightenDepiction(noradrenalineMJCopy, 2, True)
+        bond10_11Conf2 = conformer2.GetAtomPosition(11) - conformer2.GetAtomPosition(10)
+        bond10_11Conf3 = conformer3.GetAtomPosition(11) - conformer3.GetAtomPosition(10)
+        self.assertAlmostEqual(bond10_11Conf2.x, bond10_11Conf3.x, 3)
+        self.assertAlmostEqual(bond10_11Conf2.y, bond10_11Conf3.y, 3)
+        bond4_11Conf2 = conformer2.GetAtomPosition(11) - conformer2.GetAtomPosition(4)
+        bond4_11Conf3 = conformer3.GetAtomPosition(11) - conformer3.GetAtomPosition(4)
+        self.assertAlmostEqual(bond4_11Conf2.x, bond4_11Conf3.x, 3)
+        self.assertAlmostEqual(bond4_11Conf2.y, bond4_11Conf3.y, 3)
+
+    @unittest.skipIf(not rdDepictor.IsCoordGenSupportAvailable(), "CoordGen not available, skipping")
+    def testUsingCoordGenCtxtMgr(self):
+        default_status = rdDepictor.GetPreferCoordGen()
+
+        # This is the default; we shouldn't have changed it
+        self.assertEqual(default_status, False)
+
+        with rdDepictor.UsingCoordGen(True):
+            current_status = rdDepictor.GetPreferCoordGen()
+            self.assertEqual(current_status, True)
+
+        current_status = rdDepictor.GetPreferCoordGen()
+        self.assertEqual(current_status, False)
+
+        rdDepictor.SetPreferCoordGen(True)
+
+        with rdDepictor.UsingCoordGen(False):
+            current_status = rdDepictor.GetPreferCoordGen()
+            self.assertEqual(current_status, False)
+
+        current_status = rdDepictor.GetPreferCoordGen()
+        self.assertEqual(current_status, True)
+
+        rdDepictor.SetPreferCoordGen(default_status)
+
+
+    def molMatchesTemplate(self, mol, template):
+        """
+        Determines if the shape/layout of the template and mol are the same. It
+        is ok if the mol and template are not centered at the same place, or if
+        the mol and template have different orientations.
+        """
+        match = mol.GetSubstructMatch(template)
+        if not match or len(match) != template.GetNumAtoms():
+            return False
+
+        # get positions of atoms with centroid at origin, it is ok if the
+        # template or mol is not centered
+        template_match_positions = [mol.GetConformer().GetPositions()[mol_at_idx] for mol_at_idx in match]
+        template_match_center = sum(template_match_positions) / len(template_match_positions)
+        mol_positions = [p - template_match_center for p in mol.GetConformer().GetPositions()]
+
+        template_center = sum(template.GetConformer().GetPositions()) / template.GetNumAtoms()
+        template_positions = [p - template_center for p in template.GetConformer().GetPositions()]
+
+        # the mol may match the template but be slightly rotated about the centroid
+        # or reflected across the x or y axis
+        rotations = [[], [], [], []]
+        for template_idx, idx in enumerate(match):
+            v1 = mol_positions[idx]
+
+            # no reflection
+            v2 = template_positions[template_idx]
+            val = round(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)), 4)
+            rotations[0].append(np.arccos(val))
+
+            # reflect across x-axis
+            v2[0] = v2[0] * -1
+            val = round(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)), 4)
+            rotations[1].append(np.arccos(val))
+
+            # reflect across y-axis
+            v2[0] = v2[0] * -1
+            v2[1] = v2[1] * -1
+            val = round(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)), 4)
+            rotations[2].append(np.arccos(val))
+
+
+            # reflect across y-axis and x-acis
+            v2[0] = v2[0] * -1
+            # v2[1] = v2[1] * -1
+            val = round(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)), 4)
+            rotations[3].append(np.arccos(val))
+
+        # if all the rotations are similar, then the shape is the same
+        return np.any([np.allclose(r, r[0], atol=.05) for r in rotations])
+
+    def assertMolMatchesCoordMap(self, mol, coord_map):
+        for aid, expected_position in coord_map.items():
+            actual_position = mol.GetConformer().GetAtomPosition(aid)
+            self.assertAlmostEqual(actual_position.x, expected_position.x)
+            self.assertAlmostEqual(actual_position.y, actual_position.y)
+
+
+
+
+    def testUseMultipleTemplates(self):
+        prefer_coordgen_status = rdDepictor.GetPreferCoordGen()
+        rdDepictor.SetPreferCoordGen(False)
+
+        # templates that will be linked together
+        template1 = Chem.MolFromSmiles("C1=CCCC2CCCCC2CCCCC2CCCC(CCCCCCC1)C2 |(-0.04,3.43,;-0.04,1.93,;-1.34,1.18,;-2.64,1.93,;-3.94,1.18,;-5.24,1.93,;-6.54,1.18,;-6.54,-0.32,;-5.24,-1.07,;-3.94,-0.32,;-2.64,-1.07,;-2.64,-2.57,;-1.34,-3.32,;-0.04,-2.57,;1.26,-3.32,;1.26,-4.82,;2.56,-5.56,;3.86,-4.82,;3.86,-3.32,;5.16,-2.57,;5.16,-1.07,;3.86,-0.32,;3.86,1.18,;2.56,1.93,;2.56,3.43,;1.26,4.18,;2.56,-2.57,)|")
+        template2 = Chem.MolFromSmiles("C1CCC2C(C1)C1CCN2NN1 |(-2.94,-0.77,;-2.94,0.77,;-1.6,1.54,;-0.27,0.77,;-0.27,-0.77,;-1.6,-1.54,;1.06,-1.54,;2.4,-0.77,;2.4,0.77,;1.06,1.54,;1.33,0.51,;1.33,-0.51,)|")
+        template3 = Chem.MolFromSmiles("C1C2CC3CC1CC3C2 |(-7.01,3.13,;-7.71,4.35,;-7.01,5.56,;-5.61,5.56,;-4.91,4.35,;-5.61,3.13,;-4.28,3.57,;-4.28,5.13,;-6.34,4.05,)|")
+
+        # example with 2 templates linked together
+        two_linked_templates = Chem.MolFromSmiles("NC(CCC1CCC2C(C1)C1CCN2NN1)CC(=O)CCC1=CCCC2CCCCC2CCCCC2CCCC(CCCCCCC1)C2")
+        rdDepictor.Compute2DCoords(two_linked_templates,useRingTemplates=False)
+        assert not self.molMatchesTemplate(two_linked_templates, template1)
+        assert not self.molMatchesTemplate(two_linked_templates, template2)
+
+        rdDepictor.Compute2DCoords(two_linked_templates,useRingTemplates=True)
+        assert self.molMatchesTemplate(two_linked_templates, template1)
+        assert self.molMatchesTemplate(two_linked_templates, template2)
+
+        # example with 3 templates linked together
+        three_linked_templates = Chem.MolFromSmiles("NC(CCC1CCC2C(C1)C1CC(CCC(=O)CC(N)CC~C3C4CC5CC3CC5C4)N2NN1)CC(=O)CCC1=CCCC2CCCCC2CCCCC2CCCC(CCCCCCC1)C2")
+        rdDepictor.Compute2DCoords(three_linked_templates,useRingTemplates=False)
+        assert not self.molMatchesTemplate(three_linked_templates, template1)
+        assert not self.molMatchesTemplate(three_linked_templates, template2)
+        assert not self.molMatchesTemplate(three_linked_templates, template3)
+
+        rdDepictor.Compute2DCoords(three_linked_templates,useRingTemplates=True)
+        assert self.molMatchesTemplate(three_linked_templates, template1)
+        assert self.molMatchesTemplate(three_linked_templates, template2)
+        assert self.molMatchesTemplate(three_linked_templates, template3)
+
+        rdDepictor.SetPreferCoordGen(prefer_coordgen_status)
+
+
+    def testUseTemplateAndCoordMap(self):
+        prefer_coordgen_status = rdDepictor.GetPreferCoordGen()
+        rdDepictor.SetPreferCoordGen(False)
+        template1 = Chem.MolFromSmiles("C1=CCCC2CCCCC2CCCCC2CCCC(CCCCCCC1)C2 |(-0.04,3.43,;-0.04,1.93,;-1.34,1.18,;-2.64,1.93,;-3.94,1.18,;-5.24,1.93,;-6.54,1.18,;-6.54,-0.32,;-5.24,-1.07,;-3.94,-0.32,;-2.64,-1.07,;-2.64,-2.57,;-1.34,-3.32,;-0.04,-2.57,;1.26,-3.32,;1.26,-4.82,;2.56,-5.56,;3.86,-4.82,;3.86,-3.32,;5.16,-2.57,;5.16,-1.07,;3.86,-0.32,;3.86,1.18,;2.56,1.93,;2.56,3.43,;1.26,4.18,;2.56,-2.57,)|")
+        template2 = Chem.MolFromSmiles("C1CCC2C(C1)C1CCN2NN1 |(-2.94,-0.77,;-2.94,0.77,;-1.6,1.54,;-0.27,0.77,;-0.27,-0.77,;-1.6,-1.54,;1.06,-1.54,;2.4,-0.77,;2.4,0.77,;1.06,1.54,;1.33,0.51,;1.33,-0.51,)|")
+        two_linked_templates = Chem.MolFromSmiles("NC(CCC1CCC2C(C1)C1CCN2NN1)CC(=O)CCC1=CCCC2CCCCC2CCCCC2CCCC(CCCCCCC1)C2")
+
+        # when a coord map doesn't contain any part of a ring system, ring system
+        # templates should still be adhered to
+        linker_coord_map = {
+            16: Geometry.Point2D(1.5, 0),
+            17: Geometry.Point2D(1.5, 1.5),
+            19: Geometry.Point2D(0, 1.5)
+        }
+        rdDepictor.Compute2DCoords(two_linked_templates, coordMap=linker_coord_map, useRingTemplates=True)
+        self.assertMolMatchesCoordMap(two_linked_templates, linker_coord_map)
+        assert self.molMatchesTemplate(two_linked_templates, template1)
+        assert self.molMatchesTemplate(two_linked_templates, template2)
+
+
+        # when a coord map contains a partial ring system, ring system templates
+        # should not be used because they could be distorted by the user-provided
+        # templates
+        ring_system_coord_map = {
+            31: Geometry.Point2D(1.5, 0),
+            32: Geometry.Point2D(1.5, 1.5),
+            33: Geometry.Point2D(0, 1.5)
+        }
+        rdDepictor.Compute2DCoords(two_linked_templates, coordMap=ring_system_coord_map, useRingTemplates=True)
+        self.assertMolMatchesCoordMap(two_linked_templates, ring_system_coord_map)
+        # atoms 10, 11, and 13 are in this template so the ring template should not be used
+        assert not self.molMatchesTemplate(two_linked_templates, template1)
+        assert self.molMatchesTemplate(two_linked_templates, template2)
+
+        # when a coord map contains a single atom, even if it is a part of a ring
+        # system, ring system templates should be used and the coord map should be
+        # followed
+        single_atom_coord_map = {
+            10: Geometry.Point2D(0, 0)
+        }
+        rdDepictor.Compute2DCoords(two_linked_templates, coordMap=single_atom_coord_map, useRingTemplates=True)
+        self.assertMolMatchesCoordMap(two_linked_templates, single_atom_coord_map)
+        assert self.molMatchesTemplate(two_linked_templates, template1)
+        assert self.molMatchesTemplate(two_linked_templates, template2)
+
+        rdDepictor.SetPreferCoordGen(prefer_coordgen_status)
+
 
 if __name__ == '__main__':
-    rdDepictor.SetPreferCoordGen(False)
     unittest.main()

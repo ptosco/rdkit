@@ -34,6 +34,7 @@ struct DrawColour {
   bool operator==(const DrawColour &other) const {
     return r == other.r && g == other.g && b == other.b && a == other.a;
   }
+  bool operator!=(const DrawColour &other) const { return !(*this == other); }
   bool feq(const DrawColour &other, double tol = 0.001,
            bool ignoreAlpha = true) const {
     return fabs(r - other.r) <= tol && fabs(g - other.g) <= tol &&
@@ -55,6 +56,11 @@ struct DrawColour {
 
 typedef std::map<int, DrawColour> ColourPalette;
 typedef std::vector<double> DashPattern;
+
+// This is used to convert the line width into something that SVG and
+// Cairo use.  It was picked by eye, and was formerly hidden in
+// MolDraw2D::getDrawLineWidth().
+static const double lineWidthScaleFactor = 0.02;
 
 //! use the RDKit's default palette r
 // 201 is for hydrogens when atom symbols are not being drawn.
@@ -276,6 +282,11 @@ struct RDKIT_MOLDRAW2D_EXPORT MolDrawOptions {
   bool drawMolsSameScale = true;  // when drawing multiple molecules with
                                   // DrawMolecules, forces them to use the same
                                   // scale.  Default is true.
+  bool useComplexQueryAtomSymbols =
+      true;   // replace any atom, any hetero, any halo queries
+              // with complex query symbols A, Q, X, M, optionally followed
+              // by H if hydrogen is included (except for AH, which stays *).
+              // Default is true.
 
   MolDrawOptions() {
     highlightColourPalette.emplace_back(

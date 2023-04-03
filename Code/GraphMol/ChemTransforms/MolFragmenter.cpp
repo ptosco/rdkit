@@ -14,6 +14,7 @@
 #include <RDGeneral/Invariant.h>
 #include <RDGeneral/RDLog.h>
 #include <RDGeneral/Exceptions.h>
+#include <GraphMol/Depictor/RDDepictor.h>
 #include <GraphMol/RDKitBase.h>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/tokenizer.hpp>
@@ -534,14 +535,15 @@ ROMol *fragmentOnBonds(
         conf->setAtomPos(idx2, conf->getAtomPos(eidx));
       }
     } else {
-      // was github issue 429
-      Atom *tatom = res->getAtomWithIdx(bidx);
-      if (tatom->getIsAromatic() && tatom->getAtomicNum() != 6) {
-        tatom->setNumExplicitHs(tatom->getNumExplicitHs() + 1);
-      }
-      tatom = res->getAtomWithIdx(eidx);
-      if (tatom->getIsAromatic() && tatom->getAtomicNum() != 6) {
-        tatom->setNumExplicitHs(tatom->getNumExplicitHs() + 1);
+      // was github issues 429, 6034
+      for (auto idx : {bidx, eidx}) {
+        if (auto tatom = res->getAtomWithIdx(idx);
+            tatom->getNoImplicit() ||
+            (tatom->getIsAromatic() && tatom->getAtomicNum() != 6)) {
+          tatom->setNumExplicitHs(tatom->getNumExplicitHs() + 1);
+        } else {
+          tatom->updatePropertyCache(false);
+        }
       }
     }
   }
@@ -656,19 +658,19 @@ unsigned int get_label(const Atom *a, const MolzipParams &p) {
         idx = NOLABEL;
       }
       break;
-  
-    case MolzipLabel::FragmentOnBonds: 
-        // shouldn't ever get here
-        CHECK_INVARIANT(
-            0, "FragmentOnBonds is not an atom label, it is an atom index");
-        break;
-	
+
+    case MolzipLabel::FragmentOnBonds:
+      // shouldn't ever get here
+      CHECK_INVARIANT(
+          0, "FragmentOnBonds is not an atom label, it is an atom index");
+      break;
+
     case MolzipLabel::AtomProperty:
-        a->getPropIfPresent<unsigned int>(p.atomProperty, idx);
-        break;
+      a->getPropIfPresent<unsigned int>(p.atomProperty, idx);
+      break;
 
     default:
-        CHECK_INVARIANT(0, "bogus MolZipLabel value in MolZip::get_label");
+      CHECK_INVARIANT(0, "bogus MolZipLabel value in MolZip::get_label");
   }
   return idx;
 }
@@ -693,7 +695,9 @@ int num_swaps_to_interconvert(std::vector<unsigned int> &orders) {
       auto j = i;
       while (orders[j] != i) {
         j = orders[j];
-        CHECK_INVARIANT(j < orders.size(), "molzip: bond index outside of number of bonds for atom")
+        CHECK_INVARIANT(
+            j < orders.size(),
+            "molzip: bond index outside of number of bonds for atom")
         seen[j] = true;
         nswaps++;
       }
@@ -729,15 +733,15 @@ struct ZipBond {
           << "Incomplete atom labelling, cannot make bond" << std::endl;
       return false;
     }
-    
+
     // Fragment on bonds allows multiple links to the same atom
     // i.e. C.[1C].[1C]
     //  otherwise throw an invariant error
-    CHECK_INVARIANT(params.label == MolzipLabel::FragmentOnBonds || !a->getOwningMol().getBondBetweenAtoms(a->getIdx(), b->getIdx()),
-                  "molzip: zipped Bond already exists, perhaps labels are duplicated");
+    CHECK_INVARIANT(
+        params.label == MolzipLabel::FragmentOnBonds ||
+            !a->getOwningMol().getBondBetweenAtoms(a->getIdx(), b->getIdx()),
+        "molzip: zipped Bond already exists, perhaps labels are duplicated");
 
-
-    
     if (!a->getOwningMol().getBondBetweenAtoms(a->getIdx(), b->getIdx())) {
       CHECK_INVARIANT(&a->getOwningMol() == &newmol,
                       "Owning mol is not the combined molecule!!");
@@ -748,7 +752,7 @@ struct ZipBond {
       auto bond_type_a = bnd->getBondType();
       auto bond_dir_a = bnd->getBondDir();
       auto a_is_start = bnd->getBeginAtom() == a;
-    
+
       bnd = newmol.getBondBetweenAtoms(b->getIdx(), b_dummy->getIdx());
       CHECK_INVARIANT(bnd != nullptr,
                       "molzip: end atom and specified dummy connection atom "
@@ -757,7 +761,7 @@ struct ZipBond {
 
       auto bond_dir_b = bnd->getBondDir();
       auto b_is_start = bnd->getBeginAtom() == b;
-      
+
       unsigned int bnd_idx = 0;
       // Fusion bond-dir logic table
       // a-* b-* => a-b
@@ -767,41 +771,44 @@ struct ZipBond {
       //  a>* b-* => a>b
       //  a-* b>* => a<b
       //  a-* b<* => a>b
-      Bond::BondDir bond_dir;
+      Bond::BondDir bond_dir{Bond::BondDir::NONE};
       auto start = a;
       auto end = b;
-      if(bond_dir_a != Bond::BondDir::NONE && bond_dir_b != Bond::BondDir::NONE) {
-          // are we consistent between the two bond orders
-          // check for the case of fragment on bonds where a<* and b>* or a>* and b<*
-          //  when < is either a hash or wedge bond but not both.
-          bool consistent_directions = false;
-          if(bond_dir_a == bond_dir_b) {
-              if((a_is_start != b_is_start)){
-                  consistent_directions = true;
-              }
+      if (bond_dir_a != Bond::BondDir::NONE &&
+          bond_dir_b != Bond::BondDir::NONE) {
+        // are we consistent between the two bond orders check for the case of
+        // fragment on bonds where a<* and b>* or a>* and b<* when < is either a
+        // hash or wedge bond but not both.
+        bool consistent_directions = false;
+        if (bond_dir_a == bond_dir_b) {
+          if ((a_is_start != b_is_start)) {
+            consistent_directions = true;
           }
-          if(!consistent_directions) {
-              BOOST_LOG(rdWarningLog) << "inconsistent bond directions when merging fragments, ignoring..." << std::endl;
-              bond_dir_a = bond_dir_b = Bond::BondDir::NONE;
-          } else {
-              bond_dir_b = Bond::BondDir::NONE;
-          }
+        }
+        if (!consistent_directions) {
+          BOOST_LOG(rdWarningLog)
+              << "inconsistent bond directions when merging fragments, ignoring..."
+              << std::endl;
+          bond_dir_a = bond_dir_b = Bond::BondDir::NONE;
+        } else {
+          bond_dir_b = Bond::BondDir::NONE;
+        }
       }
-        
+
       if (bond_dir_a != Bond::BondDir::NONE) {
-          if(!a_is_start) {
-              start = b;
-              end = a;
-          }
-          bond_dir = bond_dir_a;
+        if (!a_is_start) {
+          start = b;
+          end = a;
+        }
+        bond_dir = bond_dir_a;
       } else if (bond_dir_b != Bond::BondDir::NONE) {
-          if(b_is_start) {
-            start = b;
-            end = a;
-          }
-          bond_dir = bond_dir_b;
+        if (b_is_start) {
+          start = b;
+          end = a;
+        }
+        bond_dir = bond_dir_b;
       }
-    
+
       if (bond_type_a != Bond::BondType::SINGLE) {
         bnd_idx = newmol.addBond(start, end, bond_type_a);
       } else if (bond_type_b != Bond::BondType::SINGLE) {
@@ -809,9 +816,8 @@ struct ZipBond {
       } else {
         bnd_idx = newmol.addBond(start, end, Bond::BondType::SINGLE);
       }
-        
-      newmol.getBondWithIdx(bnd_idx-1)->setBondDir(bond_dir);
 
+      newmol.getBondWithIdx(bnd_idx - 1)->setBondDir(bond_dir);
     }
     a_dummy->setProp("__molzip_used", true);
     b_dummy->setProp("__molzip_used", true);
@@ -916,8 +922,14 @@ struct ZipBond {
 };
 }  // namespace
 
-std::unique_ptr<ROMol> molzip(const ROMol &a, const ROMol &b,
-                              const MolzipParams &params) {
+static const std::string indexPropName("__zipIndex");
+
+std::unique_ptr<ROMol> molzip(
+    const ROMol &a, const ROMol &b, const MolzipParams &params,
+    std::optional<std::map<int, int>> &attachmentMapping) {
+  if (attachmentMapping) {
+    attachmentMapping->clear();
+  }
   std::unique_ptr<RWMol> newmol;
   if (b.getNumAtoms()) {
     newmol.reset(static_cast<RWMol *>(combineMols(a, b)));
@@ -954,6 +966,13 @@ std::unique_ptr<ROMol> molzip(const ROMol &a, const ROMol &b,
         }
         mappings_by_atom[atom].push_back(&bond);
         deletions.push_back(atom);
+        if (attachmentMapping) {
+          if (int otherIndex, dummyIndex;
+              atom->getPropIfPresent(indexPropName, dummyIndex) &&
+              bond.b->getPropIfPresent(indexPropName, otherIndex)) {
+            (*attachmentMapping)[dummyIndex] = otherIndex;
+          }
+        }
       }
     }
   } else {
@@ -982,6 +1001,18 @@ std::unique_ptr<ROMol> molzip(const ROMol &a, const ROMol &b,
           bond.b = attached_atom;
           bond.b_dummy = atom;
           mappings_by_atom[bond.a].push_back(&bond);
+          if (attachmentMapping) {
+            if (int otherIndex, dummyIndex;
+                bond.a_dummy->getPropIfPresent(indexPropName, dummyIndex) &&
+                bond.b->getPropIfPresent(indexPropName, otherIndex)) {
+              (*attachmentMapping)[dummyIndex] = otherIndex;
+            }
+            if (int otherIndex, dummyIndex;
+                bond.b_dummy->getPropIfPresent(indexPropName, dummyIndex) &&
+                bond.a->getPropIfPresent(indexPropName, otherIndex)) {
+              (*attachmentMapping)[dummyIndex] = otherIndex;
+            }
+          }
         }
         deletions.push_back(atom);
       }
@@ -1009,6 +1040,7 @@ std::unique_ptr<ROMol> molzip(const ROMol &a, const ROMol &b,
       bond->restore_chirality(already_checked);
     }
   }
+
   // remove all molzip tags
   for (auto *atom : newmol->atoms()) {
     auto propnames = atom->getPropList();
@@ -1031,8 +1063,75 @@ std::unique_ptr<ROMol> molzip(const ROMol &a, const ROMol &b,
   return newmol;
 }
 
+RDKIT_CHEMTRANSFORMS_EXPORT std::unique_ptr<ROMol> molzip(
+    const ROMol &a, const ROMol &b, const MolzipParams &params) {
+  std::optional<std::map<int, int>> opt(std::nullopt);
+  return molzip(a, b, params, opt);
+}
+
 std::unique_ptr<ROMol> molzip(const ROMol &a, const MolzipParams &params) {
   const static ROMol b;
   return molzip(a, b, params);
 }
+
+std::unique_ptr<ROMol> molzip(std::vector<ROMOL_SPTR> &decomposition,
+                              const MolzipParams &params) {
+  if (params.generateCoordinates) {
+    int index = 0;
+    for (const auto &mol : decomposition) {
+      for (const auto atom : mol->atoms()) {
+        atom->setProp(indexPropName, index++);
+      }
+    }
+  }
+
+  const auto combinedMol = std::accumulate(
+      decomposition.begin() + 1, decomposition.end(), decomposition[0],
+      [](const auto &combined, const auto &mol) {
+        auto c = combineMols(*combined, *mol);
+        ROMOL_SPTR ptr(c);
+        return ptr;
+      });
+
+  const static ROMol b;
+  std::optional attachmentMappingOption = std::map<int, int>();
+  auto zippedMol = molzip(*combinedMol, b, params, attachmentMappingOption);
+
+  if (params.generateCoordinates && zippedMol->getNumAtoms() > 0) {
+    const auto confId = RDDepict::compute2DCoords(*zippedMol);
+    const auto zippedConf = zippedMol->getConformer(confId);
+    auto attachmentMapping = *attachmentMappingOption;
+    for (auto &mol : decomposition) {
+      const auto newConf = new Conformer(mol->getNumAtoms());
+      newConf->set3D(false);
+      for (const auto atom : mol->atoms()) {
+        int zippedIndex = atom->getProp<int>(indexPropName);
+        atom->clearProp(indexPropName);
+        if (const auto attachment = attachmentMapping.find(zippedIndex);
+            attachment != attachmentMapping.end()) {
+          zippedIndex = (*attachment).second;
+        }
+        auto zipppedAtoms = zippedMol->atoms();
+        auto zippedAtom = std::find_if(
+            zipppedAtoms.begin(), zipppedAtoms.end(),
+            [zippedIndex](const Atom *zippedAtom) {
+              const auto index = zippedAtom->getProp<int>(indexPropName);
+              return index == zippedIndex;
+            });
+
+        newConf->setAtomPos(atom->getIdx(),
+                            zippedConf.getAtomPos((*zippedAtom)->getIdx()));
+      }
+      mol->addConformer(newConf, true);
+    }
+    for (const auto atom : zippedMol->atoms()) {
+      atom->clearProp(indexPropName);
+    }
+
+    return zippedMol;
+  }
+
+  return zippedMol;
+}
+
 }  // end of namespace RDKit

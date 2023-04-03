@@ -39,6 +39,46 @@ class RDKIT_DEPICTOR_EXPORT DepictException : public std::exception {
   std::string _msg;
 };
 
+struct RDKIT_DEPICTOR_EXPORT Compute2DCoordParameters {
+  const RDGeom::INT_POINT2D_MAP *coordMap =
+      nullptr;  //!< a map of int to Point2D, between atom IDs and their
+                //!< locations.  This is the container the user needs to
+                //!< fill if he/she wants to specify coordinates for a portion
+                //!< of the molecule, defaults to 0
+  bool canonOrient = false; //!< canonicalize the orientation so that the long
+                            //!< axes align with the x-axis etc.
+  bool clearConfs = true; //!< clear all existing conformations on the molecule
+                          //!< before adding the 2D coordinates instead of
+                          //!< simply adding to the list
+  unsigned int nFlipsPerSample = 0; //!< the number of rotatable bonds that are
+                                    //!< flipped at random for each sample
+  unsigned int nSamples = 0; //!< the number of samples
+  int sampleSeed = 0; //!< seed for the random sampling process
+  bool permuteDeg4Nodes = false;  //!< try permuting the drawing order of bonds
+                                  //!< around atoms with four neighbors in order
+                                  //!< to improve the depiction
+  bool forceRDKit = false;  //!< use RDKit to generate coordinates even if
+                            //!< preferCoordGen is set to true
+  bool useRingTemplates = false;  //!< whether to use ring system templates for
+                                  //!< generating initial coordinates
+
+  Compute2DCoordParameters() = default;
+};
+
+//! \brief Generate 2D coordinates (a depiction) for a molecule
+/*!
+
+  \param mol the molecule were are interested in
+
+  \param params parameters used for 2D coordinate generation
+
+  \return ID of the conformation added to the molecule containing the
+  2D coordinates
+
+*/
+RDKIT_DEPICTOR_EXPORT unsigned int compute2DCoords(
+    RDKit::ROMol &mol, const Compute2DCoordParameters& params);
+
 //! \brief Generate 2D coordinates (a depiction) for a molecule
 /*!
 
@@ -69,6 +109,9 @@ class RDKIT_DEPICTOR_EXPORT DepictException : public std::exception {
   \param forceRDKit - use RDKit to generate coordinates even if
         preferCoordGen is set to true
 
+  \param useRingTemplates whether to use ring system templates for generating
+      initial coordinates
+
   \return ID of the conformation added to the molecule containing the
   2D coordinates
 
@@ -77,7 +120,8 @@ RDKIT_DEPICTOR_EXPORT unsigned int compute2DCoords(
     RDKit::ROMol &mol, const RDGeom::INT_POINT2D_MAP *coordMap = nullptr,
     bool canonOrient = false, bool clearConfs = true,
     unsigned int nFlipsPerSample = 0, unsigned int nSamples = 0,
-    int sampleSeed = 0, bool permuteDeg4Nodes = false, bool forceRDKit = false);
+    int sampleSeed = 0, bool permuteDeg4Nodes = false, bool forceRDKit = false,
+    bool useRingTemplates = false);
 
 //! \brief Compute the 2D coordinates such the interatom distances
 ///  mimic those in a distance matrix
@@ -237,17 +281,24 @@ RDKIT_DEPICTOR_EXPORT void generateDepictionMatching3DStructure(
     RDKit::ROMol *referencePattern = nullptr, bool acceptFailure = false,
     bool forceRDKit = false);
 
-//! \brief Rotate the 2D depiction such that the majority of bonds have a
-//! 30-degree angle with the X axis.
+//! \brief Rotate the 2D depiction such that the majority of bonds have an
+//! angle with the X axis which is a multiple of 30 degrees.
 /*!
 
   ARGUMENTS:
   \param mol - the molecule to be rotated
   \param confId - (optional) the id of the reference conformation to use
+  \param minimizeRotation - (optional) if false (the default), the molecule
+  is rotated such that the majority of bonds have an angle with the
+  X axis of 30 or 90 degrees. If true, the minimum rotation is applied
+  such that the majority of bonds have an angle with the X axis of
+  0, 30, 60, or 90 degrees, with the goal of altering the initial
+  orientation as little as possible .
 */
 
 RDKIT_DEPICTOR_EXPORT void straightenDepiction(RDKit::ROMol &mol,
-                                               int confId = -1);
+                                               int confId = -1,
+                                               bool minimizeRotation = false);
 
 //! \brief Normalizes the 2D depiction.
 /*!

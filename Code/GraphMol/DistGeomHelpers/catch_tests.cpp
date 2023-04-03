@@ -13,6 +13,8 @@
 #include <RDGeneral/RDLog.h>
 #include <GraphMol/RDKitBase.h>
 #include <GraphMol/Chirality.h>
+#include <GraphMol/Substruct/SubstructMatch.h>
+#include <GraphMol/ForceFieldHelpers/UFF/UFF.h>
 #include <GraphMol/FileParsers/FileParsers.h>
 #include <GraphMol/SmilesParse/SmilesParse.h>
 #include <GraphMol/ForceFieldHelpers/CrystalFF/TorsionPreferences.h>
@@ -374,4 +376,336 @@ TEST_CASE("nontetrahedral stereo", "[nontetrahedral]") {
     }
   }
 #endif
+}
+
+TEST_CASE("problems with bounds matrix smoothing and aromatic sulfur") {
+  SECTION("basics") {
+    auto core = R"CTAB(test structure - renumbered
+     RDKit          3D
+
+  7  7  0  0  0  0  0  0  0  0999 V2000
+   48.6842  -14.8137    0.1450 C   0  0  0  0  0  0  0  0  0  0  0  0
+   48.0829  -13.5569    0.6868 C   0  0  0  0  0  0  0  0  0  0  0  0
+   48.0162  -12.0909   -0.1327 S   0  0  0  0  0  0  0  0  0  0  0  0
+   47.1565  -11.3203    1.0899 C   0  0  0  0  0  0  0  0  0  0  0  0
+   46.9350  -12.2470    2.1088 C   0  0  0  0  0  0  0  0  0  0  0  0
+   46.1942  -11.9293    3.3432 C   0  0  0  0  0  0  0  0  0  0  0  0
+   47.4440  -13.4879    1.8745 N   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0
+  2  7  2  0
+  2  3  1  0
+  7  5  1  0
+  5  4  2  0
+  5  6  1  0
+  4  3  1  0
+M  END)CTAB"_ctab;
+    REQUIRE(core);
+    auto thiaz = "Cc1scc(C)n1"_smiles;
+    REQUIRE(thiaz);
+    MolOps::addHs(*thiaz);
+    DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
+    const auto conf = core->getConformer();
+    std::map<int, RDGeom::Point3D> cmap;
+    for (unsigned i = 0; i < core->getNumAtoms(); ++i) {
+      cmap[i] = conf.getAtomPos(i);
+    }
+    ps.coordMap = &cmap;
+    ps.randomSeed = 0xf00d;
+    auto cid = DGeomHelpers::EmbedMolecule(*thiaz, ps);
+    CHECK(cid >= 0);
+  }
+  SECTION("bulk") {
+    // run a bunch of molecules with S-containing aromatic heterocycles
+    std::vector<std::string> smileses = {
+        "[O-][S+](c1ccccn1)c1cncs1",
+        "Cn1cccc1C(=O)Nc1nccs1",
+        "Cc1csc(=N)n1-c1ccc(Cl)cc1",
+        "Nc1ncc([S+]([O-])c2ncccn2)s1",
+        "CCCN1CCC=C(c2csc(N)n2)C1",
+        "CNc1ncc([S+]([O-])c2ccccn2)s1",
+        "Cn1nnnc1SCc1nc2ccccc2s1",
+        "CCCC(C(=O)Nc1nccs1)c1ccccc1",
+        "Cc1ccc(NC(=O)c2sc(Cl)nc2C)c(C)c1",
+        "CCc1nc(-c2ccc(Cl)cc2)sc1C(=O)OC",
+        "Cc1nc(CNS(=O)(=O)c2ccc(Cl)cc2)cs1",
+        "Cc1ccc2sc(C)[n+](CCC(C)S(=O)(=O)[O-])c2c1",
+        "Nc1nc2c(s1)-c1ccccc1Sc1ccccc1-2",
+        "COc1ccccc1OCC(=O)Nc1nc(C)c(C)s1",
+        "COc1ccc(NC(=O)Nc2sc(=S)n(C)c2C)cc1",
+        "C=CCNc1nc(-c2c[nH]c3c(CC)cccc23)cs1",
+    };
+    auto patt = "[s]1*c[!#6]c1"_smarts;
+    REQUIRE(patt);
+    for (const auto &smi : smileses) {
+      INFO(smi);
+      std::unique_ptr<RWMol> mol{SmilesToMol(smi)};
+      REQUIRE(mol);
+      MolOps::addHs(*mol);
+      DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
+      ps.randomSeed = 0xf00d;
+      auto cid = DGeomHelpers::EmbedMolecule(*mol, ps);
+      REQUIRE(cid >= 0);
+      UFF::UFFOptimizeMolecule(*mol);
+
+      auto match = SubstructMatch(*mol, *patt);
+      REQUIRE(match.size() >= 1);
+
+      const auto conf = mol->getConformer();
+      std::map<int, RDGeom::Point3D> cmap;
+      for (auto &mi : match[0]) {
+        cmap[mi.second] = conf.getAtomPos(mi.second);
+      }
+      ps.coordMap = &cmap;
+      auto cid2 = DGeomHelpers::EmbedMolecule(*mol, ps);
+      CHECK(cid2 >= 0);
+    }
+  }
+  SECTION("phosphorous") {
+    std::vector<std::string> smileses = {
+        "CCOC(=O)c1pc(P(Cl)Cl)c2n1[C@@H](C)C(=O)Nc1ccc(C)cc1-2",
+        "N(c1c(O)ccc2c(P(Cl)Cl)pc(C(=O)O)n12)[N+](=O)[O-]",
+    };
+    auto patt = "[p]1*c[!#6]c1"_smarts;
+    REQUIRE(patt);
+    for (const auto &smi : smileses) {
+      INFO(smi);
+      std::unique_ptr<RWMol> mol{SmilesToMol(smi)};
+      REQUIRE(mol);
+      MolOps::addHs(*mol);
+      DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
+      ps.randomSeed = 0xf00d;
+      auto cid = DGeomHelpers::EmbedMolecule(*mol, ps);
+      REQUIRE(cid >= 0);
+      UFF::UFFOptimizeMolecule(*mol);
+
+      auto match = SubstructMatch(*mol, *patt);
+      REQUIRE(match.size() >= 1);
+
+      const auto conf = mol->getConformer();
+      std::map<int, RDGeom::Point3D> cmap;
+      for (auto &mi : match[0]) {
+        cmap[mi.second] = conf.getAtomPos(mi.second);
+      }
+      ps.coordMap = &cmap;
+      auto cid2 = DGeomHelpers::EmbedMolecule(*mol, ps);
+      CHECK(cid2 >= 0);
+    }
+  }
+}
+
+TEST_CASE("double bond stereo not honored in conformer generator") {
+  SECTION("mol 1 basics") {
+    // this test used to fail
+    // from the platinum set
+    auto m = "O=C1OCC/C=C/CC/C=C/C(=N/OCC(=O)N2CCCCC2)Cc2cc(O)cc(O)c21"_smiles;
+    REQUIRE(m);
+    RWMol cp(*m);
+    MolOps::addHs(cp);
+    DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
+    ps.randomSeed = 0xf00d + 81;
+    auto cid = DGeomHelpers::EmbedMolecule(cp, ps);
+    REQUIRE(cid >= 0);
+    MolOps::assignStereochemistryFrom3D(cp);
+    // std::cerr << MolToMolBlock(cp) << std::endl;
+    for (const auto bnd : cp.bonds()) {
+      if (bnd->getBondType() == Bond::BondType::DOUBLE) {
+        INFO(bnd->getIdx());
+        CHECK(bnd->getStereo() ==
+              m->getBondWithIdx(bnd->getIdx())->getStereo());
+      }
+    }
+  }
+  SECTION("mol 1 multiple loops") {
+    // from the platinum set
+    auto m = "O=C1OCC/C=C/CC/C=C/C(=N/OCC(=O)N2CCCCC2)Cc2cc(O)cc(O)c21"_smiles;
+    REQUIRE(m);
+    RWMol cp(*m);
+    MolOps::addHs(cp);
+    DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
+    for (unsigned int iter = 0; iter < 10; ++iter) {
+      RWMol lcp(cp);
+      ps.randomSeed = 0xf00d + iter;
+      auto cid = DGeomHelpers::EmbedMolecule(lcp, ps);
+      REQUIRE(cid >= 0);
+      MolOps::assignStereochemistryFrom3D(lcp);
+      // std::cerr << MolToMolBlock(cp) << std::endl;
+      for (const auto bnd : lcp.bonds()) {
+        if (bnd->getBondType() == Bond::BondType::DOUBLE) {
+          INFO(iter);
+          CHECK(bnd->getStereo() ==
+                m->getBondWithIdx(bnd->getIdx())->getStereo());
+        }
+      }
+    }
+  }
+
+  SECTION("github #5913") {
+    auto m = "[H]/C(F)=C([H])\\C([H])=C(/[H])Br"_smiles;
+    REQUIRE(m);
+
+    RWMol cp(*m);
+    MolOps::addHs(cp);
+    DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
+    for (unsigned int iter = 0; iter < 50; ++iter) {
+      RWMol lcp(cp);
+      ps.randomSeed = 0 + iter;
+      auto cid = DGeomHelpers::EmbedMolecule(lcp, ps);
+      REQUIRE(cid >= 0);
+      MolOps::assignStereochemistryFrom3D(lcp);
+      // std::cerr << MolToMolBlock(cp) << std::endl;
+      for (const auto bnd : lcp.bonds()) {
+        if (bnd->getBondType() == Bond::BondType::DOUBLE) {
+          INFO(iter);
+          CHECK(bnd->getStereo() ==
+                m->getBondWithIdx(bnd->getIdx())->getStereo());
+        }
+      }
+    }
+  }
+
+  SECTION("github #5283") {
+    auto oVal = Chirality::getUseLegacyStereoPerception();
+    Chirality::setUseLegacyStereoPerception(false);
+    auto m =
+        "Cc3nn(CC(=O)N2CCN(c1ccccc1)CC2)c(C)c3/N=N\\c6ccc(CNC(=O)CCC(=O)Nc4cccc5C(=O)NCc45)cc6"_smiles;
+    REQUIRE(m);
+    RWMol cp(*m);
+    MolOps::addHs(cp);
+    DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
+    ps.enforceChirality = false;
+    for (unsigned int iter = 0; iter < 10; ++iter) {
+      INFO(iter);
+      RWMol lcp(cp);
+      ps.randomSeed = 140 + iter;
+      auto cid = DGeomHelpers::EmbedMolecule(lcp, ps);
+      REQUIRE(cid >= 0);
+      MolOps::assignStereochemistryFrom3D(lcp, cid, true);
+      auto bnd = lcp.getBondBetweenAtoms(22, 23);
+      REQUIRE(bnd);
+      REQUIRE(bnd->getBondType() == Bond::BondType::DOUBLE);
+      CHECK(bnd->getStereo() == m->getBondWithIdx(bnd->getIdx())->getStereo());
+    }
+    Chirality::setUseLegacyStereoPerception(oVal);
+  }
+}
+
+TEST_CASE("tracking failure causes"){SECTION("basics"){
+    auto mol =
+        "C=CC1=C(N)Oc2cc1c(-c1cc(C(C)O)cc(=O)cc1C1NCC(=O)N1)c(OC)c2OC"_smiles;
+REQUIRE(mol);
+MolOps::addHs(*mol);
+DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
+ps.randomSeed = 0xf00d;
+ps.trackFailures = true;
+ps.maxIterations = 50;
+ps.randomSeed = 42;
+auto cid = DGeomHelpers::EmbedMolecule(*mol, ps);
+CHECK(cid < 0);
+
+CHECK(ps.failures[DGeomHelpers::EmbedFailureCauses::INITIAL_COORDS] > 5);
+CHECK(ps.failures[DGeomHelpers::EmbedFailureCauses::ETK_MINIMIZATION] > 10);
+
+auto fail_cp = ps.failures;
+// make sure we reset the counts each time
+cid = DGeomHelpers::EmbedMolecule(*mol, ps);
+CHECK(ps.failures == fail_cp);
+}
+SECTION("chirality") {
+  auto mol = R"CTAB(
+  Ketcher  1102315302D 1   1.00000     0.00000     0
+
+ 10 11  0  0  1  0  0  0  0  0999 V2000
+   10.1340  -11.0250    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   10.1340  -12.0250    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   11.0000  -12.5250    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   11.8660  -12.0250    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   11.8660  -11.0250    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   11.0000  -10.5250    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+   11.0000  -11.5250    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+   11.2588  -12.4909    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    9.2680  -10.5250    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   12.7629  -12.4673    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  1  6  1  0     0  0
+  1  2  1  0     0  0
+  2  3  1  0     0  0
+  3  4  1  0     0  0
+  4  5  1  0     0  0
+  5  6  1  0     0  0
+  1  7  1  0     0  0
+  7  8  1  0     0  0
+  8  4  1  0     0  0
+  1  9  1  1     0  0
+  4 10  1  1     0  0
+M  END
+)CTAB"_ctab;
+  REQUIRE(mol);
+  MolOps::addHs(*mol);
+  DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
+  ps.randomSeed = 0xf00d;
+  ps.trackFailures = true;
+  ps.maxIterations = 50;
+  auto cid = DGeomHelpers::EmbedMolecule(*mol, ps);
+  CHECK(cid < 0);
+  CHECK(ps.failures[DGeomHelpers::EmbedFailureCauses::INITIAL_COORDS] > 5);
+  CHECK(ps.failures[DGeomHelpers::EmbedFailureCauses::FINAL_CHIRAL_BOUNDS] > 5);
+}
+
+#ifdef RDK_TEST_MULTITHREADED
+SECTION("multithreaded") {
+  auto mol =
+      "C=CC1=C(N)Oc2cc1c(-c1cc(C(C)O)cc(=O)cc1C1NCC(=O)N1)c(OC)c2OC"_smiles;
+  REQUIRE(mol);
+  MolOps::addHs(*mol);
+  DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
+  ps.randomSeed = 0xf00d;
+  ps.trackFailures = true;
+  ps.maxIterations = 10;
+  ps.randomSeed = 42;
+  auto cids = DGeomHelpers::EmbedMultipleConfs(*mol, 20, ps);
+
+  DGeomHelpers::EmbedParameters ps2 = ps;
+  ps2.numThreads = 4;
+
+  auto cids2 = DGeomHelpers::EmbedMultipleConfs(*mol, 20, ps2);
+  CHECK(cids2 == cids);
+
+  CHECK(ps.failures == ps2.failures);
+}
+#endif
+}
+
+TEST_CASE("Github #5883: confgen failing for chiral N in a three ring") {
+  SECTION("basics1") {
+    auto mol = "N1[C@H-]C1"_smiles;
+    REQUIRE(mol);
+    MolOps::addHs(*mol);
+    mol->getAtomWithIdx(1)->setChiralTag(Atom::ChiralType::CHI_TETRAHEDRAL_CCW);
+    DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
+    ps.randomSeed = 42;
+    ps.maxIterations = 1;
+    auto cid = DGeomHelpers::EmbedMolecule(*mol, ps);
+    CHECK(cid >= 0);
+  }
+  SECTION("basics2") {
+    auto mol = "N1[N@H]C1"_smiles;
+    REQUIRE(mol);
+    MolOps::addHs(*mol);
+    mol->getAtomWithIdx(1)->setChiralTag(Atom::ChiralType::CHI_TETRAHEDRAL_CCW);
+    DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
+    ps.randomSeed = 42;
+    ps.maxIterations = 1;
+    auto cid = DGeomHelpers::EmbedMolecule(*mol, ps);
+    CHECK(cid >= 0);
+  }
+  SECTION("no ring") {
+    auto mol = "N[C@H-]C"_smiles;
+    REQUIRE(mol);
+    MolOps::addHs(*mol);
+    mol->getAtomWithIdx(1)->setChiralTag(Atom::ChiralType::CHI_TETRAHEDRAL_CCW);
+    DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
+    ps.randomSeed = 42;
+    ps.maxIterations = 1;
+    auto cid = DGeomHelpers::EmbedMolecule(*mol, ps);
+    CHECK(cid >= 0);
+  }
 }

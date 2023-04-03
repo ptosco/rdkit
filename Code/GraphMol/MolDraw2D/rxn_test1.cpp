@@ -48,25 +48,25 @@ namespace {
 static const bool DELETE_WITH_GOOD_HASH = true;
 #ifdef RDK_BUILD_FREETYPE_SUPPORT
 static const std::map<std::string, std::hash_result_t> SVG_HASHES = {
-    {"rxn_test1_1.svg", 2291771590U},   {"rxn_test1_2.svg", 1069605851U},
-    {"rxn_test1_3.svg", 3960276744U},   {"rxn_test1_4.svg", 2405209606U},
-    {"rxn_test1_5.svg", 1473628728U},   {"rxn_test1_6.svg", 3951817177U},
-    {"rxn_test1_7.svg", 1968421246U},   {"rxn_test2_1.svg", 4096727843U},
-    {"rxn_test2_2_1.svg", 928418199U},  {"rxn_test2_2_2.svg", 2519076104U},
-    {"rxn_test2_2_3.svg", 1325265594U}, {"rxn_test2_2_4.svg", 1389506061U},
-    {"rxn_test3_1.svg", 3357395138U},   {"rxn_test4_1.svg", 814261187U},
-    {"rxn_test4_2.svg", 439611184U},
+    {"rxn_test1_1.svg", 3868841820U},   {"rxn_test1_2.svg", 2533266150U},
+    {"rxn_test1_3.svg", 4102887313U},   {"rxn_test1_4.svg", 1734308476U},
+    {"rxn_test1_5.svg", 3787137197U},   {"rxn_test1_6.svg", 4153617489U},
+    {"rxn_test1_7.svg", 3233001411U},   {"rxn_test2_1.svg", 1009440897U},
+    {"rxn_test2_2_1.svg", 2613626821U}, {"rxn_test2_2_2.svg", 3134170338U},
+    {"rxn_test2_2_3.svg", 3025050848U}, {"rxn_test2_2_4.svg", 3557375723U},
+    {"rxn_test3_1.svg", 125426675U},    {"rxn_test4_1.svg", 3061904151U},
+    {"rxn_test4_2.svg", 108789094U},
 };
 #else
 static const std::map<std::string, std::hash_result_t> SVG_HASHES = {
-    {"rxn_test1_1.svg", 4033699709U},   {"rxn_test1_2.svg", 2349689612U},
-    {"rxn_test1_3.svg", 3370978736U},   {"rxn_test1_4.svg", 1351851371U},
-    {"rxn_test1_5.svg", 1491066078U},   {"rxn_test1_6.svg", 3302904428U},
-    {"rxn_test1_7.svg", 3505386903U},   {"rxn_test2_1.svg", 147013228U},
-    {"rxn_test2_2_1.svg", 829880341U},  {"rxn_test2_2_2.svg", 1536380435U},
-    {"rxn_test2_2_3.svg", 2758929276U}, {"rxn_test2_2_4.svg", 2378744932U},
-    {"rxn_test3_1.svg", 2555776709U},   {"rxn_test4_1.svg", 1241029054U},
-    {"rxn_test4_2.svg", 3258158175U},
+    {"rxn_test1_1.svg", 3077363070U},   {"rxn_test1_2.svg", 343913088U},
+    {"rxn_test1_3.svg", 1743857837U},   {"rxn_test1_4.svg", 421748462U},
+    {"rxn_test1_5.svg", 2287478842U},   {"rxn_test1_6.svg", 771132615U},
+    {"rxn_test1_7.svg", 573680560U},    {"rxn_test2_1.svg", 2821179072U},
+    {"rxn_test2_2_1.svg", 1304295583U}, {"rxn_test2_2_2.svg", 1361778996U},
+    {"rxn_test2_2_3.svg", 2608405344U}, {"rxn_test2_2_4.svg", 574045696U},
+    {"rxn_test3_1.svg", 3205563676U},   {"rxn_test4_1.svg", 2762964801U},
+    {"rxn_test4_2.svg", 1182024377U},
 };
 #endif
 
@@ -81,14 +81,14 @@ static const std::map<std::string, std::hash_result_t> SVG_HASHES = {
 // better because the floats are all output to only 1 decimal place so there
 // is a much smaller chance of different systems producing different files.
 static const std::map<std::string, std::hash_result_t> PNG_HASHES = {
-    {"rxn_test1_1.png", 3455342699U},   {"rxn_test1_2.png", 3763855886U},
-    {"rxn_test1_3.png", 2213929201U},   {"rxn_test1_4.png", 2728922644U},
-    {"rxn_test1_5.png", 1488283846U},   {"rxn_test1_6.png", 961022019U},
-    {"rxn_test1_7.png", 1744619082U},   {"rxn_test2_1.png", 3820518641U},
-    {"rxn_test2_2_1.png", 4227253779U}, {"rxn_test2_2_2.png", 162359950U},
-    {"rxn_test2_2_3.png", 277516429U},  {"rxn_test2_2_4.png", 2359336073U},
-    {"rxn_test3_1.png", 1499411843U},   {"rxn_test4_1.png", 3367327719U},
-    {"rxn_test4_2.png", 3320057924U},
+    {"rxn_test1_1.png", 3579100589U},  {"rxn_test1_2.png", 3996724834U},
+    {"rxn_test1_3.png", 4153817948U},  {"rxn_test1_4.png", 4175225545U},
+    {"rxn_test1_5.png", 3400977230U},  {"rxn_test1_6.png", 2636974466U},
+    {"rxn_test1_7.png", 4164917700U},  {"rxn_test2_1.png", 2654417911U},
+    {"rxn_test2_2_1.png", 997060634U}, {"rxn_test2_2_2.png", 2090979640U},
+    {"rxn_test2_2_3.png", 857100114U}, {"rxn_test2_2_4.png", 610638635U},
+    {"rxn_test3_1.png", 501226401U},   {"rxn_test4_1.png", 805353504U},
+    {"rxn_test4_2.png", 2842629749U},
 };
 
 std::hash_result_t hash_file(const std::string &filename) {

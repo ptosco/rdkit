@@ -479,6 +479,24 @@ void ROMol::debugMol(std::ostream &str) const {
   while (bondItP.first != bondItP.second) {
     str << "\t" << *d_graph[*(bondItP.first++)] << std::endl;
   }
+
+  const auto &sgs = getSubstanceGroups(*this);
+  if (!sgs.empty()) {
+    str << "Substance Groups:" << std::endl;
+    for (const auto &sg : sgs) {
+      str << "\t" << sg << std::endl;
+    }
+  }
+
+  const auto &stgs = getStereoGroups();
+  if (!stgs.empty()) {
+    unsigned idx = 0;
+    str << "Stereo Groups:" << std::endl;
+    for (const auto &stg : stgs) {
+      str << "\t" << idx << ' ' << stg << std::endl;
+      ++idx;
+    }
+  }
 }
 
 // --------------------------------------------
@@ -687,7 +705,9 @@ void ROMol::load(Archive &ar, const unsigned int) {
   std::string pkl;
   ar >> pkl;
 
+  delete dp_ringInfo;
   initMol();
+
   numBonds = 0;
   MolPickler::molFromPickle(pkl, *this, PicklerOps::AllProps);
   numBonds = rdcast<unsigned int>(boost::num_edges(d_graph));

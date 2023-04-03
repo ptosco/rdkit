@@ -186,7 +186,9 @@ M  END""")
     drawer.FinishDrawing()
     svg = drawer.GetDrawingText()
     # 4 molecules, 6 bonds each:
-    self.assertEqual(svg.count('fill:none;fill-rule:evenodd;stroke:#FF7F7F'), 24)
+    re_str = r"path class='bond-\d+ atom-\d+ atom-\d+' d='M \d+.\d+,\d+.\d+ L \d+.\d+,\d+.\d+ L \d+.\d+,\d+.\d+ L \d+.\d+,\d+.\d+ Z' style='fill:"
+    patt = re.compile(re_str)
+    self.assertEqual(len(patt.findall(svg)), 24)
     # 4 molecules, one atom each:
     self.assertEqual(svg.count('fill:#DB2D2B;fill-rule:evenodd;stroke:#DB2D2B'), 4)
 
@@ -629,13 +631,23 @@ M  END''')
     nm = Chem.MolFromPNGString(txt)
     self.assertEqual(Chem.MolToSmiles(m), Chem.MolToSmiles(nm))
 
-  def testUpdateParamsFromJSON(self):
+  def testUpdateMolDrawOptionsAndDrawerParamsFromJSON(self):
     m = Chem.MolFromSmiles('c1ccccc1NC(=O)C1COC1')
     d2d = Draw.MolDraw2DSVG(250, 200, -1, -1, True)
     d2d.DrawMolecule(m)
     d2d.FinishDrawing()
     txt = d2d.GetDrawingText()
     self.assertFalse('>8</text>' in txt)
+
+    drawOptions = rdMolDraw2D.MolDrawOptions()
+    Draw.UpdateMolDrawOptionsFromJSON(drawOptions, '{"addAtomIndices": 1}')
+    self.assertTrue(drawOptions.addAtomIndices)
+    d2d = Draw.MolDraw2DSVG(250, 200, -1, -1, True)
+    d2d.SetDrawOptions(drawOptions)
+    d2d.DrawMolecule(m)
+    d2d.FinishDrawing()
+    txt = d2d.GetDrawingText()
+    self.assertTrue('>8</text>' in txt)
 
     d2d = Draw.MolDraw2DSVG(250, 200, -1, -1, True)
     Draw.UpdateDrawerParamsFromJSON(d2d, '{"addAtomIndices": 1}')
@@ -770,6 +782,18 @@ M  END''')
       rdMolDraw2D.DrawMoleculeACS1996(drawer, m)
       drawer.FinishDrawing()
       drawer.WriteDrawingText('testACSMode_1.png')
+
+  def testMolSize(self):
+    m = Chem.MolFromSmiles("CS(=O)(=O)COC(=N)c1cc(Cl)cnc1[NH3+]")
+    AllChem.Compute2DCoords(m)
+    rdMolDraw2D.PrepareMolForDrawing(m)
+    d2d = rdMolDraw2D.MolDraw2DSVG(-1, -1)
+    d2d.DrawMolecule(m)
+    sz = d2d.Width(), d2d.Height()
+
+    d2d = rdMolDraw2D.MolDraw2DSVG(-1, -1)
+    sz2 = d2d.GetMolSize(m)
+    self.assertEqual(sz, sz2)
 
 
 if __name__ == "__main__":
