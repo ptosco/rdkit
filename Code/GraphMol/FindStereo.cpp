@@ -937,7 +937,9 @@ std::vector<StereoInfo> runCleanup(ROMol &mol, bool flagPossible,
   auto atomOrder = new int[mol.getNumAtoms()];
   std::vector<unsigned int> aranks(mol.getNumAtoms());
   bool needAnotherRound = true;
-  while (needAnotherRound) {
+  unsigned int maxRounds;
+  maxRounds = 10;
+  while (maxRounds-- && needAnotherRound) {
     res.clear();
 #define LOCAL_CANON 0
 #if LOCAL_CANON
@@ -1010,7 +1012,8 @@ std::vector<StereoInfo> runCleanup(ROMol &mol, bool flagPossible,
                      knownAtoms, &possibleAtoms, knownBonds, &possibleBonds);
 
       needAnotherRound = true;
-      while (needAnotherRound) {
+      maxRounds = 10;
+      while (maxRounds-- && needAnotherRound) {
         res.clear();
 
         // std::copy(atomSymbols.begin(), atomSymbols.end(),
