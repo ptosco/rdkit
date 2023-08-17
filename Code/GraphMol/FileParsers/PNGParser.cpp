@@ -17,15 +17,24 @@
 #include <RDGeneral/FileParseException.h>
 #include <RDGeneral/StreamOps.h>
 #include <vector>
-#include <boost/crc.hpp>
-#include <boost/algorithm/string.hpp>
 
 #include "FileParsers.h"
-#ifdef RDK_USE_BOOST_IOSTREAMS
+#include <RDGeneral/BoostStartInclude.h>
+#include <boost/crc.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <RDGeneral/BoostEndInclude.h>
+#if defined(RDK_USE_BOOST_IOSTREAMS)
 #include <zlib.h>
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
+#elif defined(RDK_USE_ZLIB)
+#ifndef ZLIB_CONST
+#define ZLIB_CONST
+#endif
+#include <zlib.h>
 #endif
 
 namespace RDKit {
@@ -35,6 +44,19 @@ const std::string smilesTag = "SMILES";
 const std::string molTag = "MOL";
 const std::string pklTag = "rdkitPKL";
 }  // namespace PNGData
+
+void updatePNGMetadataParamsFromJSON(PNGMetadataParams &params,
+                                     const char *details_json) {
+  if (details_json && strlen(details_json)) {
+    boost::property_tree::ptree pt;
+    std::istringstream ss;
+    ss.str(details_json);
+    boost::property_tree::read_json(ss, pt);
+    params.includePkl = pt.get("includePkl", params.includePkl);
+    params.includeSmiles = pt.get("includeSmiles", params.includeSmiles);
+    params.includeMol = pt.get("includeMol", params.includeMol);
+  }
+}
 
 namespace {
 std::vector<unsigned char> pngHeader = {137, 80, 78, 71, 13, 10, 26, 10};
@@ -49,7 +71,7 @@ bool checkPNGHeader(std::istream &inStream) {
   return true;
 }
 
-#ifdef RDK_USE_BOOST_IOSTREAMS
+#if defined(RDK_USE_BOOST_IOSTREAMS)
 std::string uncompressString(const std::string &ztext) {
   std::stringstream compressed(ztext);
   std::stringstream uncompressed;
@@ -68,7 +90,75 @@ std::string compressString(const std::string &text) {
   boost::iostreams::copy(bioOutstream, compressed);
   return compressed.str();
 }
+#elif defined(RDK_USE_ZLIB)
+std::string zlibActOnString(const std::string &inText, bool compress) {
+  static const char *deflatePrefix = "de";
+  static const char *inflatePrefix = "in";
+  const char *zlibActionPrefix;
+  int (*zlibAction)(z_streamp, int);
+  int (*zlibEnd)(z_streamp);
+  int zRetCode;
+  std::string res;
+  constexpr uInt BUF_SIZE = 65536;
+  std::vector<char> outBuf(BUF_SIZE);
+  z_stream zs{};
+  zs.next_in = reinterpret_cast<const Bytef *>(inText.c_str());
+  zs.avail_in = static_cast<uInt>(inText.size());
+  zs.next_out = reinterpret_cast<Bytef *>(outBuf.data());
+  zs.avail_out = static_cast<uInt>(outBuf.size());
+  if (compress) {
+    zlibActionPrefix = deflatePrefix;
+    zlibAction = deflate;
+    zlibEnd = deflateEnd;
+    zRetCode = deflateInit(&zs, Z_DEFAULT_COMPRESSION);
+  } else {
+    zlibActionPrefix = inflatePrefix;
+    zlibAction = inflate;
+    zlibEnd = inflateEnd;
+    zRetCode = inflateInit(&zs);
+  }
+  if (zRetCode != Z_OK) {
+    BOOST_LOG(rdWarningLog)
+        << "Failed to initialize zlib stream (" << zRetCode << ")";
+    if (zs.msg) {
+      BOOST_LOG(rdWarningLog) << ": " << zs.msg;
+    }
+    BOOST_LOG(rdWarningLog) << "." << std::endl;
+    zlibEnd(&zs);
+    return "";
+  }
+  while (zRetCode == Z_OK) {
+    zRetCode = zlibAction(&zs, zs.avail_in ? Z_NO_FLUSH : Z_FINISH);
+    if (zRetCode != Z_OK && zRetCode != Z_STREAM_END) {
+      BOOST_LOG(rdWarningLog) << "Failed to " << zlibActionPrefix
+                              << "flate zlib stream (" << zRetCode << ")";
+      if (zs.msg) {
+        BOOST_LOG(rdWarningLog) << ": " << zs.msg;
+      }
+      BOOST_LOG(rdWarningLog) << "." << std::endl;
+      zlibEnd(&zs);
+      return "";
+    }
+    if (!zs.avail_out) {
+      res += std::string(outBuf.data(), BUF_SIZE);
+      zs.next_out = reinterpret_cast<Bytef *>(outBuf.data());
+      zs.avail_out = BUF_SIZE;
+    }
+  }
+  auto residual = zs.total_out - res.size();
+  if (residual) {
+    res += std::string(outBuf.data(), residual);
+  }
+  zlibEnd(&zs);
+  return res;
+}
 
+std::string uncompressString(const std::string &ztext) {
+  return zlibActOnString(ztext, false);
+}
+std::string compressString(const std::string &text) {
+  return zlibActOnString(text, true);
+}
 #endif
 }  // namespace
 
@@ -100,7 +190,7 @@ std::vector<std::pair<std::string, std::string>> PNGStreamToMetadata(
         bytes[3] == 'D') {
       break;
     }
-#ifndef RDK_USE_BOOST_IOSTREAMS
+#if !defined(RDK_USE_BOOST_IOSTREAMS) && !defined(RDK_USE_ZLIB)
     bool alreadyWarned = false;
 #endif
     if (blockLen > 0 &&
@@ -122,7 +212,7 @@ std::vector<std::pair<std::string, std::string>> PNGStreamToMetadata(
           throw FileParseException("error when reading from PNG");
         }
       } else if (bytes[0] == 'z') {
-#ifdef RDK_USE_BOOST_IOSTREAMS
+#if defined(RDK_USE_BOOST_IOSTREAMS) || defined(RDK_USE_ZLIB)
         value.resize(dataLen);
         inStream.read(&value.front(), dataLen);
         if (inStream.fail()) {
@@ -157,7 +247,7 @@ std::string addMetadataToPNGStream(
     std::istream &inStream,
     const std::vector<std::pair<std::string, std::string>> &metadata,
     bool compressed) {
-#ifndef RDK_USE_BOOST_IOSTREAMS
+#if !defined(RDK_USE_BOOST_IOSTREAMS) && !defined(RDK_USE_ZLIB)
   compressed = false;
 #endif
   // confirm that it's a PNG file:
@@ -206,7 +296,7 @@ std::string addMetadataToPNGStream(
       blk.write(pr.first.c_str(), pr.first.size() + 1);
       blk.write(pr.second.c_str(), pr.second.size());
     } else {
-#ifdef RDK_USE_BOOST_IOSTREAMS
+#if defined(RDK_USE_BOOST_IOSTREAMS) || defined(RDK_USE_ZLIB)
       blk.write("zTXt", 4);
       // write the name along with a zero
       blk.write(pr.first.c_str(), pr.first.size() + 1);
@@ -248,19 +338,18 @@ std::string addMetadataToPNGStream(
 }
 
 std::string addMolToPNGStream(const ROMol &mol, std::istream &iStream,
-                              bool includePkl, bool includeSmiles,
-                              bool includeMol) {
+                              const PNGMetadataParams &params) {
   std::vector<std::pair<std::string, std::string>> metadata;
-  if (includePkl) {
+  if (params.includePkl) {
     std::string pkl;
     MolPickler::pickleMol(mol, pkl);
     metadata.push_back(std::make_pair(augmentTagName(PNGData::pklTag), pkl));
   }
-  if (includeSmiles) {
+  if (params.includeSmiles) {
     std::string smi = MolToCXSmiles(mol);
     metadata.push_back(std::make_pair(augmentTagName(PNGData::smilesTag), smi));
   }
-  if (includeMol) {
+  if (params.includeMol) {
     bool includeStereo = true;
     int confId = -1;
     bool kekulize = false;

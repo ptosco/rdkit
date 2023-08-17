@@ -368,6 +368,38 @@ emscripten::val get_avalon_fp_as_uint8array(const JSMol &self) {
 }
 #endif
 
+emscripten::val add_to_png_blob_helper(const JSMol &self,
+                                       const std::string &pngString,
+                                       const std::string &details) {
+  auto updatedPngString = self.add_to_png_blob(pngString, details);
+  return binary_string_to_uint8array(updatedPngString);
+}
+
+emscripten::val add_to_png_blob_helper(const JSMol &self,
+                                       const std::string &pngString) {
+  return add_to_png_blob_helper(self, pngString, "");
+}
+
+JSMol *get_mol_from_png_blob_helper(const emscripten::val &pngAsUInt8Array,
+                                    const std::string &details) {
+  auto pngString = pngAsUInt8Array.as<std::string>();
+  return get_mol_from_png_blob(pngString, details);
+}
+
+JSMol *get_mol_from_png_blob_no_details_helper(
+    const emscripten::val &pngAsUInt8Array) {
+  return get_mol_from_png_blob_helper(pngAsUInt8Array, "");
+}
+
+JSMolList *get_mols_from_png_blob_helper(const emscripten::val &pngAsUInt8Array,
+                                         const std::string &details) {
+  return get_mols_from_png_blob(pngAsUInt8Array.as<std::string>(), details);
+}
+
+JSMolList *get_mols_from_png_blob_no_details_helper(
+    const emscripten::val &pngAsUInt8Array) {
+  return get_mols_from_png_blob_helper(pngAsUInt8Array, "");
+}
 }  // namespace
 
 using namespace emscripten;
@@ -456,6 +488,14 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("get_frags",
                 select_overload<emscripten::val(JSMol &)>(get_frags_helper),
                 allow_raw_pointers())
+      .function("add_to_png_blob",
+                select_overload<emscripten::val(
+                    const JSMol &, const std::string &, const std::string &)>(
+                    add_to_png_blob_helper))
+      .function(
+          "add_to_png_blob",
+          select_overload<emscripten::val(const JSMol &, const std::string &)>(
+              add_to_png_blob_helper))
 #ifdef RDK_BUILD_AVALON_SUPPORT
       .function("get_avalon_fp_as_uint8array",
                 select_overload<emscripten::val(const JSMol &)>(
@@ -559,8 +599,7 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
                                      &JSMol::get_num_atoms))
       .function("get_num_atoms",
                 select_overload<unsigned int() const>(&JSMol::get_num_atoms))
-      .function("get_num_bonds", &JSMol::get_num_bonds)
-  ;
+      .function("get_num_bonds", &JSMol::get_num_bonds);
 
   class_<JSMolList>("MolList")
       .constructor<>()
@@ -664,5 +703,15 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
   function("get_mcs_as_mol", &get_mcs_as_mol_no_details, allow_raw_pointers());
   function("get_mcs_as_smarts", &get_mcs_as_smarts);
   function("get_mcs_as_smarts", &get_mcs_as_smarts_no_details);
+#endif
+#ifdef __EMSCRIPTEN__
+  function("get_mol_from_png_blob", &get_mol_from_png_blob_helper,
+           allow_raw_pointers());
+  function("get_mol_from_png_blob", &get_mol_from_png_blob_no_details_helper,
+           allow_raw_pointers());
+  function("get_mols_from_png_blob", &get_mols_from_png_blob_helper,
+           allow_raw_pointers());
+  function("get_mols_from_png_blob", &get_mols_from_png_blob_no_details_helper,
+           allow_raw_pointers());
 #endif
 }

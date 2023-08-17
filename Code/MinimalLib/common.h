@@ -17,6 +17,7 @@
 #include <GraphMol/SmilesParse/SmilesWrite.h>
 #include <GraphMol/FileParsers/FileParsers.h>
 #include <GraphMol/FileParsers/MolFileStereochem.h>
+#include <GraphMol/FileParsers/PNGParser.h>
 #include <RDGeneral/FileParseException.h>
 #include <GraphMol/MolDraw2D/MolDraw2D.h>
 #include <GraphMol/MolDraw2D/MolDraw2DSVG.h>
@@ -1105,6 +1106,78 @@ std::string get_mol_frags_mappings(
   return buffer.GetString();
 }
 
+std::vector<ROMOL_SPTR> get_mols_from_png_blob_internal(
+    const std::string &pngString, bool singleMol = false,
+    const char *details = nullptr) {
+  std::vector<ROMOL_SPTR> res;
+  if (pngString.empty()) {
+    return res;
+  }
+  PNGMetadataParams params;
+  updatePNGMetadataParamsFromJSON(params, details);
+  if (!params.includePkl && !params.includeSmiles && !params.includeMol) {
+    return res;
+  }
+  auto metadata = PNGStringToMetadata(pngString);
+  unsigned int smiCount = 0;
+  unsigned int molCount = 0;
+  unsigned int pklCount = 0;
+  for (const auto &pair : metadata) {
+    if (pair.first.rfind(PNGData::pklTag, 0) == 0) {
+      ++pklCount;
+      if (params.includePkl) {
+        if (pklCount == 1) {
+          params.includeSmiles = false;
+          params.includeMol = false;
+        }
+        RWMol *mol = nullptr;
+        if (!pair.second.empty()) {
+          mol = new RWMol();
+          try {
+            MolPickler::molFromPickle(pair.second, mol);
+          } catch (...) {
+            delete mol;
+            mol = nullptr;
+          }
+        }
+        if (mol) {
+          res.emplace_back(mol);
+        }
+      }
+    } else if (pair.first.rfind(PNGData::smilesTag, 0) == 0) {
+      ++smiCount;
+      if (params.includeSmiles) {
+        if (smiCount == 1) {
+          params.includePkl = false;
+          params.includeMol = false;
+        }
+        auto mol = MinimalLib::mol_from_input(pair.second, details);
+        if (mol) {
+          res.emplace_back(mol);
+        }
+      }
+    } else if (pair.first.rfind(PNGData::molTag, 0) == 0) {
+      ++molCount;
+      if (params.includeMol) {
+        if (molCount == 1) {
+          params.includePkl = false;
+          params.includeSmiles = false;
+        }
+        auto mol = MinimalLib::mol_from_input(pair.second, details);
+        if (mol) {
+          res.emplace_back(mol);
+        }
+      }
+    } else if (pair.first.rfind(PNGData::pklTag, 0) == 0) {
+      ++pklCount;
+    }
+    if (singleMol &&
+        (!res.empty() || smiCount > 1 || molCount > 1 || pklCount > 1)) {
+      break;
+    }
+  }
+  return res;
+}
 }  // namespace MinimalLib
 }  // namespace RDKit
 #undef LPT_OPT_GET

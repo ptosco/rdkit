@@ -2402,6 +2402,163 @@ function test_partial_sanitization() {
     mol2.delete();
 }
 
+function test_png_metadata() {
+    const PNG_NO_METADATA = "/../test_data/bilastine_no_metadata.png";
+    const PNG_WITH_METADATA = "/../test_data/bilastine_with_metadata.png";
+    const PNG_PENICILLIN_METADATA = "penicillin_metadata.png";
+    const PNG_PENICILLIN_AMOXICILLIN_METADATA = "penicillin_amoxicillin_metadata.png";
+    const PNG_BILASTINE_AMOXICILLIN_METADATA = "bilastine_amoxicillin_metadata.png";
+    const BENZYLPENICILLIN_SMI = "CC1([C@@H](N2[C@H](S1)[C@@H](C2=O)NC(=O)Cc3ccccc3)C(=O)O)C";
+    const BENZYLPENICILLIN_CAN_SMI = "CC1(C)S[C@@H]2[C@H](NC(=O)Cc3ccccc3)C(=O)N2[C@H]1C(=O)O";
+    const AMOXICILLIN_SMI = "O=C(O)[C@@H]2N3C(=O)[C@@H](NC(=O)[C@@H](c1ccc(O)cc1)N)[C@H]3SC2(C)C";
+    const AMOXICILLIN_CAN_SMI = "CC1(C)S[C@@H]2[C@H](NC(=O)[C@H](N)c3ccc(O)cc3)C(=O)N2[C@H]1C(=O)O";
+    let exceptionThrown;
+    const png_no_metadata_buf = fs.readFileSync(__dirname + PNG_NO_METADATA);
+    const png_no_metadata_blob = new Uint8Array(png_no_metadata_buf.length);
+    const png_no_metadata_blob2 = new Uint8Array(png_no_metadata_buf.length);
+    png_no_metadata_buf.copy(png_no_metadata_blob);
+    png_no_metadata_buf.copy(png_no_metadata_blob2);
+    const png_with_metadata_buf = fs.readFileSync(__dirname + PNG_WITH_METADATA);
+    const png_with_metadata_blob = new Uint8Array(png_with_metadata_buf.length);
+    png_with_metadata_buf.copy(png_with_metadata_blob);
+    assert(!RDKitModule.get_mol_from_png_blob(png_no_metadata_blob));
+    assert(!RDKitModule.get_mols_from_png_blob(png_no_metadata_blob));
+    let penicillin = RDKitModule.get_mol(BENZYLPENICILLIN_SMI);
+    assert(penicillin);
+    assert(penicillin.set_new_coords());
+    let png_penicillin_metadata_blob = penicillin.add_to_png_blob(png_no_metadata_blob);
+    penicillin.delete();
+    assert(png_penicillin_metadata_blob);
+    fs.writeFileSync(PNG_PENICILLIN_METADATA, png_penicillin_metadata_blob);
+    penicillin = RDKitModule.get_mol_from_png_blob(png_penicillin_metadata_blob);
+    assert(penicillin);
+    assert.equal(penicillin.has_coords(), 2);
+    penicillin.delete();
+    let mol = RDKitModule.get_mol_from_png_blob(png_with_metadata_blob);
+    assert(mol);
+    assert.equal(mol.has_coords(), 2);
+    mol.delete();
+    let mols = RDKitModule.get_mols_from_png_blob(png_with_metadata_blob);
+    assert(mols);
+    assert.equal(mols.size(), 1);
+    mol = mols.next();
+    assert.equal(mol.has_coords(), 2);
+    mol.delete();
+    mols.delete();
+    assert(!RDKitModule.get_mol_from_png_blob(png_penicillin_metadata_blob,
+        "{\"includePkl\":false,\"includeSmiles\":false,\"includeMol\":true}"));
+    penicillin = RDKitModule.get_mol_from_png_blob(png_penicillin_metadata_blob,
+        "{\"includePkl\":false,\"includeSmiles\":true,\"includeMol\":true,\"sanitize\":false,\"removeHs\":false,\"assignStereo\":false,\"fastFindRings\":false}");
+    assert(penicillin);
+    assert.equal(penicillin.has_coords(), 2);
+    smi = penicillin.get_smiles();
+    assert.equal(smi, BENZYLPENICILLIN_CAN_SMI);
+    exceptionThrown = false;
+    try {
+        penicillin.get_morgan_fp();
+    } catch (e) {
+        exceptionThrown = true;
+    }
+    assert(exceptionThrown);
+    penicillin.delete();
+    assert(!RDKitModule.get_mol_from_png_blob(png_no_metadata_blob2));
+    penicillin = RDKitModule.get_mol(BENZYLPENICILLIN_SMI);
+    assert(penicillin);
+    let amoxicillin = RDKitModule.get_mol(AMOXICILLIN_SMI);
+    assert(amoxicillin);
+    assert(amoxicillin.set_new_coords());
+    png_penicillin_metadata_blob = penicillin.add_to_png_blob(png_no_metadata_blob2,
+        "{\"includePkl\":false,\"includeMol\":true}");
+    assert(png_penicillin_metadata_blob);
+    let png_penicillin_amoxicillin_metadata_blob = amoxicillin.add_to_png_blob(png_penicillin_metadata_blob,
+        "{\"includePkl\":false,\"includeMol\":true}");
+    assert(png_penicillin_amoxicillin_metadata_blob);
+    fs.writeFileSync(PNG_PENICILLIN_AMOXICILLIN_METADATA, png_penicillin_amoxicillin_metadata_blob);
+    mol = RDKitModule.get_mol_from_png_blob(png_penicillin_amoxicillin_metadata_blob,
+        "{\"sanitize\":false,\"removeHs\":false,\"assignStereo\":false,\"fastFindRings\":false}");
+    assert(mol);
+    assert(!mol.has_coords());
+    smi = mol.get_smiles();
+    assert.equal(smi, BENZYLPENICILLIN_CAN_SMI);
+    exceptionThrown = false;
+    try {
+        mol.get_morgan_fp();
+    } catch (e) {
+        exceptionThrown = true;
+    }
+    assert(exceptionThrown);
+    mol.delete();
+    assert(!RDKitModule.get_mol_from_png_blob(png_penicillin_amoxicillin_metadata_blob,
+        "{\"includePkl\":false,\"includeSmiles\":false,\"includeMol\":false}"));
+    mol = RDKitModule.get_mol_from_png_blob(png_penicillin_amoxicillin_metadata_blob,
+        "{\"includePkl\":true,\"includeSmiles\":false,\"includeMol\":true}");
+    assert(mol);
+    assert.equal(mol.has_coords(), 2);
+    smi = mol.get_smiles();
+    assert.equal(smi, BENZYLPENICILLIN_CAN_SMI);
+    mol.delete();
+    mols = RDKitModule.get_mols_from_png_blob(png_penicillin_amoxicillin_metadata_blob);
+    assert(mols);
+    assert.equal(mols.size(), 2);
+    mol = mols.at(0);
+    assert(!mol.has_coords());
+    smi = mol.get_smiles();
+    assert.equal(smi, BENZYLPENICILLIN_CAN_SMI);
+    assert(mol.get_morgan_fp());
+    mol.delete();
+    mol = mols.at(1);
+    assert.equal(mol.has_coords(), 2);
+    smi = mol.get_smiles();
+    assert.equal(smi, AMOXICILLIN_CAN_SMI);
+    assert(mol.get_morgan_fp());
+    mol.delete();
+    mols.delete();
+    mols = RDKitModule.get_mols_from_png_blob(png_penicillin_amoxicillin_metadata_blob,
+        "{\"includePkl\":false,\"includeMol\":true,\"sanitize\":false,\"removeHs\":false,\"assignStereo\":false,\"fastFindRings\":false}");
+    assert(mols);
+    assert.equal(mols.size(), 2);
+    mol = mols.at(0);
+    assert(!mol.has_coords());
+    smi = mol.get_smiles();
+    assert.equal(smi, BENZYLPENICILLIN_CAN_SMI);
+    exceptionThrown = false;
+    try {
+        mol.get_morgan_fp();
+    } catch (e) {
+        exceptionThrown = true;
+    }
+    assert(exceptionThrown);
+    mol.delete();
+    mol = mols.at(1);
+    assert(mol.has_coords());
+    smi = mol.get_smiles();
+    assert.equal(smi, AMOXICILLIN_CAN_SMI);
+    exceptionThrown = false;
+    try {
+        mol.get_morgan_fp();
+    } catch (e) {
+        exceptionThrown = true;
+    }
+    assert(exceptionThrown);
+    mol.delete();
+    mols.delete();
+    let png_bilastine_amoxicillin_metadata_blob = amoxicillin.add_to_png_blob(png_with_metadata_blob);
+    assert(png_bilastine_amoxicillin_metadata_blob);
+    fs.writeFileSync(PNG_BILASTINE_AMOXICILLIN_METADATA, png_bilastine_amoxicillin_metadata_blob);
+    mols = RDKitModule.get_mols_from_png_blob(png_bilastine_amoxicillin_metadata_blob,
+        "{\"includePkl\":false,\"includeMol\":true}");
+    assert.equal(mols.size(), 2);
+    mol = mols.at(0);
+    assert.equal(mol.has_coords(), 2);
+    mol.delete();
+    mol = mols.at(1);
+    assert.equal(mol.has_coords(), 2);
+    mol.delete();
+    mols.delete();
+    penicillin.delete();
+    amoxicillin.delete();
+}
+
 initRDKitModule().then(function(instance) {
     var done = {};
     const waitAllTestsFinished = () => {
@@ -2468,6 +2625,7 @@ initRDKitModule().then(function(instance) {
     }
     test_sanitize_no_kekulize_no_setaromaticity();
     test_partial_sanitization();
+    test_png_metadata();
     waitAllTestsFinished().then(() =>
         console.log("Tests finished successfully")
     );

@@ -143,6 +143,8 @@ class JSMol {
   unsigned int get_num_atoms(bool heavyOnly) const;
   unsigned int get_num_atoms() const { return get_num_atoms(false); };
   unsigned int get_num_bonds() const;
+  std::string add_to_png_blob(const std::string &pngString,
+                              const std::string &details) const;
 
   std::unique_ptr<RDKit::RWMol> d_mol;
   static constexpr int d_defaultWidth = 250;
@@ -250,6 +252,10 @@ std::string version();
 void prefer_coordgen(bool prefer);
 bool use_legacy_stereo_perception(bool value);
 bool allow_non_tetrahedral_chirality(bool value);
+JSMol *get_mol_from_png_blob(const std::string &pngString,
+                             const std::string &details);
+JSMolList *get_mols_from_png_blob(const std::string &pngString,
+                                  const std::string &details);
 #ifdef RDK_BUILD_MINIMAL_LIB_MCS
 std::string get_mcs_as_smarts(const JSMolList &mols, const std::string &details_json);
 JSMol *get_mcs_as_mol(const JSMolList &mols, const std::string &details_json);

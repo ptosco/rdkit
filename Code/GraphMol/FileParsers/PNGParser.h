@@ -32,6 +32,15 @@ RDKIT_FILEPARSERS_EXPORT extern const std::string molTag;
 RDKIT_FILEPARSERS_EXPORT extern const std::string pklTag;
 }  // namespace PNGData
 
+struct RDKIT_FILEPARSERS_EXPORT PNGMetadataParams {
+  bool includePkl = true;
+  bool includeSmiles = true;
+  bool includeMol = false;
+};
+
+RDKIT_FILEPARSERS_EXPORT void updatePNGMetadataParamsFromJSON(
+    PNGMetadataParams &params, const char *details_json);
+
 //! \name metadata to/from PNG
 //! @{
 
@@ -164,14 +173,33 @@ inline std::vector<std::unique_ptr<ROMol>> PNGStringToMols(
 
   \param mol            the molecule to add
   \param iStream        the stream to read from
+  \param params         instance of PNGMetadataParams
+
+*/
+RDKIT_FILEPARSERS_EXPORT std::string addMolToPNGStream(
+    const ROMol &mol, std::istream &iStream, const PNGMetadataParams &params);
+
+//! \brief adds metadata for an ROMol to the data from a PNG stream.
+//! The modified PNG data is returned.
+/*!
+
+  \param mol            the molecule to add
+  \param iStream        the stream to read from
   \param includePkl     include a molecule pickle
   \param includeSmiles  include CXSMILES for the molecule
   \param includeMol     include a mol block for the molecule
 
 */
-RDKIT_FILEPARSERS_EXPORT std::string addMolToPNGStream(
-    const ROMol &mol, std::istream &iStream, bool includePkl = true,
-    bool includeSmiles = true, bool includeMol = false);
+inline std::string addMolToPNGStream(const ROMol &mol, std::istream &iStream,
+                                     bool includePkl = true,
+                                     bool includeSmiles = true,
+                                     bool includeMol = false) {
+  PNGMetadataParams params;
+  params.includePkl = includePkl;
+  params.includeSmiles = includeSmiles;
+  params.includeMol = includeMol;
+  return addMolToPNGStream(mol, iStream, params);
+}
 
 //! \brief adds metadata for an ROMol to a PNG string.
 //! The modified PNG data is returned.
@@ -185,6 +213,17 @@ inline std::string addMolToPNGString(const ROMol &mol,
   return addMolToPNGStream(mol, inStream, includePkl, includeSmiles,
                            includeMol);
 }
+
+//! \brief adds metadata for an ROMol to a PNG string.
+//! The modified PNG data is returned.
+//! See \c addMolToPNGStream() for more details.
+inline std::string addMolToPNGString(const ROMol &mol,
+                                     const std::string &pngString,
+                                     const PNGMetadataParams &params) {
+  std::stringstream inStream(pngString);
+  return addMolToPNGStream(mol, inStream, params);
+}
+
 //! \brief adds metadata for an ROMol to the data from a PNG file.
 //! The modified PNG data is returned.
 //! See \c addMolToPNGStream() for more details.
@@ -195,6 +234,15 @@ inline std::string addMolToPNGFile(const ROMol &mol, const std::string &fname,
   std::ifstream inStream(fname.c_str(), std::ios::binary);
   return addMolToPNGStream(mol, inStream, includePkl, includeSmiles,
                            includeMol);
+}
+
+//! \brief adds metadata for an ROMol to the data from a PNG file.
+//! The modified PNG data is returned.
+//! See \c addMolToPNGStream() for more details.
+inline std::string addMolToPNGFile(const ROMol &mol, const std::string &fname,
+                                   const PNGMetadataParams &params) {
+  std::ifstream inStream(fname.c_str(), std::ios::binary);
+  return addMolToPNGStream(mol, inStream, params);
 }
 //! @}
 

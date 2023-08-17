@@ -591,6 +591,18 @@ unsigned int JSMol::get_num_bonds() const {
   return d_mol->getNumBonds();
 }
 
+std::string JSMol::add_to_png_blob(const std::string &pngString,
+                                   const std::string &details) const {
+  PNGMetadataParams params;
+  std::string res;
+  try {
+    updatePNGMetadataParamsFromJSON(params, details.c_str());
+    res = addMolToPNGString(*d_mol, pngString, params);
+  } catch (...) {
+  }
+  return res;
+}
+
 #ifdef RDK_BUILD_MINIMAL_LIB_RXN
 std::string JSReaction::get_svg(int w, int h) const {
   assert(d_rxn);
@@ -847,3 +859,23 @@ JSMol *get_mcs_as_mol(const JSMolList &molList,
   return new JSMol(new RWMol(*res.QueryMol));
 }
 #endif
+
+JSMol *get_mol_from_png_blob(const std::string &pngString,
+                             const std::string &details) {
+  auto mols = MinimalLib::get_mols_from_png_blob_internal(pngString, true,
+                                                          details.c_str());
+  if (mols.empty()) {
+    return nullptr;
+  }
+  return new JSMol(new RWMol(*mols.front()));
+}
+
+JSMolList *get_mols_from_png_blob(const std::string &pngString,
+                                  const std::string &details) {
+  auto mols = MinimalLib::get_mols_from_png_blob_internal(pngString, false,
+                                                          details.c_str());
+  if (mols.empty()) {
+    return nullptr;
+  }
+  return new JSMolList(mols);
+}
