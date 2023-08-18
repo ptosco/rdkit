@@ -28,9 +28,19 @@
 
 FROM rdkit-minimallib-build-stage as build-stage-legacy
 
+WORKDIR /opt/emsdk
+RUN ./emsdk update-tags && \
+  ./emsdk install 3.1.15 && \
+  ./emsdk activate 3.1.15
+
 WORKDIR $RDBASE/build
-RUN emcmake cmake -DRDK_MINIMAL_LIB_SUPPORT_LEGACY_BROWSERS=ON \
-  -DCMAKE_EXE_LINKER_FLAGS="-s SINGLE_FILE=1 -s LEGACY_VM_SUPPORT=1 -s MIN_IE_VERSION=11 -s WASM=0 --memory-init-file 0 -s MODULARIZE=1 -s EXPORT_NAME=\"'initRDKitModule'\"" ..
+RUN emcmake cmake -D RDK_MINIMAL_LIB_SUPPORT_LEGACY_BROWSERS=ON \
+  -D FREETYPE_INCLUDE_DIRS=/opt/emsdk/upstream/emscripten/cache/sysroot/include/freetype2 \
+  -D FREETYPE_LIBRARY=/opt/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/libfreetype.a \
+  -D CMAKE_C_FLAGS="-s DISABLE_EXCEPTION_CATCHING=1 -D__isascii\(val\)=\(\(unsigned\)\(val\)\ \<=\ 0x7F\) -Wno-enum-constexpr-conversion -O3 -DNDEBUG -DCOMPILE_ANSI_ONLY -s USE_PTHREADS=0" \
+  -D CMAKE_CXX_FLAGS="-s DISABLE_EXCEPTION_CATCHING=1 -D__isascii\(val\)=\(\(unsigned\)\(val\)\ \<=\ 0x7F\) -Wno-enum-constexpr-conversion -O3 -DNDEBUG -s USE_PTHREADS=0" \
+  -D CMAKE_EXE_LINKER_FLAGS="-s DISABLE_EXCEPTION_CATCHING=1 -s SINGLE_FILE=1 -s LEGACY_VM_SUPPORT=1 -s MIN_IE_VERSION=11 -s WASM=0 --memory-init-file 0 -s USE_PTHREADS=0 -s ALLOW_MEMORY_GROWTH=1 -s MAXIMUM_MEMORY=4GB -O3 -DNDEBUG -s MODULARIZE=1 -s EXPORT_NAME=\"'initRDKitModule'\"" \
+  ..
 
 # build and "install"
 RUN make -j2 RDKit_minimal && echo -e '\

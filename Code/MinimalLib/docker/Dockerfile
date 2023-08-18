@@ -38,6 +38,10 @@ RUN apt-get update && apt-get upgrade -y && apt install -y \
   git \
   nodejs
 
+# Add Novartis SSL certs otherwise HTTPS will not work
+COPY certs /usr/local/share/ca-certificates/
+RUN update-ca-certificates
+
 ENV LANG C
 
 WORKDIR /opt
