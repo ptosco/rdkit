@@ -1,0 +1,511 @@
+"""Module containing a C++ implementation of the FMCS algorithm"""
+from __future__ import annotations
+import rdkit.Chem.rdFMCS
+import typing
+import Boost.Python
+
+__all__ = [
+    "AtomCompare",
+    "BondCompare",
+    "FindMCS",
+    "MCSAcceptance",
+    "MCSAtomCompare",
+    "MCSAtomCompareParameters",
+    "MCSBondCompare",
+    "MCSBondCompareParameters",
+    "MCSFinalMatchCheck",
+    "MCSParameters",
+    "MCSProgress",
+    "MCSProgressData",
+    "MCSResult",
+    "RingCompare"
+]
+
+
+class AtomCompare(Boost.Python.enum, int):
+    CompareAny = rdkit.Chem.rdFMCS.AtomCompare.CompareAny
+    CompareAnyHeavyAtom = rdkit.Chem.rdFMCS.AtomCompare.CompareAnyHeavyAtom
+    CompareElements = rdkit.Chem.rdFMCS.AtomCompare.CompareElements
+    CompareIsotopes = rdkit.Chem.rdFMCS.AtomCompare.CompareIsotopes
+    __slots__ = ()
+    names = {'CompareAny': rdkit.Chem.rdFMCS.AtomCompare.CompareAny, 'CompareElements': rdkit.Chem.rdFMCS.AtomCompare.CompareElements, 'CompareIsotopes': rdkit.Chem.rdFMCS.AtomCompare.CompareIsotopes, 'CompareAnyHeavyAtom': rdkit.Chem.rdFMCS.AtomCompare.CompareAnyHeavyAtom}
+    values = {0: rdkit.Chem.rdFMCS.AtomCompare.CompareAny, 1: rdkit.Chem.rdFMCS.AtomCompare.CompareElements, 2: rdkit.Chem.rdFMCS.AtomCompare.CompareIsotopes, 3: rdkit.Chem.rdFMCS.AtomCompare.CompareAnyHeavyAtom}
+    pass
+class BondCompare(Boost.Python.enum, int):
+    CompareAny = rdkit.Chem.rdFMCS.BondCompare.CompareAny
+    CompareOrder = rdkit.Chem.rdFMCS.BondCompare.CompareOrder
+    CompareOrderExact = rdkit.Chem.rdFMCS.BondCompare.CompareOrderExact
+    __slots__ = ()
+    names = {'CompareAny': rdkit.Chem.rdFMCS.BondCompare.CompareAny, 'CompareOrder': rdkit.Chem.rdFMCS.BondCompare.CompareOrder, 'CompareOrderExact': rdkit.Chem.rdFMCS.BondCompare.CompareOrderExact}
+    values = {0: rdkit.Chem.rdFMCS.BondCompare.CompareAny, 1: rdkit.Chem.rdFMCS.BondCompare.CompareOrder, 2: rdkit.Chem.rdFMCS.BondCompare.CompareOrderExact}
+    pass
+class MCSAcceptance(Boost.Python.instance):
+    """
+    Base class. Subclass and override MCSAcceptance.__call__() to define a custom boolean callback function. Returning True will cause the MCS candidate to be accepted, False to be rejected
+    """
+    def __call__(self) -> bool: 
+        """
+        __call__( self: MCSAcceptance) -> bool
+            override to implement a custom MCS acceptance callback
+
+            C++ signature :
+                bool __call__(RDKit::PyMCSAcceptance {lvalue})
+        """
+    @staticmethod
+    def __init__( arg1: object) -> None: 
+        """
+        __init__( arg1: object) -> None
+
+            C++ signature :
+                void __init__(_object*)
+        """
+    __instance_size__ = 56
+    pass
+class MCSAtomCompare(Boost.Python.instance):
+    """
+    Base class. Subclass and override MCSAtomCompare.__call__() to define custom atom compare functions, then set MCSParameters.AtomTyper to an instance of the subclass
+    """
+    def CheckAtomCharge(self, parameters: MCSAtomCompareParameters, mol1: Mol, atom1: int, mol2: Mol, atom2: int) -> bool: 
+        """
+        CheckAtomCharge( self: MCSAtomCompare, parameters: MCSAtomCompareParameters, mol1: Mol, atom1: int, mol2: Mol, atom2: int) -> bool
+            Return True if both atoms have the same formal charge
+
+            C++ signature :
+                bool CheckAtomCharge(RDKit::PyMCSAtomCompare {lvalue},RDKit::MCSAtomCompareParameters,RDKit::ROMol,unsigned int,RDKit::ROMol,unsigned int)
+        """
+    def CheckAtomChirality(self, parameters: MCSAtomCompareParameters, mol1: Mol, atom1: int, mol2: Mol, atom2: int) -> bool: 
+        """
+        CheckAtomChirality( self: MCSAtomCompare, parameters: MCSAtomCompareParameters, mol1: Mol, atom1: int, mol2: Mol, atom2: int) -> bool
+            Return True if both atoms have, or have not, a chiral tag
+
+            C++ signature :
+                bool CheckAtomChirality(RDKit::PyMCSAtomCompare {lvalue},RDKit::MCSAtomCompareParameters,RDKit::ROMol,unsigned int,RDKit::ROMol,unsigned int)
+        """
+    def CheckAtomRingMatch(self, parameters: MCSAtomCompareParameters, mol1: Mol, atom1: int, mol2: Mol, atom2: int) -> bool: 
+        """
+        CheckAtomRingMatch( self: MCSAtomCompare, parameters: MCSAtomCompareParameters, mol1: Mol, atom1: int, mol2: Mol, atom2: int) -> bool
+            Return True if both atoms are, or are not, in a ring
+
+            C++ signature :
+                bool CheckAtomRingMatch(RDKit::PyMCSAtomCompare {lvalue},RDKit::MCSAtomCompareParameters,RDKit::ROMol,unsigned int,RDKit::ROMol,unsigned int)
+        """
+    def __call__(self, parameters: MCSAtomCompareParameters, mol1: Mol, atom1: int, mol2: Mol, atom2: int) -> bool: 
+        """
+        __call__( self: MCSAtomCompare, parameters: MCSAtomCompareParameters, mol1: Mol, atom1: int, mol2: Mol, atom2: int) -> bool
+            override to implement custom atom comparison
+
+            C++ signature :
+                bool __call__(RDKit::PyMCSAtomCompare {lvalue},RDKit::MCSAtomCompareParameters,RDKit::ROMol,unsigned int,RDKit::ROMol,unsigned int)
+        """
+    @staticmethod
+    def __init__( arg1: object) -> None: 
+        """
+        __init__( arg1: object) -> None
+
+            C++ signature :
+                void __init__(_object*)
+        """
+    __instance_size__ = 56
+    pass
+class MCSAtomCompareParameters(Boost.Python.instance):
+    """
+    Parameters controlling how atom-atom matching is done
+    """
+    @staticmethod
+    def __init__( arg1: object) -> None: 
+        """
+        __init__( arg1: object) -> None
+
+            C++ signature :
+                void __init__(_object*)
+        """
+    @property
+    def CompleteRingsOnly(self) -> None:
+        """
+        results cannot include lone ring atoms
+
+        :type: None
+        """
+    @property
+    def MatchChiralTag(self) -> None:
+        """
+        include atom chirality in the match
+
+        :type: None
+        """
+    @property
+    def MatchFormalCharge(self) -> None:
+        """
+        include formal charge in the match
+
+        :type: None
+        """
+    @property
+    def MatchIsotope(self) -> None:
+        """
+        use isotope atom queries in MCSResults
+
+        :type: None
+        """
+    @property
+    def MatchValences(self) -> None:
+        """
+        include atom valences in the match
+
+        :type: None
+        """
+    @property
+    def MaxDistance(self) -> None:
+        """
+        Require atoms to be within this many angstroms in 3D
+
+        :type: None
+        """
+    @property
+    def RingMatchesRingOnly(self) -> None:
+        """
+        ring atoms are only allowed to match other ring atoms
+
+        :type: None
+        """
+    __instance_size__ = 40
+    pass
+class MCSBondCompare(Boost.Python.instance):
+    """
+    Base class. Subclass and override MCSBondCompare.__call__() to define custom bond compare functions, then set MCSParameters.BondTyper to an instance of the subclass
+    """
+    def CheckBondRingMatch(self, parameters: MCSBondCompareParameters, mol1: Mol, bond1: int, mol2: Mol, bond2: int) -> bool: 
+        """
+        CheckBondRingMatch( self: MCSBondCompare, parameters: MCSBondCompareParameters, mol1: Mol, bond1: int, mol2: Mol, bond2: int) -> bool
+            Return True if both bonds are, or are not, part of a ring
+
+            C++ signature :
+                bool CheckBondRingMatch(RDKit::PyMCSBondCompare {lvalue},RDKit::MCSBondCompareParameters,RDKit::ROMol,unsigned int,RDKit::ROMol,unsigned int)
+        """
+    def CheckBondStereo(self, parameters: MCSBondCompareParameters, mol1: Mol, bond1: int, mol2: Mol, bond2: int) -> bool: 
+        """
+        CheckBondStereo( self: MCSBondCompare, parameters: MCSBondCompareParameters, mol1: Mol, bond1: int, mol2: Mol, bond2: int) -> bool
+            Return True if both bonds have, or have not, a stereo descriptor
+
+            C++ signature :
+                bool CheckBondStereo(RDKit::PyMCSBondCompare {lvalue},RDKit::MCSBondCompareParameters,RDKit::ROMol,unsigned int,RDKit::ROMol,unsigned int)
+        """
+    def __call__(self, parameters: MCSBondCompareParameters, mol1: Mol, bond1: int, mol2: Mol, bond2: int) -> bool: 
+        """
+        __call__( self: MCSBondCompare, parameters: MCSBondCompareParameters, mol1: Mol, bond1: int, mol2: Mol, bond2: int) -> bool
+            override to implement custom bond comparison
+
+            C++ signature :
+                bool __call__(RDKit::PyMCSBondCompare {lvalue},RDKit::MCSBondCompareParameters,RDKit::ROMol,unsigned int,RDKit::ROMol,unsigned int)
+        """
+    @staticmethod
+    def __init__( arg1: object) -> None: 
+        """
+        __init__( arg1: object) -> None
+
+            C++ signature :
+                void __init__(_object*)
+        """
+    __instance_size__ = 64
+    pass
+class MCSBondCompareParameters(Boost.Python.instance):
+    """
+    Parameters controlling how bond-bond matching is done
+    """
+    @staticmethod
+    def __init__( arg1: object) -> None: 
+        """
+        __init__( arg1: object) -> None
+
+            C++ signature :
+                void __init__(_object*)
+        """
+    @property
+    def CompleteRingsOnly(self) -> None:
+        """
+        results cannot include partial rings
+
+        :type: None
+        """
+    @property
+    def MatchFusedRings(self) -> None:
+        """
+        enforce check on ring fusion, i.e. alpha-methylnaphthalene won't match beta-methylnaphtalene, but decalin will match cyclodecane unless MatchFusedRingsStrict is True
+
+        :type: None
+        """
+    @property
+    def MatchFusedRingsStrict(self) -> None:
+        """
+        only enforced if MatchFusedRings is True; the ring fusion must be the same in both query and target, i.e. decalin won't match cyclodecane
+
+        :type: None
+        """
+    @property
+    def MatchStereo(self) -> None:
+        """
+        include bond stereo in the comparison
+
+        :type: None
+        """
+    @property
+    def RingMatchesRingOnly(self) -> None:
+        """
+        ring bonds are only allowed to match other ring bonds
+
+        :type: None
+        """
+    __instance_size__ = 32
+    pass
+class MCSFinalMatchCheck(Boost.Python.instance):
+    """
+    Base class. Subclass and override MCSFinalMatchCheck.__call__() to define a custom boolean callback function. Returning True will cause the growing seed to be accepted, False to be rejected
+    """
+    def __call__(self) -> bool: 
+        """
+        __call__( self: MCSFinalMatchCheck) -> bool
+            override to implement a custom seed final match checker callback
+
+            C++ signature :
+                bool __call__(RDKit::PyMCSFinalMatchCheck {lvalue})
+        """
+    @staticmethod
+    def __init__( arg1: object) -> None: 
+        """
+        __init__( arg1: object) -> None
+
+            C++ signature :
+                void __init__(_object*)
+        """
+    __instance_size__ = 56
+    pass
+class MCSParameters(Boost.Python.instance):
+    """
+    Parameters controlling how the MCS is constructed
+    """
+    @staticmethod
+    def __init__( arg1: object) -> None: 
+        """
+        __init__( arg1: object) -> None
+
+            C++ signature :
+                void __init__(_object*)
+        """
+    @property
+    def AtomCompareParameters(self) -> None:
+        """
+        parameters for comparing atoms
+
+        :type: None
+        """
+    @property
+    def AtomTyper(self) -> None:
+        """
+        atom typer to be used. Must be one of the members of the rdFMCS.AtomCompare class or an instance of a user-defined subclass of rdFMCS.MCSAtomCompare
+
+        :type: None
+        """
+    @property
+    def BondCompareParameters(self) -> None:
+        """
+        parameters for comparing bonds
+
+        :type: None
+        """
+    @property
+    def BondTyper(self) -> None:
+        """
+        bond typer to be used. Must be one of the members of the rdFMCS.BondCompare class or an instance of a user-defined subclass of rdFMCS.MCSBondCompare
+
+        :type: None
+        """
+    @property
+    def FinalMatchChecker(self) -> None:
+        """
+        seed final match checker callback class. Must be a user-defined subclass of rdFMCS.MCSFinalMatchCheck
+
+        :type: None
+        """
+    @property
+    def InitialSeed(self) -> None:
+        """
+        SMILES string to be used as the seed of the MCS
+
+        :type: None
+        """
+    @property
+    def MaximizeBonds(self) -> None:
+        """
+        toggles maximizing the number of bonds (instead of the number of atoms)
+
+        :type: None
+        """
+    @property
+    def ProgressCallback(self) -> None:
+        """
+        progress callback class. Must be a user-defined subclass of rdFMCS.Progress
+
+        :type: None
+        """
+    @property
+    def ShouldAcceptMCS(self) -> None:
+        """
+        MCS acceptance callback class. Must be a user-defined subclass of rdFMCS.MCSAcceptance
+
+        :type: None
+        """
+    @property
+    def StoreAll(self) -> None:
+        """
+        toggles storage of degenerate MCSs
+
+        :type: None
+        """
+    @property
+    def Threshold(self) -> None:
+        """
+        fraction of the dataset that must contain the MCS
+
+        :type: None
+        """
+    @property
+    def Timeout(self) -> None:
+        """
+        :type: None
+        """
+    @property
+    def Verbose(self) -> None:
+        """
+        toggles verbose mode
+
+        :type: None
+        """
+    __instance_size__ = 168
+    pass
+class MCSProgress(Boost.Python.instance):
+    """
+    Base class. Subclass and override MCSProgress.__call__() to define a custom callback function
+    """
+    def __call__(self, stat: object, parameters: object) -> bool: 
+        """
+        __call__( self: MCSProgress, stat: object, parameters: object) -> bool
+            override to implement a custom progress callback
+
+            C++ signature :
+                bool __call__(RDKit::PyMCSProgress {lvalue},RDKit::MCSProgressData,RDKit::MCSParameters)
+        """
+    @staticmethod
+    def __init__( arg1: object) -> None: 
+        """
+        __init__( arg1: object) -> None
+
+            C++ signature :
+                void __init__(_object*)
+        """
+    __instance_size__ = 56
+    pass
+class MCSProgressData(Boost.Python.instance):
+    """
+    Information about the MCS progress
+    """
+    @staticmethod
+    def __init__( arg1: object) -> None: 
+        """
+        __init__( arg1: object) -> None
+
+            C++ signature :
+                void __init__(_object*)
+        """
+    @property
+    def numAtoms(self) -> None:
+        """
+        number of atoms in MCS
+
+        :type: None
+        """
+    @property
+    def numBonds(self) -> None:
+        """
+        number of bonds in MCS
+
+        :type: None
+        """
+    @property
+    def seedProcessed(self) -> None:
+        """
+        number of processed seeds
+
+        :type: None
+        """
+    __instance_size__ = 40
+    pass
+class MCSResult(Boost.Python.instance):
+    """
+    used to return MCS results
+    """
+    @property
+    def canceled(self) -> None:
+        """
+        if True, the MCS calculation did not finish
+
+        :type: None
+        """
+    @property
+    def degenerateSmartsQueryMolDict(self) -> None:
+        """
+        Dictionary collecting all degenerate (SMARTS, queryMol) pairs (empty if MCSParameters.StoreAll is False)
+
+        :type: None
+        """
+    @property
+    def numAtoms(self) -> None:
+        """
+        number of atoms in MCS
+
+        :type: None
+        """
+    @property
+    def numBonds(self) -> None:
+        """
+        number of bonds in MCS
+
+        :type: None
+        """
+    @property
+    def queryMol(self) -> None:
+        """
+        query molecule for the MCS
+
+        :type: None
+        """
+    @property
+    def smartsString(self) -> None:
+        """
+        SMARTS string for the MCS
+
+        :type: None
+        """
+    pass
+class RingCompare(Boost.Python.enum, int):
+    IgnoreRingFusion = rdkit.Chem.rdFMCS.RingCompare.IgnoreRingFusion
+    PermissiveRingFusion = rdkit.Chem.rdFMCS.RingCompare.PermissiveRingFusion
+    StrictRingFusion = rdkit.Chem.rdFMCS.RingCompare.StrictRingFusion
+    __slots__ = ()
+    names = {'IgnoreRingFusion': rdkit.Chem.rdFMCS.RingCompare.IgnoreRingFusion, 'PermissiveRingFusion': rdkit.Chem.rdFMCS.RingCompare.PermissiveRingFusion, 'StrictRingFusion': rdkit.Chem.rdFMCS.RingCompare.StrictRingFusion}
+    values = {0: rdkit.Chem.rdFMCS.RingCompare.IgnoreRingFusion, 1: rdkit.Chem.rdFMCS.RingCompare.PermissiveRingFusion, 2: rdkit.Chem.rdFMCS.RingCompare.StrictRingFusion}
+    pass
+@typing.overload
+def FindMCS( mols: AtomPairsParameters, maximizeBonds: bool = True, threshold: float = 1.0, timeout: int = 3600, verbose: bool = False, matchValences: bool = False, ringMatchesRingOnly: bool = False, completeRingsOnly: bool = False, matchChiralTag: bool = False, atomCompare: AtomCompare = AtomCompare.CompareElements, bondCompare: BondCompare = BondCompare.CompareOrder, ringCompare: RingCompare = RingCompare.IgnoreRingFusion, seedSmarts: str = '') -> MCSResult:
+    """
+    FindMCS( mols: AtomPairsParameters, maximizeBonds: bool = True, threshold: float = 1.0, timeout: int = 3600, verbose: bool = False, matchValences: bool = False, ringMatchesRingOnly: bool = False, completeRingsOnly: bool = False, matchChiralTag: bool = False, atomCompare: AtomCompare = rdkit.Chem.rdFMCS.AtomCompare.CompareElements, bondCompare: BondCompare = rdkit.Chem.rdFMCS.BondCompare.CompareOrder, ringCompare: RingCompare = rdkit.Chem.rdFMCS.RingCompare.IgnoreRingFusion, seedSmarts: str = '') -> MCSResult
+        Find the MCS for a set of molecules
+
+        C++ signature :
+            RDKit::MCSResult* FindMCS(boost::python::api::object [,bool=True [,double=1.0 [,unsigned int=3600 [,bool=False [,bool=False [,bool=False [,bool=False [,bool=False [,RDKit::AtomComparator=rdkit.Chem.rdFMCS.AtomCompare.CompareElements [,RDKit::BondComparator=rdkit.Chem.rdFMCS.BondCompare.CompareOrder [,RDKit::RingComparator=rdkit.Chem.rdFMCS.RingCompare.IgnoreRingFusion [,std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >='']]]]]]]]]]]])
+
+        C++ signature :
+            RDKit::MCSResult* FindMCS(boost::python::api::object,RDKit::PyMCSParameters {lvalue})
+    """
+@typing.overload
+def FindMCS( mols: AtomPairsParameters, parameters: MCSParameters) -> MCSResult:
+    pass
