@@ -410,12 +410,16 @@ class CppFile(DictLike):
                     and not (func_name == "__iter__" and self.have_python_range_r(def_cursor, level))):
                     try:
                         func_name_idx = func_names.index(func_name)
-                        assert def_cursor.hash not in def_init_nodes
+                        if def_cursor.hash in def_init_nodes:
+                            with open(log_path, "a") as hnd:
+                                print(f"1) find_func_name_r def_cursor.hash {def_cursor.hash} level {level} func_name {func_name} kind {def_cursor.kind} tokens {[t.spelling for t in def_cursor.get_tokens()]}", file=hnd)
+                                hnd.flush()
+                            assert def_cursor.hash not in def_init_nodes
                         func_names.pop(func_name_idx)
                         func_name_to_hash[func_name] = def_cursor.hash
                         def_init_nodes[def_cursor.hash] = FunctionDef(def_cursor, func_name, is_staticmethod, level)
                         with open(log_path, "a") as hnd:
-                            print(f"1) find_func_name_r def_cursor.hash {def_cursor.hash} level {level} func_name {func_name} kind {def_cursor.kind} tokens {[t.spelling for t in def_cursor.get_tokens()]}", file=hnd)
+                            print(f"2) find_func_name_r def_cursor.hash {def_cursor.hash} level {level} func_name {func_name} kind {def_cursor.kind} tokens {[t.spelling for t in def_cursor.get_tokens()]}", file=hnd)
                             hnd.flush()
                     except ValueError:
                         hash_for_func_name = func_name_to_hash.get(func_name, None)
@@ -430,9 +434,11 @@ class CppFile(DictLike):
                                       and prev_function_def.func_name == func_name
                                       and def_cursor.kind != CursorKind.MEMBER_REF_EXPR
                                       and def_cursor.hash not in def_init_nodes
+                                      and ([t.spelling for t in def_cursor.get_tokens()].count("def")
+                                           != [t.spelling for t in prev_function_def.def_cursor.get_tokens()].count("def"))
                                       and self.is_last_def(func_name, list(def_cursor.get_tokens()))):
                                     with open(log_path, "a") as hnd:
-                                        print(f"2) find_func_name_r def_cursor.hash {def_cursor.hash} level {level} func_name {func_name} kind {def_cursor.kind} tokens {[t.spelling for t in def_cursor.get_tokens()]}", file=hnd)
+                                        print(f"3) find_func_name_r def_cursor.hash {def_cursor.hash} level {level} func_name {func_name} kind {def_cursor.kind} tokens {[t.spelling for t in def_cursor.get_tokens()]}", file=hnd)
                                         hnd.flush()
                                     def_init_nodes[def_cursor.hash] = FunctionDef(def_cursor, func_name, is_staticmethod, prev_function_def.level)
             self.find_func_name_r(child, def_cursor, func_names, func_name_to_hash, def_init_nodes, level)
@@ -477,11 +483,11 @@ class CppFile(DictLike):
                 if child.kind == CursorKind.TEMPLATE_REF and decl_ref.spelling:
                     template_ref = child.spelling.split("::")[-1]
                     with open(log_path, "a") as hnd:
-                        print(f"1) find_cpp_func_r type_ref {type_ref}", file=hnd)
+                        print(f"1) find_cpp_func_r template_ref {template_ref}", file=hnd)
                         hnd.flush()
                     template_ref = type_ref_dict.get(template_ref, template_ref)
                     with open(log_path, "a") as hnd:
-                        print(f"2) find_cpp_func_r type_ref {type_ref}", file=hnd)
+                        print(f"2) find_cpp_func_r template_ref {template_ref}", file=hnd)
                         hnd.flush()
                     res = template_ref + "::" + decl_ref.spelling
                     break
@@ -1346,7 +1352,7 @@ class FixSignatures:
         self.queue = queue.Queue()
         cpp_class_files = list(self.cpp_file_dict.values())
         # Uncomment the following to troubleshoot specific file(s)
-        # cpp_class_files = [f for f in cpp_class_files if os.path.basename(f.cpp_path).startswith("SubstanceGroup")]
+        # cpp_class_files = [f for f in cpp_class_files if os.path.basename(f.cpp_path).startswith("Conformer")]
         n_files = len(cpp_class_files)
         self.logger.debug(f"Number of files: {n_files}")
         n_workers = min(self.concurrency, n_files)
