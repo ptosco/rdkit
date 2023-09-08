@@ -1543,7 +1543,7 @@ def CreateDifferenceFingerprintForReaction( reaction: ChemicalReaction, Reaction
         construct a difference fingerprint for a ChemicalReaction by subtracting the reactant fingerprint from the product fingerprint
 
         C++ signature :
-            RDKit::SparseIntVect<unsigned int>* CreateDifferenceFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7f83635c8840>])
+            RDKit::SparseIntVect<unsigned int>* CreateDifferenceFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7f2c64d21840>])
     """
 def CreateStructuralFingerprintForReaction( reaction: ChemicalReaction, ReactionFingerPrintParams: ReactionFingerprintParams = ReactionFingerprintParams()) -> ExplicitBitVect:
     """
@@ -1551,7 +1551,7 @@ def CreateStructuralFingerprintForReaction( reaction: ChemicalReaction, Reaction
         construct a structural fingerprint for a ChemicalReaction by concatenating the reactant fingerprint and the product fingerprint
 
         C++ signature :
-            ExplicitBitVect* CreateStructuralFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7f83635c8240>])
+            ExplicitBitVect* CreateStructuralFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7f2c64d21240>])
     """
 def EnumerateLibraryCanSerialize() -> bool:
     """
@@ -1855,9 +1855,9 @@ def ReactionToMrvBlock( reaction: ChemicalReaction, prettyPrint: bool = False) -
         C++ signature :
             std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > ReactionToMrvBlock(RDKit::ChemicalReaction [,bool=False])
     """
-def ReactionToMrvFile( arg1: ChemicalReaction, reaction: str, prettyPrint: bool = False) -> None:
+def ReactionToMrvFile( reaction: ChemicalReaction, filename: str, prettyPrint: bool = False) -> None:
     """
-    ReactionToMrvFile( arg1: ChemicalReaction, reaction: str, prettyPrint: bool = False) -> None
+    ReactionToMrvFile( reaction: ChemicalReaction, filename: str, prettyPrint: bool = False) -> None
         write a Marvin (MRV) rxn file for a ChemicalReaction
 
         C++ signature :
@@ -1958,7 +1958,7 @@ def SanitizeRxn( rxn: ChemicalReaction, sanitizeOps: int = 4294967295, params: A
         
 
         C++ signature :
-            RDKit::RxnOps::SanitizeRxnFlags SanitizeRxn(RDKit::ChemicalReaction {lvalue} [,unsigned long=4294967295 [,RDKit::MolOps::AdjustQueryParameters=<rdkit.Chem.rdmolops.AdjustQueryParameters object at 0x7f8363636360> [,bool=False]]])
+            RDKit::RxnOps::SanitizeRxnFlags SanitizeRxn(RDKit::ChemicalReaction {lvalue} [,unsigned long=4294967295 [,RDKit::MolOps::AdjustQueryParameters=<rdkit.Chem.rdmolops.AdjustQueryParameters object at 0x7f2c64d90360> [,bool=False]]])
     """
 def UpdateProductsStereochemistry( reaction: ChemicalReaction) -> None:
     """

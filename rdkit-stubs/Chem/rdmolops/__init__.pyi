@@ -886,7 +886,7 @@ def CombineMols( mol1: Mol, mol2: Mol, offset: Point3D = Point3D()) -> Mol:
         Combine the atoms from two molecules to produce a third
 
         C++ signature :
-            RDKit::ROMol* CombineMols(RDKit::ROMol,RDKit::ROMol [,RDGeom::Point3D=<rdkit.Geometry.rdGeometry.Point3D object at 0x7f8363c5f1c0>])
+            RDKit::ROMol* CombineMols(RDKit::ROMol,RDKit::ROMol [,RDGeom::Point3D=<rdkit.Geometry.rdGeometry.Point3D object at 0x7f2c653ba1c0>])
     """
 def ConvertGenericQueriesToSubstanceGroups( mol: Mol) -> None:
     """
@@ -2312,10 +2312,10 @@ def molzip( a: Mol, b: Mol, params: MolzipParams = MolzipParams()) -> Mol:
         zip together two molecules using the given matching parameters
 
         C++ signature :
-            RDKit::ROMol* molzip(RDKit::ROMol,RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f8363c57f60>])
+            RDKit::ROMol* molzip(RDKit::ROMol,RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f2c653b0f60>])
 
         C++ signature :
-            RDKit::ROMol* molzip(RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f8363c71040>])
+            RDKit::ROMol* molzip(RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f2c653ca040>])
     """
 @typing.overload
 def molzip( a: Mol, params: MolzipParams = MolzipParams()) -> Mol:
@@ -2328,7 +2328,7 @@ def molzipFragments( mols: object, params: MolzipParams = MolzipParams()) -> Mol
         must be the core
 
         C++ signature :
-            RDKit::ROMol* molzipFragments(boost::python::api::object {lvalue} [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f8363c710f0>])
+            RDKit::ROMol* molzipFragments(boost::python::api::object {lvalue} [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f2c653ca0f0>])
     """
 ADJUST_IGNOREALL = rdkit.Chem.rdmolops.AdjustQueryWhichFlags.ADJUST_IGNOREALL
 ADJUST_IGNORECHAINS = rdkit.Chem.rdmolops.AdjustQueryWhichFlags.ADJUST_IGNORECHAINS

@@ -403,7 +403,7 @@ class MaeWriter(Boost.Python.instance):
             returns the Maestro ct block text for a molecule
 
             C++ signature :
-                std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > GetText(RDKit::ROMol [,int=-1 [,std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >=<rdkit.rdBase._vectNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE object at 0x7f8363c3cdc0>]])
+                std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > GetText(RDKit::ROMol [,int=-1 [,std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >=<rdkit.rdBase._vectNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE object at 0x7f2c65395dc0>]])
         """
     @staticmethod
     def NumMols( arg1: MaeWriter) -> int: 

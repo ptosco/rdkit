@@ -49,10 +49,10 @@ __all__ = [
 
 
 class Compound(sqlalchemy.orm.decl_api.Base):
-    __mapper__: sqlalchemy.orm.mapper.Mapper # value = <Mapper at 0x7f835f490910; Compound>
+    __mapper__: sqlalchemy.orm.mapper.Mapper # value = <Mapper at 0x7f2c60be9940; Compound>
     __table__: sqlalchemy.sql.schema.Table # value = Table('molecules', MetaData(), Column('guid', Integer(), table=<molecules>, primary_key=True, nullable=False), Column('molpkl', LargeBinary(), table=<molecules>), schema=None)
     __tablename__ = 'molecules'
-    _sa_class_manager: sqlalchemy.orm.instrumentation.ClassManager # value = <ClassManager of <class 'rdkit.Chem.MolDb.Loader_sa.Compound'> at 7f835f49f950>
+    _sa_class_manager: sqlalchemy.orm.instrumentation.ClassManager # value = <ClassManager of <class 'rdkit.Chem.MolDb.Loader_sa.Compound'> at 7f2c60bfa0e0>
     guid: sqlalchemy.orm.attributes.InstrumentedAttribute
     molpkl: sqlalchemy.orm.attributes.InstrumentedAttribute
     pass

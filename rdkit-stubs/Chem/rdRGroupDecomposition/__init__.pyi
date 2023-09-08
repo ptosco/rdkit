@@ -369,7 +369,7 @@ def RGroupDecompose( cores: AtomPairsParameters, mols: AtomPairsParameters, asSm
         
 
         C++ signature :
-            boost::python::api::object RGroupDecompose(boost::python::api::object,boost::python::api::object [,bool=False [,bool=True [,RDKit::RGroupDecompositionParameters=<rdkit.Chem.rdRGroupDecomposition.RGroupDecompositionParameters object at 0x7f835fa65040>]]])
+            boost::python::api::object RGroupDecompose(boost::python::api::object,boost::python::api::object [,bool=False [,bool=True [,RDKit::RGroupDecompositionParameters=<rdkit.Chem.rdRGroupDecomposition.RGroupDecompositionParameters object at 0x7f2c611be040>]]])
     """
 AtomIndexLabels = rdkit.Chem.rdRGroupDecomposition.RGroupLabels.AtomIndexLabels
 AtomMap = rdkit.Chem.rdRGroupDecomposition.RGroupLabelling.AtomMap

@@ -2472,10 +2472,9 @@ class Mol(Boost.Python.instance):
             C++ signature :
                 void ClearProp(RDKit::ROMol,char const*)
         """
-    @staticmethod
-    def Debug( mol: Mol, useStdout: bool = True) -> None: 
+    def Debug(self, useStdout: bool = True) -> None: 
         """
-        Debug( mol: Mol, useStdout: bool = True) -> None
+        Debug( self: Mol, useStdout: bool = True) -> None
             Prints debugging information about the molecule.
             
 
@@ -3022,9 +3021,8 @@ class Mol(Boost.Python.instance):
             C++ signature :
                 boost::python::api::object ToBinary(RDKit::ROMol,unsigned int)
         """
-    @staticmethod
     @typing.overload
-    def ToBinary( mol: Mol, propertyFlags: int) -> object: ...
+    def ToBinary(self, propertyFlags: int) -> object: ...
     def UpdatePropertyCache(self, strict: bool = True) -> None: 
         """
         UpdatePropertyCache( self: Mol, strict: bool = True) -> None

@@ -2020,7 +2020,7 @@ def CombineMols( mol1: Mol, mol2: Mol, offset: Point3D = Point3D()) -> Mol:
         Combine the atoms from two molecules to produce a third
 
         C++ signature :
-            RDKit::ROMol* CombineMols(RDKit::ROMol,RDKit::ROMol [,RDGeom::Point3D=<rdkit.Geometry.rdGeometry.Point3D object at 0x7f8363c5f1c0>])
+            RDKit::ROMol* CombineMols(RDKit::ROMol,RDKit::ROMol [,RDGeom::Point3D=<rdkit.Geometry.rdGeometry.Point3D object at 0x7f2c653ba1c0>])
     """
 def Compute2DCoords( mol: Mol, canonOrient: bool = True, clearConfs: bool = True, coordMap: dict = {}, nFlipsPerSample: int = 0, nSample: int = 0, sampleSeed: int = 0, permuteDeg4Nodes: bool = False, bondLength: float = -1.0, forceRDKit: bool = False, useRingTemplates: bool = False) -> int:
     """
@@ -2286,7 +2286,7 @@ def CreateDifferenceFingerprintForReaction( reaction: ChemicalReaction, Reaction
         construct a difference fingerprint for a ChemicalReaction by subtracting the reactant fingerprint from the product fingerprint
 
         C++ signature :
-            RDKit::SparseIntVect<unsigned int>* CreateDifferenceFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7f83635c8840>])
+            RDKit::SparseIntVect<unsigned int>* CreateDifferenceFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7f2c64d21840>])
     """
 def CreateMolDataSubstanceGroup( mol: Mol, fieldName: str, value: str) -> SubstanceGroup:
     """
@@ -2318,7 +2318,7 @@ def CreateStructuralFingerprintForReaction( reaction: ChemicalReaction, Reaction
         construct a structural fingerprint for a ChemicalReaction by concatenating the reactant fingerprint and the product fingerprint
 
         C++ signature :
-            ExplicitBitVect* CreateStructuralFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7f83635c8240>])
+            ExplicitBitVect* CreateStructuralFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7f2c64d21240>])
     """
 def CustomProp_VSA_( mol: Mol, customPropName: str, bins: AtomPairsParameters, force: bool = False) -> list:
     """
@@ -6700,9 +6700,9 @@ def ReactionToMrvBlock( reaction: ChemicalReaction, prettyPrint: bool = False) -
         C++ signature :
             std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > ReactionToMrvBlock(RDKit::ChemicalReaction [,bool=False])
     """
-def ReactionToMrvFile( arg1: ChemicalReaction, reaction: str, prettyPrint: bool = False) -> None:
+def ReactionToMrvFile( reaction: ChemicalReaction, filename: str, prettyPrint: bool = False) -> None:
     """
-    ReactionToMrvFile( arg1: ChemicalReaction, reaction: str, prettyPrint: bool = False) -> None
+    ReactionToMrvFile( reaction: ChemicalReaction, filename: str, prettyPrint: bool = False) -> None
         write a Marvin (MRV) rxn file for a ChemicalReaction
 
         C++ signature :
@@ -7102,7 +7102,7 @@ def SanitizeRxn( rxn: ChemicalReaction, sanitizeOps: int = 4294967295, params: A
         
 
         C++ signature :
-            RDKit::RxnOps::SanitizeRxnFlags SanitizeRxn(RDKit::ChemicalReaction {lvalue} [,unsigned long=4294967295 [,RDKit::MolOps::AdjustQueryParameters=<rdkit.Chem.rdmolops.AdjustQueryParameters object at 0x7f8363636360> [,bool=False]]])
+            RDKit::RxnOps::SanitizeRxnFlags SanitizeRxn(RDKit::ChemicalReaction {lvalue} [,unsigned long=4294967295 [,RDKit::MolOps::AdjustQueryParameters=<rdkit.Chem.rdmolops.AdjustQueryParameters object at 0x7f2c64d90360> [,bool=False]]])
     """
 def SetAllowNontetrahedralChirality( arg1: bool) -> None:
     """
@@ -7791,10 +7791,10 @@ def molzip( a: Mol, b: Mol, params: MolzipParams = MolzipParams()) -> Mol:
         zip together two molecules using the given matching parameters
 
         C++ signature :
-            RDKit::ROMol* molzip(RDKit::ROMol,RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f8363c57f60>])
+            RDKit::ROMol* molzip(RDKit::ROMol,RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f2c653b0f60>])
 
         C++ signature :
-            RDKit::ROMol* molzip(RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f8363c71040>])
+            RDKit::ROMol* molzip(RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f2c653ca040>])
     """
 @typing.overload
 def molzip( a: Mol, params: MolzipParams = MolzipParams()) -> Mol:
@@ -7807,7 +7807,7 @@ def molzipFragments( mols: AtomPairsParameters, params: MolzipParams = MolzipPar
         must be the core
 
         C++ signature :
-            RDKit::ROMol* molzipFragments(boost::python::api::object {lvalue} [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f8363c710f0>])
+            RDKit::ROMol* molzipFragments(boost::python::api::object {lvalue} [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f2c653ca0f0>])
     """
 def srETKDGv3() -> EmbedParameters:
     """

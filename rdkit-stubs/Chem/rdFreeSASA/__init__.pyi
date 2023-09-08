@@ -106,7 +106,7 @@ def CalcSASA( mol: Mol, radii: AtomPairsParameters, confIdx: int = -1, query: At
         
 
         C++ signature :
-            double CalcSASA(RDKit::ROMol,boost::python::api::object [,int=-1 [,RDKit::Atom const*=None [,FreeSASA::SASAOpts=<rdkit.Chem.rdFreeSASA.SASAOpts object at 0x7f835887b7b0>]]])
+            double CalcSASA(RDKit::ROMol,boost::python::api::object [,int=-1 [,RDKit::Atom const*=None [,FreeSASA::SASAOpts=<rdkit.Chem.rdFreeSASA.SASAOpts object at 0x7f2c59fd07b0>]]])
     """
 def MakeFreeSasaAPolarAtomQuery() -> QueryAtom:
     """
@@ -143,7 +143,7 @@ def classifyAtoms( mol: Mol, options: SASAOpts = SASAOpts()) -> object:
         
 
         C++ signature :
-            boost::python::api::object classifyAtoms(RDKit::ROMol {lvalue} [,FreeSASA::SASAOpts=<rdkit.Chem.rdFreeSASA.SASAOpts object at 0x7f83586cdeb0>])
+            boost::python::api::object classifyAtoms(RDKit::ROMol {lvalue} [,FreeSASA::SASAOpts=<rdkit.Chem.rdFreeSASA.SASAOpts object at 0x7f2c59e2eeb0>])
     """
 APolar = rdkit.Chem.rdFreeSASA.SASAClass.APolar
 LeeRichards = rdkit.Chem.rdFreeSASA.SASAAlgorithm.LeeRichards
