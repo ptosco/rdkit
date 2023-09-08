@@ -1190,7 +1190,7 @@ def ContourAndDrawGaussians( drawer: MolDraw2D, locs: AtomPairsParameters, heigh
         */
 
         C++ signature :
-            void ContourAndDrawGaussians(RDKit::MolDraw2D {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object [,unsigned int=10 [,boost::python::api::object=None [,RDKit::MolDraw2DUtils::ContourParams=<rdkit.Chem.Draw.rdMolDraw2D.ContourParams object at 0x7fd05bef1640> [,boost::python::api::object=None]]]])
+            void ContourAndDrawGaussians(RDKit::MolDraw2D {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object [,unsigned int=10 [,boost::python::api::object=None [,RDKit::MolDraw2DUtils::ContourParams=<rdkit.Chem.Draw.rdMolDraw2D.ContourParams object at 0x7f8362b01640> [,boost::python::api::object=None]]]])
     """
 def ContourAndDrawGrid( drawer: MolDraw2D, data: AtomPairsParameters, xcoords: AtomPairsParameters, ycoords: AtomPairsParameters, nContours: int = 10, levels: AtomPairsParameters = None, params: ContourParams = ContourParams(), mol: AtomPairsParameters = None) -> None:
     """
@@ -1223,7 +1223,7 @@ def ContourAndDrawGrid( drawer: MolDraw2D, data: AtomPairsParameters, xcoords: A
         */
 
         C++ signature :
-            void ContourAndDrawGrid(RDKit::MolDraw2D {lvalue},boost::python::api::object {lvalue},boost::python::api::object {lvalue},boost::python::api::object {lvalue} [,unsigned int=10 [,boost::python::api::object {lvalue}=None [,RDKit::MolDraw2DUtils::ContourParams=<rdkit.Chem.Draw.rdMolDraw2D.ContourParams object at 0x7fd05bef1700> [,boost::python::api::object=None]]]])
+            void ContourAndDrawGrid(RDKit::MolDraw2D {lvalue},boost::python::api::object {lvalue},boost::python::api::object {lvalue},boost::python::api::object {lvalue} [,unsigned int=10 [,boost::python::api::object {lvalue}=None [,RDKit::MolDraw2DUtils::ContourParams=<rdkit.Chem.Draw.rdMolDraw2D.ContourParams object at 0x7f8362b01700> [,boost::python::api::object=None]]]])
     """
 def DrawMoleculeACS1996( drawer: MolDraw2D, mol: Mol, legend: str = '', highlightAtoms: AtomPairsParameters = None, highlightBonds: AtomPairsParameters = None, highlightAtomColors: AtomPairsParameters = None, highlightBondColors: AtomPairsParameters = None, highlightAtomRadii: AtomPairsParameters = None, confId: int = -1) -> None:
     """

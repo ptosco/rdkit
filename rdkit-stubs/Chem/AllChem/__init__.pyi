@@ -634,6 +634,8 @@ __all__ = [
     "MolzipParams",
     "MorganFP",
     "MorganFingerprintOptions",
+    "MrvBlockIsReaction",
+    "MrvFileIsReaction",
     "MultithreadedSDMolSupplier",
     "MultithreadedSmilesMolSupplier",
     "MurckoDecompose",
@@ -696,10 +698,13 @@ __all__ = [
     "ReactionMetadataToPNGString",
     "ReactionToMolecule",
     "ReactionToMrvBlock",
+    "ReactionToMrvFile",
     "ReactionToRxnBlock",
     "ReactionToSmarts",
     "ReactionToSmiles",
     "ReactionToV3KRxnBlock",
+    "ReactionsFromCDXMLBlock",
+    "ReactionsFromCDXMLFile",
     "ReapplyMolBlockWedging",
     "ReduceProductToSideChains",
     "RemoveAllHs",
@@ -2015,7 +2020,7 @@ def CombineMols( mol1: Mol, mol2: Mol, offset: Point3D = Point3D()) -> Mol:
         Combine the atoms from two molecules to produce a third
 
         C++ signature :
-            RDKit::ROMol* CombineMols(RDKit::ROMol,RDKit::ROMol [,RDGeom::Point3D=<rdkit.Geometry.rdGeometry.Point3D object at 0x7fd05d0481c0>])
+            RDKit::ROMol* CombineMols(RDKit::ROMol,RDKit::ROMol [,RDGeom::Point3D=<rdkit.Geometry.rdGeometry.Point3D object at 0x7f8363c5f1c0>])
     """
 def Compute2DCoords( mol: Mol, canonOrient: bool = True, clearConfs: bool = True, coordMap: dict = {}, nFlipsPerSample: int = 0, nSample: int = 0, sampleSeed: int = 0, permuteDeg4Nodes: bool = False, bondLength: float = -1.0, forceRDKit: bool = False, useRingTemplates: bool = False) -> int:
     """
@@ -2281,7 +2286,7 @@ def CreateDifferenceFingerprintForReaction( reaction: ChemicalReaction, Reaction
         construct a difference fingerprint for a ChemicalReaction by subtracting the reactant fingerprint from the product fingerprint
 
         C++ signature :
-            RDKit::SparseIntVect<unsigned int>* CreateDifferenceFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7fd05c9b38c0>])
+            RDKit::SparseIntVect<unsigned int>* CreateDifferenceFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7f83635c8840>])
     """
 def CreateMolDataSubstanceGroup( mol: Mol, fieldName: str, value: str) -> SubstanceGroup:
     """
@@ -2313,7 +2318,7 @@ def CreateStructuralFingerprintForReaction( reaction: ChemicalReaction, Reaction
         construct a structural fingerprint for a ChemicalReaction by concatenating the reactant fingerprint and the product fingerprint
 
         C++ signature :
-            ExplicitBitVect* CreateStructuralFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7fd05c9b3240>])
+            ExplicitBitVect* CreateStructuralFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7f83635c8240>])
     """
 def CustomProp_VSA_( mol: Mol, customPropName: str, bins: AtomPairsParameters, force: bool = False) -> list:
     """
@@ -5786,9 +5791,9 @@ def MolToMolFile( mol: Mol, filename: str, includeStereo: bool = True, confId: i
         C++ signature :
             void MolToMolFile(RDKit::ROMol,std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > [,bool=True [,int=-1 [,bool=True [,bool=False]]]])
     """
-def MolToMrvBlock( arg1: Mol, mol: bool, includeStereo: int = True, confId: bool = -1, kekulize: bool = True) -> str:
+def MolToMrvBlock( mol: Mol, includeStereo: bool = True, confId: int = -1, kekulize: bool = True, prettyPrint: bool = False) -> str:
     """
-    MolToMrvBlock( arg1: Mol, mol: bool, includeStereo: int = True, confId: bool = -1, kekulize: bool = True) -> str
+    MolToMrvBlock( mol: Mol, includeStereo: bool = True, confId: int = -1, kekulize: bool = True, prettyPrint: bool = False) -> str
         Returns a Marvin (Mrv) Mol block for a molecule
           ARGUMENTS:
         
@@ -5797,6 +5802,7 @@ def MolToMrvBlock( arg1: Mol, mol: bool, includeStereo: int = True, confId: bool
               information in the output
             - confId: (optional) selects which conformation to output (-1 = default)
             - kekulize: (optional) triggers kekulization of the molecule before it's written.
+            - prettyPrint: (optional) makes the output more human readable.
         
           RETURNS:
         
@@ -5805,11 +5811,11 @@ def MolToMrvBlock( arg1: Mol, mol: bool, includeStereo: int = True, confId: bool
         
 
         C++ signature :
-            std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > MolToMrvBlock(RDKit::ROMol,bool [,int=True [,bool=-1 [,bool=True]]])
+            std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > MolToMrvBlock(RDKit::ROMol [,bool=True [,int=-1 [,bool=True [,bool=False]]]])
     """
-def MolToMrvFile( arg1: Mol, mol: str, filename: bool, includeStereo: int = True, confId: bool = -1, kekulize: bool = True) -> None:
+def MolToMrvFile( mol: Mol, filename: str, includeStereo: bool = True, confId: int = -1, kekulize: bool = True, prettyPrint: bool = False) -> None:
     """
-    MolToMrvFile( arg1: Mol, mol: str, filename: bool, includeStereo: int = True, confId: bool = -1, kekulize: bool = True) -> None
+    MolToMrvFile( mol: Mol, filename: str, includeStereo: bool = True, confId: int = -1, kekulize: bool = True, prettyPrint: bool = False) -> None
         Writes a Marvin (MRV) file for a molecule
           ARGUMENTS:
         
@@ -5819,6 +5825,7 @@ def MolToMrvFile( arg1: Mol, mol: str, filename: bool, includeStereo: int = True
               information in the output
             - confId: (optional) selects which conformation to output (-1 = default)
             - kekulize: (optional) triggers kekulization of the molecule before it's written.
+            - prettyPrint: (optional) makes the output more human readable.
         
           RETURNS:
         
@@ -5827,7 +5834,7 @@ def MolToMrvFile( arg1: Mol, mol: str, filename: bool, includeStereo: int = True
         
 
         C++ signature :
-            void MolToMrvFile(RDKit::ROMol,std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >,bool [,int=True [,bool=-1 [,bool=True]]])
+            void MolToMrvFile(RDKit::ROMol,std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > [,bool=True [,int=-1 [,bool=True [,bool=False]]]])
     """
 def MolToPDBBlock( mol: Mol, confId: int = -1, flavor: int = 0) -> str:
     """
@@ -6136,6 +6143,22 @@ def MolsToJSON( mols: AtomPairsParameters, params: AtomPairsParameters = None) -
 
         C++ signature :
             std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > MolsToJSON(boost::python::api::object [,boost::python::api::object=None])
+    """
+def MrvBlockIsReaction( mrvData: str) -> bool:
+    """
+    MrvBlockIsReaction( mrvData: str) -> bool
+        returns whether or not an MRV block contains reaction data
+
+        C++ signature :
+            bool MrvBlockIsReaction(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >)
+    """
+def MrvFileIsReaction( filename: str) -> bool:
+    """
+    MrvFileIsReaction( filename: str) -> bool
+        returns whether or not an MRV file contains reaction data
+
+        C++ signature :
+            bool MrvFileIsReaction(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >)
     """
 def MurckoDecompose( mol: Mol) -> Mol:
     """
@@ -6591,6 +6614,9 @@ def ReactionFromMrvBlock( rxnblock: AtomPairsParameters, sanitize: bool = False,
 
         C++ signature :
             RDKit::ChemicalReaction* ReactionFromMrvBlock(boost::python::api::object [,bool=False [,bool=False]])
+
+        C++ signature :
+            RDKit::ChemicalReaction* ReactionFromMrvBlock(boost::python::api::object [,bool=False [,bool=False]])
     """
 def ReactionFromMrvFile( filename: str, sanitize: bool = False, removeHs: bool = False) -> ChemicalReaction:
     """
@@ -6666,13 +6692,21 @@ def ReactionToMolecule( reaction: ChemicalReaction) -> Mol:
         C++ signature :
             RDKit::ROMol* ReactionToMolecule(RDKit::ChemicalReaction)
     """
-def ReactionToMrvBlock( arg1: ChemicalReaction, reaction: bool) -> str:
+def ReactionToMrvBlock( reaction: ChemicalReaction, prettyPrint: bool = False) -> str:
     """
-    ReactionToMrvBlock( arg1: ChemicalReaction, reaction: bool) -> str
+    ReactionToMrvBlock( reaction: ChemicalReaction, prettyPrint: bool = False) -> str
         construct a string in Marvin (MRV) rxn format for a ChemicalReaction
 
         C++ signature :
-            std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > ReactionToMrvBlock(RDKit::ChemicalReaction,bool)
+            std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > ReactionToMrvBlock(RDKit::ChemicalReaction [,bool=False])
+    """
+def ReactionToMrvFile( arg1: ChemicalReaction, reaction: str, prettyPrint: bool = False) -> None:
+    """
+    ReactionToMrvFile( arg1: ChemicalReaction, reaction: str, prettyPrint: bool = False) -> None
+        write a Marvin (MRV) rxn file for a ChemicalReaction
+
+        C++ signature :
+            void ReactionToMrvFile(RDKit::ChemicalReaction,std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > [,bool=False])
     """
 def ReactionToRxnBlock( reaction: ChemicalReaction, separateAgents: bool = False, forceV3000: bool = False) -> str:
     """
@@ -6705,6 +6739,22 @@ def ReactionToV3KRxnBlock( reaction: ChemicalReaction, separateAgents: bool = Fa
 
         C++ signature :
             std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > ReactionToV3KRxnBlock(RDKit::ChemicalReaction [,bool=False])
+    """
+def ReactionsFromCDXMLBlock( rxnblock: AtomPairsParameters, sanitize: bool = False, removeHs: bool = False) -> object:
+    """
+    ReactionsFromCDXMLBlock( rxnblock: AtomPairsParameters, sanitize: bool = False, removeHs: bool = False) -> object
+        construct a tuple of ChemicalReactions from a string in CDXML format
+
+        C++ signature :
+            boost::python::api::object ReactionsFromCDXMLBlock(boost::python::api::object [,bool=False [,bool=False]])
+    """
+def ReactionsFromCDXMLFile( filename: str, sanitize: bool = False, removeHs: bool = False) -> object:
+    """
+    ReactionsFromCDXMLFile( filename: str, sanitize: bool = False, removeHs: bool = False) -> object
+        construct a tuple of ChemicalReactions from a CDXML rxn file
+
+        C++ signature :
+            boost::python::api::object ReactionsFromCDXMLFile(char const* [,bool=False [,bool=False]])
     """
 def ReapplyMolBlockWedging( arg1: Mol) -> None:
     """
@@ -7052,7 +7102,7 @@ def SanitizeRxn( rxn: ChemicalReaction, sanitizeOps: int = 4294967295, params: A
         
 
         C++ signature :
-            RDKit::RxnOps::SanitizeRxnFlags SanitizeRxn(RDKit::ChemicalReaction {lvalue} [,unsigned long=4294967295 [,RDKit::MolOps::AdjustQueryParameters=<rdkit.Chem.rdmolops.AdjustQueryParameters object at 0x7fd05d05d900> [,bool=False]]])
+            RDKit::RxnOps::SanitizeRxnFlags SanitizeRxn(RDKit::ChemicalReaction {lvalue} [,unsigned long=4294967295 [,RDKit::MolOps::AdjustQueryParameters=<rdkit.Chem.rdmolops.AdjustQueryParameters object at 0x7f8363636360> [,bool=False]]])
     """
 def SetAllowNontetrahedralChirality( arg1: bool) -> None:
     """
@@ -7741,10 +7791,10 @@ def molzip( a: Mol, b: Mol, params: MolzipParams = MolzipParams()) -> Mol:
         zip together two molecules using the given matching parameters
 
         C++ signature :
-            RDKit::ROMol* molzip(RDKit::ROMol,RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7fd05d040f60>])
+            RDKit::ROMol* molzip(RDKit::ROMol,RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f8363c57f60>])
 
         C++ signature :
-            RDKit::ROMol* molzip(RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7fd05d05a040>])
+            RDKit::ROMol* molzip(RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f8363c71040>])
     """
 @typing.overload
 def molzip( a: Mol, params: MolzipParams = MolzipParams()) -> Mol:
@@ -7757,7 +7807,7 @@ def molzipFragments( mols: AtomPairsParameters, params: MolzipParams = MolzipPar
         must be the core
 
         C++ signature :
-            RDKit::ROMol* molzipFragments(boost::python::api::object {lvalue} [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7fd05d05a0f0>])
+            RDKit::ROMol* molzipFragments(boost::python::api::object {lvalue} [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f8363c710f0>])
     """
 def srETKDGv3() -> EmbedParameters:
     """

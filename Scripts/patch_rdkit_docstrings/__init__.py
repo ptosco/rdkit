@@ -400,6 +400,7 @@ class CppFile(DictLike):
             def_init_nodes (dict): dict relating node hash to a FunctionDef instance
             level (int, optional): _description_. Defaults to 0.
         """
+        log_path = self.cpp_path_noext + ".log"
         is_staticmethod = (def_cursor.spelling == "staticmethod" and level == 1)
         level += 1
         for child in cursor.get_children():
@@ -413,15 +414,27 @@ class CppFile(DictLike):
                         func_names.pop(func_name_idx)
                         func_name_to_hash[func_name] = def_cursor.hash
                         def_init_nodes[def_cursor.hash] = FunctionDef(def_cursor, func_name, is_staticmethod, level)
+                        with open(log_path, "a") as hnd:
+                            print(f"1) find_func_name_r def_cursor.hash {def_cursor.hash} level {level} func_name {func_name} kind {def_cursor.kind} tokens {[t.spelling for t in def_cursor.get_tokens()]}", file=hnd)
+                            hnd.flush()
                     except ValueError:
                         hash_for_func_name = func_name_to_hash.get(func_name, None)
-                        if hash_for_func_name is not None:
+                        if hash_for_func_name is not None and hash_for_func_name != def_cursor.hash:
                             prev_function_def = def_init_nodes.get(hash_for_func_name, None)
                             if prev_function_def is not None:
                                 if prev_function_def.is_staticmethod and not is_staticmethod:
                                     def_init_nodes[hash_for_func_name] = FunctionDef(def_cursor, func_name, True, level)
                                 elif not prev_function_def.is_staticmethod and is_staticmethod:
                                     def_init_nodes[hash_for_func_name] = FunctionDef(prev_function_def.def_cursor, func_name, True, prev_function_def.level)
+                                elif (not (prev_function_def.is_staticmethod ^ is_staticmethod)
+                                      and prev_function_def.func_name == func_name
+                                      and def_cursor.kind != CursorKind.MEMBER_REF_EXPR
+                                      and def_cursor.hash not in def_init_nodes
+                                      and self.is_last_def(func_name, list(def_cursor.get_tokens()))):
+                                    with open(log_path, "a") as hnd:
+                                        print(f"2) find_func_name_r def_cursor.hash {def_cursor.hash} level {level} func_name {func_name} kind {def_cursor.kind} tokens {[t.spelling for t in def_cursor.get_tokens()]}", file=hnd)
+                                        hnd.flush()
+                                    def_init_nodes[def_cursor.hash] = FunctionDef(def_cursor, func_name, is_staticmethod, prev_function_def.level)
             self.find_func_name_r(child, def_cursor, func_names, func_name_to_hash, def_init_nodes, level)
 
     def find_cpp_func_r(self, cursor, type_ref_dict, requested_level, param_count=-1, level=0):
@@ -447,7 +460,6 @@ class CppFile(DictLike):
             if level == requested_level:
                 if child.kind == CursorKind.DECL_REF_EXPR and child.spelling != "def":
                     res = child
-                    break
                 elif child.kind == CursorKind.PARM_DECL:
                     assert param_count != -1
                     param_count += 1
@@ -456,25 +468,34 @@ class CppFile(DictLike):
                         if child2.kind == CursorKind.DECL_REF_EXPR:
                             res = child2
                             break
-                    if res is not None:
-                        break
-            res = self.find_cpp_func_r(child, type_ref_dict, requested_level, param_count, level)
-            if res is not None:
-                break
+            if res is None:
+                res = self.find_cpp_func_r(child, type_ref_dict, requested_level, param_count, level)
         if res is not None and not isinstance(res, tuple):
             decl_ref = res
             res = None
             for child in decl_ref.get_children():
-                if child.kind == CursorKind.TYPE_REF and decl_ref.spelling:
-                    type_ref = child.spelling.split("::")[-1]
+                if child.kind == CursorKind.TEMPLATE_REF and decl_ref.spelling:
+                    template_ref = child.spelling.split("::")[-1]
                     with open(log_path, "a") as hnd:
                         print(f"1) find_cpp_func_r type_ref {type_ref}", file=hnd)
                         hnd.flush()
-                    type_ref = type_ref_dict.get(type_ref, type_ref)
+                    template_ref = type_ref_dict.get(template_ref, template_ref)
                     with open(log_path, "a") as hnd:
                         print(f"2) find_cpp_func_r type_ref {type_ref}", file=hnd)
                         hnd.flush()
+                    res = template_ref + "::" + decl_ref.spelling
+                    break
+                elif child.kind == CursorKind.TYPE_REF and decl_ref.spelling:
+                    type_ref = child.spelling.split("::")[-1]
+                    with open(log_path, "a") as hnd:
+                        print(f"3) find_cpp_func_r type_ref {type_ref}", file=hnd)
+                        hnd.flush()
+                    type_ref = type_ref_dict.get(type_ref, type_ref)
+                    with open(log_path, "a") as hnd:
+                        print(f"4) find_cpp_func_r type_ref {type_ref}", file=hnd)
+                        hnd.flush()
                     res = type_ref + "::" + decl_ref.spelling
+                    break
                 elif child.kind == CursorKind.OVERLOADED_DECL_REF and not decl_ref.spelling and child.spelling:
                     decl_ref = child
             if res is None and decl_ref.spelling:
@@ -518,7 +539,7 @@ class CppFile(DictLike):
             if (child.kind in (CursorKind.CLASS_DECL, CursorKind.CLASS_TEMPLATE, CursorKind.STRUCT_DECL)
                 and child.spelling == cpp_class_name):
                 for child2 in child.get_children():
-                    if child2.kind == CursorKind.CXX_METHOD and child2.spelling == func_name:
+                    if child2.kind in (CursorKind.CXX_METHOD, CursorKind.FUNCTION_TEMPLATE) and child2.spelling == func_name:
                         res = child
                         break
                     elif child2.kind == CursorKind.CXX_BASE_SPECIFIER:
@@ -811,6 +832,10 @@ class CppFile(DictLike):
                     last_seen_idx = None
                     while token_idx < len(tokens):
                         s = tokens[token_idx].spelling
+                        if (s == "."
+                            and token_idx + 1 < len(tokens)
+                            and tokens[token_idx + 1].spelling in ("def", "def_pickle", "staticmethod")):
+                            break
                         if s and s[0] in ("(", "<"):
                             incr = s.count(s[0])
                             bracket_count += incr
@@ -823,7 +848,7 @@ class CppFile(DictLike):
                             last_seen_idx = token_idx
                         token_idx += 1
                     if last_seen_idx is None:
-                        raise IndexError(f"Failed to find end of definitions; tokens: {[t.spelling for t in tokens[i+4:]]}")
+                        raise IndexError(f"Failed to find end of definitions; tokens[i+4]: {[t.spelling for t in tokens[i+4:]]}")
                     if need_comma:
                         python_args = ", " + python_args
                 potential_non_self_token = tokens[last_seen_idx]
@@ -850,6 +875,21 @@ class CppFile(DictLike):
                 and tokens[i+2].spelling == f"\"{func_name}\""):
                 return tokens[i:]
         return None
+
+    def is_last_def(self, func_name, tokens):
+        """Return true if the last "def" in tokens corresponds to func_name.
+
+        Args:
+            func_name (str): Python function name
+            tokens (iterable): iterable of Token objects
+
+        Returns:
+            True if the last "def" in tokens corresponds to func_name, False if not
+        """
+        for i, t in reversed(list(enumerate(tokens))):
+            if t.spelling == "def" and tokens[i+1].spelling == "(":
+                return (tokens[i+2].spelling == f"\"{func_name}\"")
+        return False
 
     def get_insertion(self, is_init, tokens, is_staticmethod=False, cpp_func_name=None, param_count=None, tu_cursor=None):
         """Get the insertion string to fix a Python function signature.
@@ -990,7 +1030,7 @@ class CppFile(DictLike):
                             cpp_func_name = None
                             if res is not None:
                                 param_count, cpp_func_name = res
-                                print(f"5) parse_ast cpp_path {self.cpp_path} cpp_func_name {cpp_func_name} func_name {function_def.func_name} param_count {param_count}", file=hnd)
+                                print(f"5) parse_ast cpp_path {self.cpp_path} cpp_func_name {cpp_func_name} func_name {function_def.func_name} param_count {param_count} tokens {[t.spelling for t in tokens[3:]]}", file=hnd)
                                 hnd.flush()
                             tokens_from_func_def = self.find_func_def(function_def.func_name, tokens[3:])
                             if tokens_from_func_def is not None:
@@ -1305,7 +1345,8 @@ class FixSignatures:
         msg = ""
         self.queue = queue.Queue()
         cpp_class_files = list(self.cpp_file_dict.values())
-        #cpp_class_files = [f for f in cpp_class_files if os.path.basename(f.cpp_path).startswith("ForceField")]
+        # Uncomment the following to troubleshoot specific file(s)
+        # cpp_class_files = [f for f in cpp_class_files if os.path.basename(f.cpp_path).startswith("SubstanceGroup")]
         n_files = len(cpp_class_files)
         self.logger.debug(f"Number of files: {n_files}")
         n_workers = min(self.concurrency, n_files)

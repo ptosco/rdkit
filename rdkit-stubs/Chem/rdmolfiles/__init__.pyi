@@ -403,7 +403,7 @@ class MaeWriter(Boost.Python.instance):
             returns the Maestro ct block text for a molecule
 
             C++ signature :
-                std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > GetText(RDKit::ROMol [,int=-1 [,std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >=<rdkit.rdBase._vectNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE object at 0x7fd05d023dc0>]])
+                std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > GetText(RDKit::ROMol [,int=-1 [,std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >=<rdkit.rdBase._vectNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE object at 0x7f8363c3cdc0>]])
         """
     @staticmethod
     def NumMols( arg1: MaeWriter) -> int: 
@@ -2879,9 +2879,9 @@ def MolToMolFile( mol: Mol, filename: str, includeStereo: bool = True, confId: i
         C++ signature :
             void MolToMolFile(RDKit::ROMol,std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > [,bool=True [,int=-1 [,bool=True [,bool=False]]]])
     """
-def MolToMrvBlock( arg1: Mol, mol: bool, includeStereo: int = True, confId: bool = -1, kekulize: bool = True) -> str:
+def MolToMrvBlock( mol: Mol, includeStereo: bool = True, confId: int = -1, kekulize: bool = True, prettyPrint: bool = False) -> str:
     """
-    MolToMrvBlock( arg1: Mol, mol: bool, includeStereo: int = True, confId: bool = -1, kekulize: bool = True) -> str
+    MolToMrvBlock( mol: Mol, includeStereo: bool = True, confId: int = -1, kekulize: bool = True, prettyPrint: bool = False) -> str
         Returns a Marvin (Mrv) Mol block for a molecule
           ARGUMENTS:
         
@@ -2890,6 +2890,7 @@ def MolToMrvBlock( arg1: Mol, mol: bool, includeStereo: int = True, confId: bool
               information in the output
             - confId: (optional) selects which conformation to output (-1 = default)
             - kekulize: (optional) triggers kekulization of the molecule before it's written.
+            - prettyPrint: (optional) makes the output more human readable.
         
           RETURNS:
         
@@ -2898,11 +2899,11 @@ def MolToMrvBlock( arg1: Mol, mol: bool, includeStereo: int = True, confId: bool
         
 
         C++ signature :
-            std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > MolToMrvBlock(RDKit::ROMol,bool [,int=True [,bool=-1 [,bool=True]]])
+            std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > MolToMrvBlock(RDKit::ROMol [,bool=True [,int=-1 [,bool=True [,bool=False]]]])
     """
-def MolToMrvFile( arg1: Mol, mol: str, filename: bool, includeStereo: int = True, confId: bool = -1, kekulize: bool = True) -> None:
+def MolToMrvFile( mol: Mol, filename: str, includeStereo: bool = True, confId: int = -1, kekulize: bool = True, prettyPrint: bool = False) -> None:
     """
-    MolToMrvFile( arg1: Mol, mol: str, filename: bool, includeStereo: int = True, confId: bool = -1, kekulize: bool = True) -> None
+    MolToMrvFile( mol: Mol, filename: str, includeStereo: bool = True, confId: int = -1, kekulize: bool = True, prettyPrint: bool = False) -> None
         Writes a Marvin (MRV) file for a molecule
           ARGUMENTS:
         
@@ -2912,6 +2913,7 @@ def MolToMrvFile( arg1: Mol, mol: str, filename: bool, includeStereo: int = True
               information in the output
             - confId: (optional) selects which conformation to output (-1 = default)
             - kekulize: (optional) triggers kekulization of the molecule before it's written.
+            - prettyPrint: (optional) makes the output more human readable.
         
           RETURNS:
         
@@ -2920,7 +2922,7 @@ def MolToMrvFile( arg1: Mol, mol: str, filename: bool, includeStereo: int = True
         
 
         C++ signature :
-            void MolToMrvFile(RDKit::ROMol,std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >,bool [,int=True [,bool=-1 [,bool=True]]])
+            void MolToMrvFile(RDKit::ROMol,std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > [,bool=True [,int=-1 [,bool=True [,bool=False]]]])
     """
 def MolToPDBBlock( mol: Mol, confId: int = -1, flavor: int = 0) -> str:
     """

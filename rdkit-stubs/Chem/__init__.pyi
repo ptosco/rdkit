@@ -843,7 +843,7 @@ def CombineMols( mol1: Mol, mol2: Mol, offset: Point3D = Point3D()) -> Mol:
         Combine the atoms from two molecules to produce a third
 
         C++ signature :
-            RDKit::ROMol* CombineMols(RDKit::ROMol,RDKit::ROMol [,RDGeom::Point3D=<rdkit.Geometry.rdGeometry.Point3D object at 0x7fd05d0481c0>])
+            RDKit::ROMol* CombineMols(RDKit::ROMol,RDKit::ROMol [,RDGeom::Point3D=<rdkit.Geometry.rdGeometry.Point3D object at 0x7f8363c5f1c0>])
     """
 def ConvertGenericQueriesToSubstanceGroups( mol: Mol) -> None:
     """
@@ -2604,9 +2604,9 @@ def MolToMolFile( mol: Mol, filename: str, includeStereo: bool = True, confId: i
         C++ signature :
             void MolToMolFile(RDKit::ROMol,std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > [,bool=True [,int=-1 [,bool=True [,bool=False]]]])
     """
-def MolToMrvBlock( arg1: Mol, mol: bool, includeStereo: int = True, confId: bool = -1, kekulize: bool = True) -> str:
+def MolToMrvBlock( mol: Mol, includeStereo: bool = True, confId: int = -1, kekulize: bool = True, prettyPrint: bool = False) -> str:
     """
-    MolToMrvBlock( arg1: Mol, mol: bool, includeStereo: int = True, confId: bool = -1, kekulize: bool = True) -> str
+    MolToMrvBlock( mol: Mol, includeStereo: bool = True, confId: int = -1, kekulize: bool = True, prettyPrint: bool = False) -> str
         Returns a Marvin (Mrv) Mol block for a molecule
           ARGUMENTS:
         
@@ -2615,6 +2615,7 @@ def MolToMrvBlock( arg1: Mol, mol: bool, includeStereo: int = True, confId: bool
               information in the output
             - confId: (optional) selects which conformation to output (-1 = default)
             - kekulize: (optional) triggers kekulization of the molecule before it's written.
+            - prettyPrint: (optional) makes the output more human readable.
         
           RETURNS:
         
@@ -2623,11 +2624,11 @@ def MolToMrvBlock( arg1: Mol, mol: bool, includeStereo: int = True, confId: bool
         
 
         C++ signature :
-            std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > MolToMrvBlock(RDKit::ROMol,bool [,int=True [,bool=-1 [,bool=True]]])
+            std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > MolToMrvBlock(RDKit::ROMol [,bool=True [,int=-1 [,bool=True [,bool=False]]]])
     """
-def MolToMrvFile( arg1: Mol, mol: str, filename: bool, includeStereo: int = True, confId: bool = -1, kekulize: bool = True) -> None:
+def MolToMrvFile( mol: Mol, filename: str, includeStereo: bool = True, confId: int = -1, kekulize: bool = True, prettyPrint: bool = False) -> None:
     """
-    MolToMrvFile( arg1: Mol, mol: str, filename: bool, includeStereo: int = True, confId: bool = -1, kekulize: bool = True) -> None
+    MolToMrvFile( mol: Mol, filename: str, includeStereo: bool = True, confId: int = -1, kekulize: bool = True, prettyPrint: bool = False) -> None
         Writes a Marvin (MRV) file for a molecule
           ARGUMENTS:
         
@@ -2637,6 +2638,7 @@ def MolToMrvFile( arg1: Mol, mol: str, filename: bool, includeStereo: int = True
               information in the output
             - confId: (optional) selects which conformation to output (-1 = default)
             - kekulize: (optional) triggers kekulization of the molecule before it's written.
+            - prettyPrint: (optional) makes the output more human readable.
         
           RETURNS:
         
@@ -2645,7 +2647,7 @@ def MolToMrvFile( arg1: Mol, mol: str, filename: bool, includeStereo: int = True
         
 
         C++ signature :
-            void MolToMrvFile(RDKit::ROMol,std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >,bool [,int=True [,bool=-1 [,bool=True]]])
+            void MolToMrvFile(RDKit::ROMol,std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > [,bool=True [,int=-1 [,bool=True [,bool=False]]]])
     """
 def MolToPDBBlock( mol: Mol, confId: int = -1, flavor: int = 0) -> str:
     """
@@ -3717,10 +3719,10 @@ def molzip( a: Mol, b: Mol, params: MolzipParams = MolzipParams()) -> Mol:
         zip together two molecules using the given matching parameters
 
         C++ signature :
-            RDKit::ROMol* molzip(RDKit::ROMol,RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7fd05d040f60>])
+            RDKit::ROMol* molzip(RDKit::ROMol,RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f8363c57f60>])
 
         C++ signature :
-            RDKit::ROMol* molzip(RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7fd05d05a040>])
+            RDKit::ROMol* molzip(RDKit::ROMol [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f8363c71040>])
     """
 @typing.overload
 def molzip( a: Mol, params: MolzipParams = MolzipParams()) -> Mol:
@@ -3733,7 +3735,7 @@ def molzipFragments( mols: object, params: MolzipParams = MolzipParams()) -> Mol
         must be the core
 
         C++ signature :
-            RDKit::ROMol* molzipFragments(boost::python::api::object {lvalue} [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7fd05d05a0f0>])
+            RDKit::ROMol* molzipFragments(boost::python::api::object {lvalue} [,RDKit::MolzipParams=<rdkit.Chem.rdmolops.MolzipParams object at 0x7f8363c710f0>])
     """
 def tossit() -> None:
     """

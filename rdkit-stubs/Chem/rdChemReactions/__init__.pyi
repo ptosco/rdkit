@@ -27,6 +27,8 @@ __all__ = [
     "IsReactionTemplateMoleculeAgent",
     "MOL_SPTR_VECT",
     "MatchOnlyAtRgroupsAdjustParams",
+    "MrvBlockIsReaction",
+    "MrvFileIsReaction",
     "PreprocessReaction",
     "RandomSampleAllBBsStrategy",
     "RandomSampleStrategy",
@@ -43,10 +45,13 @@ __all__ = [
     "ReactionMetadataToPNGString",
     "ReactionToMolecule",
     "ReactionToMrvBlock",
+    "ReactionToMrvFile",
     "ReactionToRxnBlock",
     "ReactionToSmarts",
     "ReactionToSmiles",
     "ReactionToV3KRxnBlock",
+    "ReactionsFromCDXMLBlock",
+    "ReactionsFromCDXMLFile",
     "ReduceProductToSideChains",
     "RemoveMappingNumbersFromReactions",
     "SANITIZE_ADJUST_REACTANTS",
@@ -403,10 +408,9 @@ class ChemicalReaction(Boost.Python.instance):
             C++ signature :
                 std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > GetPropNames(RDKit::ChemicalReaction {lvalue} [,bool=False [,bool=False]])
         """
-    @staticmethod
-    def GetPropsAsDict( arg1: ChemicalReaction, self: bool, includePrivate: bool = False, includeComputed: bool = False) -> dict: 
+    def GetPropsAsDict(self, includePrivate: bool = False, includeComputed: bool = False, autoConvertStrings: bool = True) -> dict: 
         """
-        GetPropsAsDict( arg1: ChemicalReaction, self: bool, includePrivate: bool = False, includeComputed: bool = False) -> dict
+        GetPropsAsDict( self: ChemicalReaction, includePrivate: bool = False, includeComputed: bool = False, autoConvertStrings: bool = True) -> dict
             Returns a dictionary populated with the reaction's properties.
              n.b. Some properties are not able to be converted to python types.
             
@@ -420,7 +424,7 @@ class ChemicalReaction(Boost.Python.instance):
             
 
             C++ signature :
-                boost::python::dict GetPropsAsDict(RDKit::ChemicalReaction,bool [,bool=False [,bool=False]])
+                boost::python::dict GetPropsAsDict(RDKit::ChemicalReaction [,bool=False [,bool=False [,bool=True]]])
         """
     def GetReactantTemplate(self, which: int) -> Mol: 
         """
@@ -751,7 +755,7 @@ class ChemicalReaction(Boost.Python.instance):
                 void _setImplicitPropertiesFlag(RDKit::ChemicalReaction {lvalue},bool)
         """
     __getstate_manages_dict__ = True
-    __instance_size__ = 232
+    __instance_size__ = 40
     __safe_for_unpickling__ = True
     pass
 class EnumerateLibraryBase(Boost.Python.instance):
@@ -1539,7 +1543,7 @@ def CreateDifferenceFingerprintForReaction( reaction: ChemicalReaction, Reaction
         construct a difference fingerprint for a ChemicalReaction by subtracting the reactant fingerprint from the product fingerprint
 
         C++ signature :
-            RDKit::SparseIntVect<unsigned int>* CreateDifferenceFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7fd05c9b38c0>])
+            RDKit::SparseIntVect<unsigned int>* CreateDifferenceFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7f83635c8840>])
     """
 def CreateStructuralFingerprintForReaction( reaction: ChemicalReaction, ReactionFingerPrintParams: ReactionFingerprintParams = ReactionFingerprintParams()) -> ExplicitBitVect:
     """
@@ -1547,7 +1551,7 @@ def CreateStructuralFingerprintForReaction( reaction: ChemicalReaction, Reaction
         construct a structural fingerprint for a ChemicalReaction by concatenating the reactant fingerprint and the product fingerprint
 
         C++ signature :
-            ExplicitBitVect* CreateStructuralFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7fd05c9b3240>])
+            ExplicitBitVect* CreateStructuralFingerprintForReaction(RDKit::ChemicalReaction [,RDKit::ReactionFingerprintParams=<rdkit.Chem.rdChemReactions.ReactionFingerprintParams object at 0x7f83635c8240>])
     """
 def EnumerateLibraryCanSerialize() -> bool:
     """
@@ -1629,6 +1633,22 @@ def MatchOnlyAtRgroupsAdjustParams() -> AdjustQueryParameters:
 
         C++ signature :
             RDKit::MolOps::AdjustQueryParameters MatchOnlyAtRgroupsAdjustParams()
+    """
+def MrvBlockIsReaction( mrvData: str) -> bool:
+    """
+    MrvBlockIsReaction( mrvData: str) -> bool
+        returns whether or not an MRV block contains reaction data
+
+        C++ signature :
+            bool MrvBlockIsReaction(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >)
+    """
+def MrvFileIsReaction( filename: str) -> bool:
+    """
+    MrvFileIsReaction( filename: str) -> bool
+        returns whether or not an MRV file contains reaction data
+
+        C++ signature :
+            bool MrvFileIsReaction(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >)
     """
 def PreprocessReaction( reaction: ChemicalReaction, queries: dict = {}, propName: str = 'molFileValue') -> object:
     """
@@ -1749,6 +1769,9 @@ def ReactionFromMrvBlock( rxnblock: AtomPairsParameters, sanitize: bool = False,
 
         C++ signature :
             RDKit::ChemicalReaction* ReactionFromMrvBlock(boost::python::api::object [,bool=False [,bool=False]])
+
+        C++ signature :
+            RDKit::ChemicalReaction* ReactionFromMrvBlock(boost::python::api::object [,bool=False [,bool=False]])
     """
 def ReactionFromMrvFile( filename: str, sanitize: bool = False, removeHs: bool = False) -> ChemicalReaction:
     """
@@ -1824,13 +1847,21 @@ def ReactionToMolecule( reaction: ChemicalReaction) -> Mol:
         C++ signature :
             RDKit::ROMol* ReactionToMolecule(RDKit::ChemicalReaction)
     """
-def ReactionToMrvBlock( arg1: ChemicalReaction, reaction: bool) -> str:
+def ReactionToMrvBlock( reaction: ChemicalReaction, prettyPrint: bool = False) -> str:
     """
-    ReactionToMrvBlock( arg1: ChemicalReaction, reaction: bool) -> str
+    ReactionToMrvBlock( reaction: ChemicalReaction, prettyPrint: bool = False) -> str
         construct a string in Marvin (MRV) rxn format for a ChemicalReaction
 
         C++ signature :
-            std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > ReactionToMrvBlock(RDKit::ChemicalReaction,bool)
+            std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > ReactionToMrvBlock(RDKit::ChemicalReaction [,bool=False])
+    """
+def ReactionToMrvFile( arg1: ChemicalReaction, reaction: str, prettyPrint: bool = False) -> None:
+    """
+    ReactionToMrvFile( arg1: ChemicalReaction, reaction: str, prettyPrint: bool = False) -> None
+        write a Marvin (MRV) rxn file for a ChemicalReaction
+
+        C++ signature :
+            void ReactionToMrvFile(RDKit::ChemicalReaction,std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > [,bool=False])
     """
 def ReactionToRxnBlock( reaction: ChemicalReaction, separateAgents: bool = False, forceV3000: bool = False) -> str:
     """
@@ -1863,6 +1894,22 @@ def ReactionToV3KRxnBlock( reaction: ChemicalReaction, separateAgents: bool = Fa
 
         C++ signature :
             std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > ReactionToV3KRxnBlock(RDKit::ChemicalReaction [,bool=False])
+    """
+def ReactionsFromCDXMLBlock( rxnblock: AtomPairsParameters, sanitize: bool = False, removeHs: bool = False) -> object:
+    """
+    ReactionsFromCDXMLBlock( rxnblock: AtomPairsParameters, sanitize: bool = False, removeHs: bool = False) -> object
+        construct a tuple of ChemicalReactions from a string in CDXML format
+
+        C++ signature :
+            boost::python::api::object ReactionsFromCDXMLBlock(boost::python::api::object [,bool=False [,bool=False]])
+    """
+def ReactionsFromCDXMLFile( filename: str, sanitize: bool = False, removeHs: bool = False) -> object:
+    """
+    ReactionsFromCDXMLFile( filename: str, sanitize: bool = False, removeHs: bool = False) -> object
+        construct a tuple of ChemicalReactions from a CDXML rxn file
+
+        C++ signature :
+            boost::python::api::object ReactionsFromCDXMLFile(char const* [,bool=False [,bool=False]])
     """
 def ReduceProductToSideChains( product: Mol, addDummyAtoms: bool = True) -> Mol:
     """
@@ -1911,7 +1958,7 @@ def SanitizeRxn( rxn: ChemicalReaction, sanitizeOps: int = 4294967295, params: A
         
 
         C++ signature :
-            RDKit::RxnOps::SanitizeRxnFlags SanitizeRxn(RDKit::ChemicalReaction {lvalue} [,unsigned long=4294967295 [,RDKit::MolOps::AdjustQueryParameters=<rdkit.Chem.rdmolops.AdjustQueryParameters object at 0x7fd05d05d900> [,bool=False]]])
+            RDKit::RxnOps::SanitizeRxnFlags SanitizeRxn(RDKit::ChemicalReaction {lvalue} [,unsigned long=4294967295 [,RDKit::MolOps::AdjustQueryParameters=<rdkit.Chem.rdmolops.AdjustQueryParameters object at 0x7f8363636360> [,bool=False]]])
     """
 def UpdateProductsStereochemistry( reaction: ChemicalReaction) -> None:
     """
