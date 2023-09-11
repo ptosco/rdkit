@@ -2559,6 +2559,26 @@ function test_png_metadata() {
     amoxicillin.delete();
 }
 
+function test_capture_logs() {
+    ["set_log_tee", "set_log_capture"].forEach((func, i) => {
+        console.log(`${i + 1}. ${func}`);
+        var logHandle = RDKitModule[func]("dummy");
+        assert(!logHandle);
+        var logHandle = RDKitModule[func]("rdApp.*");
+        assert(logHandle);
+        var logBuffer = logHandle.get_buffer();
+        assert(!logBuffer);
+        var mol = RDKitModule.get_mol("CN(C)(C)C");
+        assert(!mol);
+        logBuffer = logHandle.get_buffer();
+        assert(logBuffer);
+        assert(logBuffer.includes('Explicit valence for atom # 1 N, 4, is greater than permitted'));
+        logHandle.clear_buffer();
+        assert(!logHandle.get_buffer());
+        logHandle.delete();
+    })
+}
+
 initRDKitModule().then(function(instance) {
     var done = {};
     const waitAllTestsFinished = () => {
@@ -2626,6 +2646,7 @@ initRDKitModule().then(function(instance) {
     test_sanitize_no_kekulize_no_setaromaticity();
     test_partial_sanitization();
     test_png_metadata();
+    test_capture_logs();
     waitAllTestsFinished().then(() =>
         console.log("Tests finished successfully")
     );

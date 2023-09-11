@@ -840,7 +840,9 @@ class TestCase(unittest.TestCase):
     smi = Chem.MolToSmiles(query)
     self.assertEqual(smi, 'c1ccccc1')
     smi = Chem.MolToSmarts(query)
-    self.assertEqual(smi, '[#6]1:[#6]:[#6]:[#6]:[#6]:[#6,#7,#15]:1', smi)
+    self.assertEqual(smi, '[#6]1:[#6]:[#6]:[#6]:[#6]:[#6,#7,#15]:1')
+    smi = Chem.MolToSmarts(query, rootedAtAtom=5)
+    self.assertEqual(smi, '[#6,#7,#15]1:[#6]:[#6]:[#6]:[#6]:[#6]:1')
 
     query = Chem.MolFromMolFile(fileN, sanitize=False)
     smi = Chem.MolToSmiles(query)
@@ -848,6 +850,8 @@ class TestCase(unittest.TestCase):
     query.UpdatePropertyCache()
     smi = Chem.MolToSmarts(query)
     self.assertEqual(smi, '[#6]1=[#6]-[#6]=[#6]-[#6]=[#6,#7,#15]-1')
+    smi = Chem.MolToSmarts(query, rootedAtAtom=3)
+    self.assertEqual(smi, '[#6]1=[#6]-[#6]=[#6]-[#6,#7,#15]=[#6]-1')
     smi = "C1=CC=CC=C1"
     mol = Chem.MolFromSmiles(smi, 0)
     self.assertTrue(mol.HasSubstructMatch(query))
@@ -2181,6 +2185,11 @@ CAS<~>
     self.assertFalse(ri.AreAtomsInSameRingOfSize(2, 3, 5))
     self.assertEqual(len(ri.BondMembers(2)), 2)
     self.assertEqual(len(ri.BondMembers(0)), 1)
+    self.assertTrue(ri.IsRingFused(0))
+    self.assertTrue(ri.IsRingFused(1))
+    self.assertTrue(ri.AreRingsFused(0, 1))
+    self.assertTrue(ri.NumFusedBonds(0) == 1)
+    self.assertTrue(ri.NumFusedBonds(1) == 1)
     self.assertEqual(ri.BondRingSizes(2), (4, 3))
     self.assertEqual(ri.BondRingSizes(0), (4, ))
     self.assertEqual(ri.BondRingSizes(99), ())
@@ -4556,35 +4565,35 @@ $$$$
     m = Chem.MolFromSmiles("CC")
     errors = {
       "int":
-      "key `foo` exists but does not result in an integer value reason: boost::bad_any_cast: failed conversion using boost::any_cast",
+      r"key `foo` exists but does not result in an integer value reason: [B,b]ad any[\ ,_]cast",
       "uint overflow":
       "key `foo` exists but does not result in an unsigned integer value reason: bad numeric conversion: negative overflow",
       "int overflow":
       "key `foo` exists but does not result in an integer value reason: bad numeric conversion: positive overflow",
       "double":
-      "key `foo` exists but does not result in a double value reason: boost::bad_any_cast: failed conversion using boost::any_cast",
+      r"key `foo` exists but does not result in a double value reason: [B,b]ad any[\ ,_]cast",
       "bool":
-      "key `foo` exists but does not result in a True or False value reason: boost::bad_any_cast: failed conversion using boost::any_cast"
+      r"key `foo` exists but does not result in a True or False value reason: [B,b]ad any[\ ,_]cast"
     }
 
     for ob in [m, list(m.GetAtoms())[0], list(m.GetBonds())[0]]:
       ob.SetDoubleProp("foo", 2.0)
       with self.assertRaises(ValueError) as e:
         ob.GetBoolProp("foo")
-      self.assertEqual(str(e.exception), errors["bool"])
+      self.assertRegex(str(e.exception), errors["bool"])
 
       with self.assertRaises(ValueError) as e:
         ob.GetIntProp("foo")
-      self.assertEqual(str(e.exception), errors["int"])
+      self.assertRegex(str(e.exception), errors["int"])
 
       ob.SetBoolProp("foo", True)
       with self.assertRaises(ValueError) as e:
         ob.GetDoubleProp("foo")
-      self.assertEqual(str(e.exception), errors["double"])
+      self.assertRegex(str(e.exception), errors["double"])
 
       with self.assertRaises(ValueError) as e:
         ob.GetIntProp("foo")
-      self.assertEqual(str(e.exception), errors["int"])
+      self.assertRegex(str(e.exception), errors["int"])
 
       ob.SetIntProp("foo", -1)
       with self.assertRaises(ValueError) as e:
@@ -7337,6 +7346,28 @@ CAS<~>
 
     self.assertEqual(sgs[1].GetGroupType(), Chem.StereoGroupType.STEREO_OR)
     self.assertEqual(len(sgs[1].GetAtoms()), 1)
+
+  def testMrvHandling(self):
+    fn1 = os.path.join(RDConfig.RDBaseDir,'Code','GraphMol','MarvinParse','test_data','aspirin.mrv')
+    mol = Chem.MolFromMrvFile(fn1)
+    self.assertIsNotNone(mol)
+    self.assertEqual(mol.GetNumAtoms(),13)
+    mrv = Chem.MolToMrvBlock(mol)
+    self.assertTrue('<molecule molID="m1">' in mrv)
+    self.assertFalse('<reaction>' in mrv)
+
+    fName = tempfile.NamedTemporaryFile(suffix='.mrv').name
+    self.assertFalse(os.path.exists(fName))
+    Chem.MolToMrvFile(mol,fName)
+    self.assertTrue(os.path.exists(fName))
+    os.unlink(fName)
+
+    with open(fn1,'r') as inf:
+      ind = inf.read()
+    mol = Chem.MolFromMrvBlock(ind)
+    self.assertIsNotNone(mol)
+    self.assertEqual(mol.GetNumAtoms(),13)
+
 
 
 if __name__ == '__main__':

@@ -170,6 +170,12 @@ RDKIT_RDKITCFFI_EXPORT short get_mols_from_png_blob(const char *png_blob,
                                                     const char *details_json);
 RDKIT_RDKITCFFI_EXPORT void free_mol_array(char ***pkl_array,
                                            size_t **pkl_sz_array);
+// logging
+RDKIT_RDKITCFFI_EXPORT void *set_log_tee(const char *log_name);
+RDKIT_RDKITCFFI_EXPORT void *set_log_capture(const char *log_name);
+RDKIT_RDKITCFFI_EXPORT short destroy_log_handle(void **log_handle);
+RDKIT_RDKITCFFI_EXPORT char *get_log_buffer(void *log_handle);
+RDKIT_RDKITCFFI_EXPORT short clear_log_buffer(void *log_handle);
 
 #ifdef __cplusplus
 }
