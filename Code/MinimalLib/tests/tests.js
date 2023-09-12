@@ -2402,6 +2402,26 @@ function test_partial_sanitization() {
     mol2.delete();
 }
 
+function test_capture_logs() {
+    ["set_log_tee", "set_log_capture"].forEach((func, i) => {
+        console.log(`${i + 1}. ${func}`);
+        var logHandle = RDKitModule[func]("dummy");
+        assert(!logHandle);
+        var logHandle = RDKitModule[func]("rdApp.*");
+        assert(logHandle);
+        var logBuffer = logHandle.get_buffer();
+        assert(!logBuffer);
+        var mol = RDKitModule.get_mol("CN(C)(C)C");
+        assert(!mol);
+        logBuffer = logHandle.get_buffer();
+        assert(logBuffer);
+        assert(logBuffer.includes('Explicit valence for atom # 1 N, 4, is greater than permitted'));
+        logHandle.clear_buffer();
+        assert(!logHandle.get_buffer());
+        logHandle.delete();
+    })
+}
+
 function test_png_metadata() {
     const PNG_NO_METADATA = "/../test_data/bilastine_no_metadata.png";
     const PNG_WITH_METADATA = "/../test_data/bilastine_with_metadata.png";
@@ -2559,24 +2579,59 @@ function test_png_metadata() {
     amoxicillin.delete();
 }
 
-function test_capture_logs() {
-    ["set_log_tee", "set_log_capture"].forEach((func, i) => {
-        console.log(`${i + 1}. ${func}`);
-        var logHandle = RDKitModule[func]("dummy");
-        assert(!logHandle);
-        var logHandle = RDKitModule[func]("rdApp.*");
-        assert(logHandle);
-        var logBuffer = logHandle.get_buffer();
-        assert(!logBuffer);
-        var mol = RDKitModule.get_mol("CN(C)(C)C");
-        assert(!mol);
-        logBuffer = logHandle.get_buffer();
-        assert(logBuffer);
-        assert(logBuffer.includes('Explicit valence for atom # 1 N, 4, is greater than permitted'));
-        logHandle.clear_buffer();
-        assert(!logHandle.get_buffer());
-        logHandle.delete();
-    })
+function test_combine_with() {
+{
+    var mol = RDKitModule.get_mol("CC");
+    assert(mol);
+    var other = RDKitModule.get_mol("NCC");
+    assert(other);
+    assert(!mol.combine_with(other));
+    assert(mol.get_num_atoms() === 5);
+    assert(mol.get_smiles() === "CC.CCN");
+    mol.delete();
+    other.delete();
+}
+{
+    var mol = RDKitModule.get_mol("C1CC1 |(0.866025,0,;-0.433013,0.75,;-0.433013,-0.75,)|");
+    var mol_copy = RDKitModule.get_mol_copy(mol);
+    assert(mol);
+    var other = RDKitModule.get_mol("C1CNC1 |(-1.06066,0,;0,-1.06066,;1.06066,0,;0,1.06066,)|");
+    assert(other);
+    assert(!mol.combine_with(other, JSON.stringify({offset: [4.0, 0.0, 0.0]})));
+    assert(mol.get_num_atoms() === 7);
+    assert(mol.get_smiles() === "C1CC1.C1CNC1");
+    assert(mol.get_molblock().includes("    4.0000"));
+    mol.delete();
+    assert(!mol_copy.combine_with(other, JSON.stringify({offset: [9.0, 0.0, 0.0]})));
+    assert(mol_copy.get_num_atoms() === 7);
+    assert(mol_copy.get_smiles() === "C1CC1.C1CNC1");
+    assert(mol_copy.get_molblock().includes("    9.0000"));
+    mol_copy.delete();
+    other.delete();
+}
+}
+
+function test_get_coords() {
+    {
+        var mol = RDKitModule.get_mol("C1CC1 |(0.866025,0,;-0.433013,0.75,;-0.433013,-0.75,)|");
+        assert(mol);
+        assert(mol.has_coords() === 2);
+        var pos = mol.get_coords();
+        assert(Array.isArray(pos));
+        assert(pos.length === mol.get_num_atoms());
+        assert(pos.every((xyz) => Array.isArray(xyz) && xyz.length === 3 && xyz.every((c) => typeof c === "number")));
+        assert(JSON.stringify(pos) === "[[0.866025,0,0],[-0.433013,0.75,0],[-0.433013,-0.75,0]]");
+        mol.delete();
+    }
+    {
+        var mol = RDKitModule.get_mol("C1CC1");
+        assert(mol);
+        assert(!mol.has_coords());
+        var pos = mol.get_coords();
+        assert(Array.isArray(pos));
+        assert(!pos.length);
+        mol.delete();
+    }
 }
 
 initRDKitModule().then(function(instance) {
@@ -2645,8 +2700,10 @@ initRDKitModule().then(function(instance) {
     }
     test_sanitize_no_kekulize_no_setaromaticity();
     test_partial_sanitization();
-    test_png_metadata();
     test_capture_logs();
+    test_png_metadata();
+    test_combine_with();
+    test_get_coords();
     waitAllTestsFinished().then(() =>
         console.log("Tests finished successfully")
     );

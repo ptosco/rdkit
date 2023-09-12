@@ -99,6 +99,7 @@ class JSMol {
       "instead")]] bool
   is_valid() const;
   int has_coords() const;
+  const RDGeom::POINT3D_VECT& get_coords() const;
 
   std::string get_stereo_tags() const;
   std::string get_aromatic_form() const;
@@ -145,6 +146,10 @@ class JSMol {
   unsigned int get_num_bonds() const;
   std::string add_to_png_blob(const std::string &pngString,
                               const std::string &details) const;
+  std::string combine_with(const JSMol &other, const std::string &details);
+  std::string combine_with(const JSMol &other) {
+    return combine_with(other, "{}");
+  }
 
   std::unique_ptr<RDKit::RWMol> d_mol;
   static constexpr int d_defaultWidth = 250;

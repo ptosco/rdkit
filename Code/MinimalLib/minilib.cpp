@@ -545,6 +545,12 @@ int JSMol::has_coords() const {
   return (d_mol->getConformer().is3D() ? 3 : 2);
 }
 
+const RDGeom::POINT3D_VECT& JSMol::get_coords() const {
+  assert(d_mol);
+  static const RDGeom::POINT3D_VECT empty;
+  return (d_mol->getNumConformers() ? d_mol->getConformer().getPositions() : empty);
+}
+
 double JSMol::normalize_depiction(int canonicalize, double scaleFactor) {
   assert(d_mol);
   if (!d_mol->getNumConformers()) {
@@ -601,6 +607,16 @@ std::string JSMol::add_to_png_blob(const std::string &pngString,
   } catch (...) {
   }
   return res;
+}
+
+std::string JSMol::combine_with(const JSMol &other, const std::string &details) {
+  assert(d_mol && other.d_mol);
+  std::unique_ptr<ROMol> combinedMol;
+  auto res = MinimalLib::combine_mols_internal(*d_mol, *other.d_mol, combinedMol, details.c_str());
+  if (res.empty() && combinedMol) {
+    d_mol.reset(new RWMol(*combinedMol));
+  }
+  return "";
 }
 
 #ifdef RDK_BUILD_MINIMAL_LIB_RXN
@@ -860,26 +876,6 @@ JSMol *get_mcs_as_mol(const JSMolList &molList,
 }
 #endif
 
-JSMol *get_mol_from_png_blob(const std::string &pngString,
-                             const std::string &details) {
-  auto mols = MinimalLib::get_mols_from_png_blob_internal(pngString, true,
-                                                          details.c_str());
-  if (mols.empty()) {
-    return nullptr;
-  }
-  return new JSMol(new RWMol(*mols.front()));
-}
-
-JSMolList *get_mols_from_png_blob(const std::string &pngString,
-                                  const std::string &details) {
-  auto mols = MinimalLib::get_mols_from_png_blob_internal(pngString, false,
-                                                          details.c_str());
-  if (mols.empty()) {
-    return nullptr;
-  }
-  return new JSMolList(mols);
-}
-
 RDKit::MinimalLib::LogHandle::LoggingFlag
     RDKit::MinimalLib::LogHandle::d_loggingNeedsInit = true;
 
@@ -907,3 +903,23 @@ JSLog *set_log_capture(const std::string &log_name) {
 void enable_logging() { RDKit::MinimalLib::LogHandle::enableLogging(); }
 
 void disable_logging() { RDKit::MinimalLib::LogHandle::disableLogging(); }
+
+JSMol *get_mol_from_png_blob(const std::string &pngString,
+                             const std::string &details) {
+  auto mols = MinimalLib::get_mols_from_png_blob_internal(pngString, true,
+                                                          details.c_str());
+  if (mols.empty()) {
+    return nullptr;
+  }
+  return new JSMol(new RWMol(*mols.front()));
+}
+
+JSMolList *get_mols_from_png_blob(const std::string &pngString,
+                                  const std::string &details) {
+  auto mols = MinimalLib::get_mols_from_png_blob_internal(pngString, false,
+                                                          details.c_str());
+  if (mols.empty()) {
+    return nullptr;
+  }
+  return new JSMolList(mols);
+}

@@ -400,6 +400,20 @@ JSMolList *get_mols_from_png_blob_no_details_helper(
     const emscripten::val &pngAsUInt8Array) {
   return get_mols_from_png_blob_helper(pngAsUInt8Array, "");
 }
+
+emscripten::val get_coords_helper(const JSMol &self) {
+  static const char *PUSH = "push";
+  auto res = emscripten::val::array();
+  for (const auto &pt : self.get_coords()) {
+    auto xyz = emscripten::val::array();
+    xyz.call<void>(PUSH, pt.x);
+    xyz.call<void>(PUSH, pt.y);
+    xyz.call<void>(PUSH, pt.z);
+    res.call<void>(PUSH, xyz);
+  }
+  return res;
+}
+
 }  // namespace
 
 using namespace emscripten;
@@ -423,7 +437,7 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("get_v3Kmolblock",
                 select_overload<std::string(const std::string &) const>(
                     &JSMol::get_v3Kmolblock))
-      .function("get_as_uint8array", &get_as_uint8array)
+      .function("get_as_uint8array", get_as_uint8array)
       .function("get_inchi", &JSMol::get_inchi)
       .function("get_json", &JSMol::get_json)
       .function("get_svg",
@@ -432,6 +446,11 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
                 select_overload<std::string(int, int) const>(&JSMol::get_svg))
 
       .function("get_svg_with_highlights", &JSMol::get_svg_with_highlights)
+      .function("combine_with",
+                select_overload<std::string(const JSMol &)>(&JSMol::combine_with))
+      .function("combine_with",
+                select_overload<std::string(const JSMol &, const std::string &)>(
+                    &JSMol::combine_with))
 #ifdef __EMSCRIPTEN__
       .function("draw_to_canvas_with_offset", &draw_to_canvas_with_offset)
       .function("draw_to_canvas", &draw_to_canvas)
@@ -496,6 +515,7 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
           "add_to_png_blob",
           select_overload<emscripten::val(const JSMol &, const std::string &)>(
               add_to_png_blob_helper))
+      .function("get_coords", get_coords_helper)
 #ifdef RDK_BUILD_AVALON_SUPPORT
       .function("get_avalon_fp_as_uint8array",
                 select_overload<emscripten::val(const JSMol &)>(

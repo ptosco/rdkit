@@ -47,6 +47,7 @@
 #include <GraphMol/ChemReactions/Reaction.h>
 #include <GraphMol/ChemReactions/ReactionParser.h>
 #include <GraphMol/ChemReactions/SanitizeRxn.h>
+#include <GraphMol/ChemTransforms/ChemTransforms.h>
 #include <RDGeneral/RDLog.h>
 
 #include <sstream>
@@ -299,11 +300,31 @@ std::string parse_int_array(const rj::Document &doc, std::vector<int> &intVec,
     if (!it->value.IsArray()) {
       return "JSON contains '" + keyName + "' field, but it is not an array";
     }
+    intVec.clear();
     for (const auto &val : it->value.GetArray()) {
       if (!val.IsInt()) {
         return valueName + " should be integers";
       }
       intVec.push_back(val.GetInt());
+    }
+  }
+  return "";
+}
+
+std::string parse_double_array(const rj::Document &doc, std::vector<double> &doubleVec,
+                            const std::string &keyName,
+                            const std::string &valueName) {
+  const auto it = doc.FindMember(keyName.c_str());
+  if (it != doc.MemberEnd()) {
+    if (!it->value.IsArray()) {
+      return "JSON contains '" + keyName + "' field, but it is not an array";
+    }
+    doubleVec.clear();
+    for (const auto &val : it->value.GetArray()) {
+      if (!val.IsNumber()) {
+        return valueName + " should be floats";
+      }
+      doubleVec.push_back(val.GetDouble());
     }
   }
   return "";
@@ -1107,79 +1128,6 @@ std::string get_mol_frags_mappings(
   return buffer.GetString();
 }
 
-std::vector<ROMOL_SPTR> get_mols_from_png_blob_internal(
-    const std::string &pngString, bool singleMol = false,
-    const char *details = nullptr) {
-  std::vector<ROMOL_SPTR> res;
-  if (pngString.empty()) {
-    return res;
-  }
-  PNGMetadataParams params;
-  updatePNGMetadataParamsFromJSON(params, details);
-  if (!params.includePkl && !params.includeSmiles && !params.includeMol) {
-    return res;
-  }
-  auto metadata = PNGStringToMetadata(pngString);
-  unsigned int smiCount = 0;
-  unsigned int molCount = 0;
-  unsigned int pklCount = 0;
-  for (const auto &pair : metadata) {
-    if (pair.first.rfind(PNGData::pklTag, 0) == 0) {
-      ++pklCount;
-      if (params.includePkl) {
-        if (pklCount == 1) {
-          params.includeSmiles = false;
-          params.includeMol = false;
-        }
-        RWMol *mol = nullptr;
-        if (!pair.second.empty()) {
-          mol = new RWMol();
-          try {
-            MolPickler::molFromPickle(pair.second, mol);
-          } catch (...) {
-            delete mol;
-            mol = nullptr;
-          }
-        }
-        if (mol) {
-          res.emplace_back(mol);
-        }
-      }
-    } else if (pair.first.rfind(PNGData::smilesTag, 0) == 0) {
-      ++smiCount;
-      if (params.includeSmiles) {
-        if (smiCount == 1) {
-          params.includePkl = false;
-          params.includeMol = false;
-        }
-        auto mol = MinimalLib::mol_from_input(pair.second, details);
-        if (mol) {
-          res.emplace_back(mol);
-        }
-      }
-    } else if (pair.first.rfind(PNGData::molTag, 0) == 0) {
-      ++molCount;
-      if (params.includeMol) {
-        if (molCount == 1) {
-          params.includePkl = false;
-          params.includeSmiles = false;
-        }
-        auto mol = MinimalLib::mol_from_input(pair.second, details);
-        if (mol) {
-          res.emplace_back(mol);
-        }
-      }
-    } else if (pair.first.rfind(PNGData::pklTag, 0) == 0) {
-      ++pklCount;
-    }
-    if (singleMol &&
-        (!res.empty() || smiCount > 1 || molCount > 1 || pklCount > 1)) {
-      break;
-    }
-  }
-  return res;
-}
-
 struct LogHandle {
  public:
   LogHandle(const std::string &logName) : d_logName(logName) {
@@ -1323,6 +1271,102 @@ struct LogHandle {
   std::stringstream d_stream;
   static LoggingFlag d_loggingNeedsInit;
 };
+
+std::vector<ROMOL_SPTR> get_mols_from_png_blob_internal(
+    const std::string &pngString, bool singleMol = false,
+    const char *details = nullptr) {
+  std::vector<ROMOL_SPTR> res;
+  if (pngString.empty()) {
+    return res;
+  }
+  PNGMetadataParams params;
+  updatePNGMetadataParamsFromJSON(params, details);
+  if (!params.includePkl && !params.includeSmiles && !params.includeMol) {
+    return res;
+  }
+  auto metadata = PNGStringToMetadata(pngString);
+  unsigned int smiCount = 0;
+  unsigned int molCount = 0;
+  unsigned int pklCount = 0;
+  for (const auto &pair : metadata) {
+    if (pair.first.rfind(PNGData::pklTag, 0) == 0) {
+      ++pklCount;
+      if (params.includePkl) {
+        if (pklCount == 1) {
+          params.includeSmiles = false;
+          params.includeMol = false;
+        }
+        RWMol *mol = nullptr;
+        if (!pair.second.empty()) {
+          mol = new RWMol();
+          try {
+            MolPickler::molFromPickle(pair.second, mol);
+          } catch (...) {
+            delete mol;
+            mol = nullptr;
+          }
+        }
+        if (mol) {
+          res.emplace_back(mol);
+        }
+      }
+    } else if (pair.first.rfind(PNGData::smilesTag, 0) == 0) {
+      ++smiCount;
+      if (params.includeSmiles) {
+        if (smiCount == 1) {
+          params.includePkl = false;
+          params.includeMol = false;
+        }
+        auto mol = MinimalLib::mol_from_input(pair.second, details);
+        if (mol) {
+          res.emplace_back(mol);
+        }
+      }
+    } else if (pair.first.rfind(PNGData::molTag, 0) == 0) {
+      ++molCount;
+      if (params.includeMol) {
+        if (molCount == 1) {
+          params.includePkl = false;
+          params.includeSmiles = false;
+        }
+        auto mol = MinimalLib::mol_from_input(pair.second, details);
+        if (mol) {
+          res.emplace_back(mol);
+        }
+      }
+    } else if (pair.first.rfind(PNGData::pklTag, 0) == 0) {
+      ++pklCount;
+    }
+    if (singleMol &&
+        (!res.empty() || smiCount > 1 || molCount > 1 || pklCount > 1)) {
+      break;
+    }
+  }
+  return res;
+}
+
+std::string combine_mols_internal(const ROMol &mol1, const ROMol &mol2, std::unique_ptr<ROMol> &combinedMol, const char *details_json = nullptr) {
+  std::vector<double> offset(3, 0.0);
+  combinedMol = nullptr;
+  if (details_json) {
+    rj::Document doc;
+    doc.Parse(details_json);
+    if (!doc.IsObject()) {
+      return "Invalid JSON";
+    }
+    std::string problems;
+    problems = parse_double_array(doc, offset, "offset", "offset coordinates");
+    if (!problems.empty()) {
+      return problems;
+    }
+  }
+  try {
+    combinedMol.reset(combineMols(mol1, mol2, RDGeom::Point3D(offset[0], offset[1], offset[2])));
+  } catch (...) {
+    return "Failed to combine molecules";
+  }
+  return "";
+}
 
 }  // namespace MinimalLib
 }  // namespace RDKit
