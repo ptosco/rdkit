@@ -1289,53 +1289,45 @@ std::vector<ROMOL_SPTR> get_mols_from_png_blob_internal(
   unsigned int molCount = 0;
   unsigned int pklCount = 0;
   for (const auto &pair : metadata) {
+    RWMol *mol = nullptr;
     if (pair.first.rfind(PNGData::pklTag, 0) == 0) {
       ++pklCount;
       if (params.includePkl) {
-        if (pklCount == 1) {
+        mol = new RWMol();
+        try {
+          MolPickler::molFromPickle(pair.second, mol);
+        } catch (...) {
+          delete mol;
+          mol = nullptr;
+        }
+        if (mol && pklCount == 1) {
           params.includeSmiles = false;
           params.includeMol = false;
         }
-        RWMol *mol = nullptr;
-        if (!pair.second.empty()) {
-          mol = new RWMol();
-          try {
-            MolPickler::molFromPickle(pair.second, mol);
-          } catch (...) {
-            delete mol;
-            mol = nullptr;
-          }
-        }
-        if (mol) {
-          res.emplace_back(mol);
-        }
       }
-    } else if (pair.first.rfind(PNGData::smilesTag, 0) == 0) {
+    }
+    else if (pair.first.rfind(PNGData::smilesTag, 0) == 0) {
       ++smiCount;
       if (params.includeSmiles) {
-        if (smiCount == 1) {
+        mol = MinimalLib::mol_from_input(pair.second, details);
+        if (mol && smiCount == 1) {
           params.includePkl = false;
           params.includeMol = false;
         }
-        auto mol = MinimalLib::mol_from_input(pair.second, details);
-        if (mol) {
-          res.emplace_back(mol);
-        }
       }
-    } else if (pair.first.rfind(PNGData::molTag, 0) == 0) {
+    }
+    else if (pair.first.rfind(PNGData::molTag, 0) == 0) {
       ++molCount;
       if (params.includeMol) {
-        if (molCount == 1) {
+        mol = MinimalLib::mol_from_input(pair.second, details);
+        if (mol && molCount == 1) {
           params.includePkl = false;
           params.includeSmiles = false;
         }
-        auto mol = MinimalLib::mol_from_input(pair.second, details);
-        if (mol) {
-          res.emplace_back(mol);
-        }
       }
-    } else if (pair.first.rfind(PNGData::pklTag, 0) == 0) {
-      ++pklCount;
+    }
+    if (mol) {
+      res.emplace_back(mol);
     }
     if (singleMol &&
         (!res.empty() || smiCount > 1 || molCount > 1 || pklCount > 1)) {
