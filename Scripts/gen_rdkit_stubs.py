@@ -47,6 +47,19 @@ PROTECTIONS = {
     "=": "__EQUALS_TAG__"
 }
 INIT_PY = "__init__.py"
+CPP_PYTHONIC_RETURN_TYPES = {
+    "_listSt6vectorIiSaIiEE": "typing.Sequence[Sequence[int]]",
+    "_ROConformerSeq": "typing.Sequence[Conformer]",
+    "_ROQAtomSeq": "typing.Sequence[QueryAtom]",
+    "_vectd": "typing.Sequence[double]",
+    "_vecti": "typing.Sequence[int]",
+    "_vectj": "typing.Sequence[int]",
+    "_vectN5RDKit13Abbreviations22AbbreviationDefinitionE": "typing.Sequence[AbbreviationDefinition]",
+    "_vectN5RDKit9Chirality10StereoInfoE": "typing.Sequence[StereoInfo]",
+    "_vectNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE": "typing.Sequence[str]",
+    "_vectSt6vectorIiSaIiEE": "typing.Sequence[Sequence[int]]",
+    "_vectSt6vectorIjSaIjEE": "typing.Sequence[Sequence[int]]",
+}
 
 def parse_modules_to_set(modules):
     return {m.strip() for m in modules.split(",")}
@@ -194,6 +207,7 @@ def process_src_line(src_line):
             else:
                 py_signature_args = []
             py_signature_ret = py_signature_match.group(2)
+            py_signature_ret = CPP_PYTHONIC_RETURN_TYPES.get(py_signature_ret, py_signature_ret)
             processed_args = ", ".join(process_py_signature_arg(py_signature_arg) for py_signature_arg in py_signature_args)
             src_line = f"{func_name}{func_open_bracket}{processed_args}{func_end_bracket_and_arrow}{py_signature_ret}{func_colon_to_end}"
     return src_line
