@@ -23,6 +23,7 @@ import tempfile
 from threading import Thread
 from pathlib import Path
 
+RDKIT_MODULE_NAME = "rdkit"
 CLANG_CPP_EXE = os.environ.get("CLANG_CPP_EXE", "clang++")
 CLANG_FORMAT_EXE = os.environ.get("CLANG_FORMAT_EXE", "clang-format")
 
@@ -1093,7 +1094,7 @@ class FixSignatures:
     concurrency = max(1, multiprocessing.cpu_count() - 2)
     log_level = "INFO"
     cpp_source_path = os.environ.get("RDBASE", os.getcwd())
-    rdkit_stubs_path = os.path.join(os.getcwd(), "rdkit-stubs")
+    rdkit_stubs_path = os.path.join(os.getcwd(), f"{RDKIT_MODULE_NAME}-stubs")
     clean = False
     include_path = os.path.join(os.environ.get("CONDA_PREFIX", os.getcwd()), "include")
     python_include_path = None
@@ -1258,9 +1259,9 @@ class FixSignatures:
         for p in sorted(rdkit_stubs_path.rglob("__init__.pyi")):
             pyi_module_path = str(p.parent.relative_to(rdkit_stubs_path)).replace("/", ".")
             if pyi_module_path == ".":
-                pyi_module_path = "rdkit"
+                pyi_module_path = RDKIT_MODULE_NAME
             else:
-                pyi_module_path = "rdkit." + pyi_module_path
+                pyi_module_path = RDKIT_MODULE_NAME + "." + pyi_module_path
             try:
                 pyi_module = importlib.import_module(pyi_module_path)
             except Exception as e:

@@ -52,10 +52,16 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+    if os.path.isdir(RDKIT_MODULE_NAME):
+        abs_cwd = os.path.abspath(os.getcwd())
+        indices_to_pop = sorted([i for i, p in enumerate(sys.path) if os.path.abspath(p) == abs_cwd], reverse=True)
+        for i in indices_to_pop:
+            sys.path.pop(i)
     site_packages_path = None
     for path_entry in sys.path:
         if not path_entry:
             continue
+        print(f"path_entry {path_entry}")
         rdkit_path = os.path.join(path_entry, RDKIT_MODULE_NAME)
         if os.path.isdir(rdkit_path) and os.path.isfile(os.path.join(rdkit_path, RDKIT_RDCONFIG)):
             site_packages_path = path_entry
@@ -63,4 +69,6 @@ if __name__ == "__main__":
     if site_packages_path is None:
         raise ValueError("Failed to find rdkit in PYTHONPATH")
     site_packages_path = Path(site_packages_path)
+    print(f"sys.path {sys.path}")
+    print(f"site_packages_path {site_packages_path}")
     generate_stubs(site_packages_path, args.output_dirs, args.concurrency)

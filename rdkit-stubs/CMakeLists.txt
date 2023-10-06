@@ -1,7 +1,7 @@
 if(RDK_BUILD_PYTHON_STUBS)
   string(CONCAT RUN_GEN_RDKIT_STUBS_PY "execute_process("
       "COMMAND "
-      "${PYTHON_EXECUTABLE} \"${CMAKE_SOURCE_DIR}/Scripts/gen_rdkit_stubs.py\" "
+      "${PYTHON_EXECUTABLE} -m Scripts.gen_rdkit_stubs "
       "\"${CMAKE_SOURCE_DIR}\" \"${PYTHON_INSTDIR}\" "
       "WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}\" "
       "OUTPUT_FILE \"${CMAKE_CURRENT_BINARY_DIR}/gen_rdkit_stubs.out\" "
