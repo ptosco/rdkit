@@ -17,10 +17,10 @@ EIGEN3_INCLUDE_DIR=/usr/prog/Eigen/3.3.9-GCCcore-11.2.0/include \
 python -m Scripts.patch_rdkit_docstrings
 """
 
-import sys
-import os
 import argparse
-from . import FixSignatures, RDKIT_MODULE_NAME
+from . import FixSignatures
+from ..gen_rdkit_stubs import purge_rdkit_source_dir_from_sys_path
+
 
 def parse_args():
     """Parse command line arguments."""
@@ -58,9 +58,5 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    if os.path.isdir(RDKIT_MODULE_NAME):
-        abs_cwd = os.path.abspath(os.getcwd())
-        indices_to_pop = sorted([i for i, p in enumerate(sys.path) if os.path.abspath(p) == abs_cwd], reverse=True)
-        for i in indices_to_pop:
-            sys.path.pop(i)
+    purge_rdkit_source_dir_from_sys_path()
     fix_signatures = FixSignatures(args)

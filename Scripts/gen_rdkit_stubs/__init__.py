@@ -19,7 +19,7 @@ PURGE_CLOSE_SQUARE_BRACKET = re.compile(r"(?<!\[)\]")
 IMPORT_MODULES = re.compile(r"^\s*import\s+(.*)$")
 FROM_IMPORT_MODULES = re.compile(r"^\s*from\s+(\S+)\s+import\s+(.*)$")
 RDKIT_MODULE_NAME = "rdkit"
-RDKIT_RDCONFIG = "RDConfig.py"
+RDBASE_MODULE_NAME = "rdBase"
 PROTECTIONS = {
     "[": "__OPEN_SQUARE_BRACKET_TAG__",
     "]": "__CLOSE_SQUARE_BRACKET_TAG__",
@@ -39,6 +39,16 @@ CPP_PYTHONIC_RETURN_TYPES = {
     "_vectSt6vectorIiSaIiEE": "typing.Sequence[Sequence[int]]",
     "_vectSt6vectorIjSaIjEE": "typing.Sequence[Sequence[int]]",
 }
+
+def rdkit_has_rdbase(rdkit_dir):
+    return any(f.startswith(RDBASE_MODULE_NAME) for f in os.listdir(rdkit_dir))
+
+def purge_rdkit_source_dir_from_sys_path():
+    if os.path.isdir(RDKIT_MODULE_NAME) and not rdkit_has_rdbase(RDKIT_MODULE_NAME):
+        abs_cwd = os.path.abspath(os.getcwd())
+        indices_to_pop = sorted([i for i, p in enumerate(sys.path) if os.path.abspath(p) == abs_cwd], reverse=True)
+        for i in indices_to_pop:
+            sys.path.pop(i)
 
 def run_worker(cmd):
     out = ""
