@@ -1,37 +1,16 @@
-#!/usr/bin/env python
-
-"""
-Script to generate Python stubs for RDKit.
-
-This script is invoked as part of the build process
-by setting the CMake switch RDK_INSTALL_PYTHON_STUBS=ON.
-If you decide to run this script outside the build process,
-make sure that the RDKit Python modules for which stubs are
-to be generated are the *first* RDKit modules available in
-sys.path; otherwise, stubs will not be generated for the
-intended RDKit version.
-
-Usage:
-./Scripts/gen_rdkit_stubs.py [output_dirs; defaults to $PWD]
-
-Usage example:
-$ cd $RDBASE
-$ ./Scripts/gen_rdkit_stubs.py
-$ cp -R rdkit-stubs $CONDA_PREFIX/lib/python3.*/site-packages
-
-The scripts creates an rdkit-stubs directory in each
-directory in output_dirs.
-Warnings printed to console can be safely ignored.
-"""
-
 import sys
 import os
 import re
+import subprocess
+import multiprocessing
 import tempfile
 import shutil
-from pathlib import Path
-import pybind11_stubgen
+import logging
 
+logger = logging.getLogger(__name__)
+
+
+WORKER_SCRIPT = "worker.py"
 PY_SIGNATURE_ARG_REGEX = re.compile(r"^\((\S+)\)([^\=]+)\=?(.*)?$")
 DEF_REGEX = re.compile(r"^([^(]+)(\s*\(\s*).*(\s*\)\s*->\s*)[^:]+:(\s*)$")
 PURGE_CPP_OBJECT_ANGLE_BRACKETS = re.compile(r"^(.*)<(\S*\.)?(\S+)\s*object\s*at\s*\S+\s*>(.*)$")
@@ -61,6 +40,18 @@ CPP_PYTHONIC_RETURN_TYPES = {
     "_vectSt6vectorIjSaIjEE": "typing.Sequence[Sequence[int]]",
 }
 
+def run_worker(cmd):
+    out = ""
+    err = ""
+    proc = subprocess.run(cmd, capture_output=True)
+    if proc.returncode:
+        msg = proc.stderr.decode("utf-8") or "(no error message)"
+        cmd_as_str = " ".join(cmd)
+        err = f"\"{cmd_as_str}\" failed with:\n{msg}"
+    if proc.stdout:
+        out = proc.stdout.decode("utf-8")
+    return out, err
+
 def parse_modules_to_set(modules):
     return {m.strip() for m in modules.split(",")}
 
@@ -88,7 +79,7 @@ def copy_stubs(src_dir, dst_dir):
         else:
             shutil.copy(src_entry, dst_entry)
 
-def generate_stubs(site_packages_path, output_dirs):
+def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1, verbose=False):
     modules = set()
     exclusions_cache = {}
     for p in (
@@ -139,20 +130,16 @@ def generate_stubs(site_packages_path, output_dirs):
         if not os.path.isdir(outer_dir):
             os.makedirs(outer_dir)
     with tempfile.TemporaryDirectory() as tempdir:
-        for m in sorted(modules):
-            try:
-                pybind11_stubgen.main(args=("--root-module-suffix",
-                                            "",
-                                            "--no-setup-py",
-                                            "--ignore-invalid",
-                                            "all",
-                                            "-o",
-                                            tempdir,
-                                            m))
-            except Exception as e:
-                print(str(e))
-                if isinstance(e, AssertionError):
-                    raise
+        cmd_list = [[sys.executable, os.path.join(os.path.dirname(__file__), WORKER_SCRIPT), tempdir, m] for m in sorted(modules)]
+        with multiprocessing.Pool(concurrency) as pool:
+            res = pool.map(run_worker, cmd_list)
+        concat_out, concat_err = tuple(zip(*res))
+        concat_out = "\n".join(out for out in concat_out if out)
+        concat_err = "\n".join(err for err in concat_err if err)
+        if concat_err:
+            logger.critical(concat_err)
+        if concat_out and verbose:
+            logger.warning(concat_out)
         src_dir = os.path.join(tempdir, "rdkit")
         for outer_dir in outer_dirs:
             copy_stubs(src_dir, outer_dir)
@@ -215,23 +202,3 @@ def process_src_line(src_line):
 def preprocess_docstring(docstring):
     src_lines = docstring.split("\n")
     return "\n".join(map(process_src_line, src_lines))
-
-
-if __name__ == "__main__":
-    pybind11_stubgen.function_docstring_preprocessing_hooks.append(preprocess_docstring)
-    site_packages_path = None
-    for path_entry in sys.path:
-        if not path_entry:
-            continue
-        rdkit_path = os.path.join(path_entry, RDKIT_MODULE_NAME)
-        if os.path.isdir(rdkit_path) and os.path.isfile(os.path.join(rdkit_path, RDKIT_RDCONFIG)):
-            site_packages_path = path_entry
-            break
-    if site_packages_path is None:
-        raise ValueError("Failed to find rdkit in PYTHONPATH")
-    site_packages_path = Path(site_packages_path)
-    try:
-        output_dirs = sys.argv[1:]
-    except IndexError:
-        output_dirs = [os.getcwd()]
-    generate_stubs(site_packages_path, output_dirs)

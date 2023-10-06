@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+
+"""
+Script to generate Python stubs for RDKit.
+
+This script is invoked as part of the build process
+by setting the CMake switch RDK_INSTALL_PYTHON_STUBS=ON.
+If you decide to run this script outside the build process,
+make sure that the RDKit Python modules for which stubs are
+to be generated are the *first* RDKit modules available in
+sys.path; otherwise, stubs will not be generated for the
+intended RDKit version.
+
+Usage:
+./Scripts/gen_rdkit_stubs.py [output_dirs; defaults to $PWD]
+
+Usage example:
+$ cd $RDBASE
+$ ./Scripts/gen_rdkit_stubs.py
+$ cp -R rdkit-stubs $CONDA_PREFIX/lib/python3.*/site-packages
+
+The scripts creates an rdkit-stubs directory in each
+directory in output_dirs.
+Warnings printed to console can be safely ignored.
+"""
+
+import sys
+import os
+import argparse
+import multiprocessing
+from pathlib import Path
+from . import generate_stubs, RDKIT_MODULE_NAME, RDKIT_RDCONFIG
+
+
+def parse_args():
+    """Parse command line arguments."""
+    default_n_cpus = max(1, multiprocessing.cpu_count() - 2)
+    default_output_dirs = [os.getcwd()]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--concurrency",
+                        help=f"max number of CPUs to be used (defaults to {default_n_cpus})",
+                        default=default_n_cpus)
+    parser.add_argument("--verbose",
+                        help=f"print non-fatal warnings/errors to stdout (defaults to false)",
+                        action="store_true")
+    parser.add_argument("output_dirs", nargs="*",
+                        help=f"output directories (defaults to {default_output_dirs[0]})",
+                        default=default_output_dirs)
+    args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    site_packages_path = None
+    for path_entry in sys.path:
+        if not path_entry:
+            continue
+        rdkit_path = os.path.join(path_entry, RDKIT_MODULE_NAME)
+        if os.path.isdir(rdkit_path) and os.path.isfile(os.path.join(rdkit_path, RDKIT_RDCONFIG)):
+            site_packages_path = path_entry
+            break
+    if site_packages_path is None:
+        raise ValueError("Failed to find rdkit in PYTHONPATH")
+    site_packages_path = Path(site_packages_path)
+    generate_stubs(site_packages_path, args.output_dirs, args.concurrency)

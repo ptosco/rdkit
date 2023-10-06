@@ -53,9 +53,6 @@ def parse_args():
                         help=f"logging level (defaults to {FixSignatures.log_level})",
                         default=FixSignatures.log_level)
     parser.add_argument("--clean", action="store_true", help="force removing all RDKDOCORIG files")
-    help_text=f"""
-Fix RDKit Python wrapper signatures.
-"""
     args = parser.parse_args()
     return args
 
