@@ -68,14 +68,12 @@ def copy_stubs(src_entry, outer_dirs):
 def run_worker(module_name):
     out = ""
     err = ""
-    cmd = run_worker.cmd + [run_worker.tempdir, module_name]
+    cmd = run_worker.cmd + [run_worker.tempdir, module_name] + run_worker.outer_dirs
     proc = subprocess.run(cmd, capture_output=True)
     if proc.returncode:
         msg = proc.stderr.decode("utf-8") or "(no error message)"
         cmd_as_str = " ".join(cmd)
         err = f"\"{cmd_as_str}\" failed with:\n{msg}"
-    else:
-        copy_stubs(os.path.join(run_worker.tempdir, *module_name.split(".")), run_worker.outer_dirs)
     if proc.stdout:
         out = proc.stdout.decode("utf-8")
     return out, err
@@ -148,9 +146,7 @@ def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1,
             os.remove(outer_dir)
         if not os.path.isdir(outer_dir):
             os.makedirs(outer_dir)
-    #with tempfile.TemporaryDirectory() as tempdir:
-        tempdir = tempfile.mkdtemp()
-        logger.warning(f"*** tempdir {tempdir}")
+    with tempfile.TemporaryDirectory() as tempdir:
         src_dir = os.path.join(tempdir, RDKIT_MODULE_NAME)
         run_worker.cmd = [sys.executable, os.path.join(os.path.dirname(__file__), WORKER_SCRIPT)]
         run_worker.tempdir = tempdir
