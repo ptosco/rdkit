@@ -19,7 +19,7 @@ python -m Scripts.patch_rdkit_docstrings
 
 import argparse
 from . import FixSignatures
-from ..gen_rdkit_stubs import purge_rdkit_source_dir_from_sys_path
+from ..gen_rdkit_stubs import purge_rdkit_source_dir_from_sys_path, RDKIT_MODULE_NAME
 
 
 def parse_args():
@@ -28,8 +28,8 @@ def parse_args():
     parser.add_argument("--cpp-source-path",
                         help="path where RDKit C++ sources are located (defaults to $RDBASE, or to cwd if RDBASE is not set)",
                         default=FixSignatures.cpp_source_path)
-    parser.add_argument("--rdkit-stubs-path",
-                        help="path to the rdkit-stubs directory (defaults to ./rdkit-stubs)",
+    parser.add_argument("--stubs-path",
+                        help=f"path to the {RDKIT_MODULE_NAME}-stubs directory (defaults to ./{RDKIT_MODULE_NAME})",
                         default=FixSignatures.rdkit_stubs_path)
     parser.add_argument("--concurrency",
                         help=f"max number of CPUs to be used (defaults to {FixSignatures.concurrency})",

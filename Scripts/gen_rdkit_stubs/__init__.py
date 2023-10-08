@@ -1,6 +1,7 @@
 import sys
 import os
 import re
+import pathlib
 import subprocess
 import multiprocessing
 import tempfile
@@ -50,14 +51,31 @@ def purge_rdkit_source_dir_from_sys_path():
         for i in indices_to_pop:
             sys.path.pop(i)
 
-def run_worker(cmd):
+def copy_stubs(src_entry, outer_dirs):
+    base_src_entry = None
+    for part in pathlib.Path(src_entry).parts:
+        if base_src_entry is not None:
+            base_src_entry.append(part)
+        if part == RDKIT_MODULE_NAME:
+            base_src_entry = []
+    for outer_dir in outer_dirs:
+        dst_entry = os.path.join(outer_dir, *base_src_entry)
+        if os.path.isdir(src_entry):
+            shutil.copytree(src_entry, dst_entry, dirs_exist_ok=True)
+        elif os.path.isfile(src_entry):
+            shutil.copyfile(src_entry, dst_entry)
+
+def run_worker(module_name):
     out = ""
     err = ""
+    cmd = run_worker.cmd + [run_worker.tempdir, module_name]
     proc = subprocess.run(cmd, capture_output=True)
     if proc.returncode:
         msg = proc.stderr.decode("utf-8") or "(no error message)"
         cmd_as_str = " ".join(cmd)
         err = f"\"{cmd_as_str}\" failed with:\n{msg}"
+    else:
+        copy_stubs(os.path.join(run_worker.tempdir, *module_name.split(".")), run_worker.outer_dirs)
     if proc.stdout:
         out = proc.stdout.decode("utf-8")
     return out, err
@@ -80,15 +98,6 @@ def clear_stubs(outer_dir):
         else:
             os.remove(entry)
             
-def copy_stubs(src_dir, dst_dir):
-    for entry in os.listdir(src_dir):
-        src_entry = os.path.join(src_dir, entry)
-        dst_entry = os.path.join(dst_dir, entry)
-        if os.path.isdir(src_entry):
-            shutil.copytree(src_entry, dst_entry)
-        else:
-            shutil.copy(src_entry, dst_entry)
-
 def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1, verbose=False):
     modules = set()
     exclusions_cache = {}
@@ -131,7 +140,7 @@ def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1,
                 modules.add(noext)
     outer_dirs = []
     for output_dir in output_dirs:
-        outer_dir = os.path.join(output_dir, "rdkit-stubs")
+        outer_dir = os.path.join(output_dir, f"{RDKIT_MODULE_NAME}-stubs")
         outer_dirs.append(outer_dir)
         if os.path.isdir(outer_dir):
             clear_stubs(outer_dir)
@@ -140,9 +149,16 @@ def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1,
         if not os.path.isdir(outer_dir):
             os.makedirs(outer_dir)
     with tempfile.TemporaryDirectory() as tempdir:
-        cmd_list = [[sys.executable, os.path.join(os.path.dirname(__file__), WORKER_SCRIPT), tempdir, m] for m in sorted(modules)]
+        src_dir = os.path.join(tempdir, RDKIT_MODULE_NAME)
+        run_worker.cmd = [sys.executable, os.path.join(os.path.dirname(__file__), WORKER_SCRIPT)]
+        run_worker.tempdir = tempdir
+        run_worker.outer_dirs = outer_dirs
         with multiprocessing.Pool(concurrency) as pool:
-            res = pool.map(run_worker, cmd_list)
+            res = pool.map(run_worker, modules)
+        for f in os.listdir(src_dir):
+            src_entry = os.path.join(src_dir, f)
+            if os.path.isfile(src_entry):
+                copy_stubs(src_entry, outer_dirs)
         concat_out, concat_err = tuple(zip(*res))
         concat_out = "\n".join(out for out in concat_out if out)
         concat_err = "\n".join(err for err in concat_err if err)
@@ -150,9 +166,6 @@ def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1,
             logger.critical(concat_err)
         if concat_out and verbose:
             logger.warning(concat_out)
-        src_dir = os.path.join(tempdir, "rdkit")
-        for outer_dir in outer_dirs:
-            copy_stubs(src_dir, outer_dir)
 
 def protect_quoted_square_brackets_and_equals(arg):
     open_quote = False
