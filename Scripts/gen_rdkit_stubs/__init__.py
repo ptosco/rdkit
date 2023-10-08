@@ -3,7 +3,7 @@ import os
 import re
 import pathlib
 import subprocess
-import multiprocessing
+from multiprocessing.pool import ThreadPool
 import tempfile
 import shutil
 import logging
@@ -110,11 +110,11 @@ def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1,
         module_file = p.relative_to(site_packages_path)
         d = p.parent
         if module_file.name == INIT_PY:
-            m = str(d.relative_to(site_packages_path)).replace("/", ".")
+            m = str(d.relative_to(site_packages_path)).replace(os.sep, ".")
             modules.add(m)
         else:
             noext, ext = os.path.splitext(str(module_file))
-            noext = noext.replace("/", ".")
+            noext = noext.replace(os.sep, ".")
             init_py_file = str(d.joinpath(INIT_PY))
             if os.path.exists(init_py_file):
                 exclusions = exclusions_cache.get(init_py_file, None)
@@ -148,12 +148,14 @@ def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1,
             os.remove(outer_dir)
         if not os.path.isdir(outer_dir):
             os.makedirs(outer_dir)
-    with tempfile.TemporaryDirectory() as tempdir:
+    #with tempfile.TemporaryDirectory() as tempdir:
+        tempdir = tempfile.mkdtemp()
+        logger.warning(f"*** tempdir {tempdir}")
         src_dir = os.path.join(tempdir, RDKIT_MODULE_NAME)
         run_worker.cmd = [sys.executable, os.path.join(os.path.dirname(__file__), WORKER_SCRIPT)]
         run_worker.tempdir = tempdir
         run_worker.outer_dirs = outer_dirs
-        with multiprocessing.Pool(concurrency) as pool:
+        with ThreadPool(concurrency) as pool:
             res = pool.map(run_worker, modules)
         for f in os.listdir(src_dir):
             src_entry = os.path.join(src_dir, f)
