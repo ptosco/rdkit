@@ -153,10 +153,6 @@ def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1,
         run_worker.outer_dirs = outer_dirs
         with ThreadPool(concurrency) as pool:
             res = pool.map(run_worker, modules)
-        for f in os.listdir(src_dir):
-            src_entry = os.path.join(src_dir, f)
-            if os.path.isfile(src_entry):
-                copy_stubs(src_entry, outer_dirs)
         concat_out, concat_err = tuple(zip(*res))
         concat_out = "\n".join(out for out in concat_out if out)
         concat_err = "\n".join(err for err in concat_err if err)
@@ -164,6 +160,11 @@ def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1,
             logger.critical(concat_err)
         if concat_out and verbose:
             logger.warning(concat_out)
+        if os.path.isdir(src_dir):
+            for f in os.listdir(src_dir):
+                src_entry = os.path.join(src_dir, f)
+                if os.path.isfile(src_entry):
+                    copy_stubs(src_entry, outer_dirs)
 
 def protect_quoted_square_brackets_and_equals(arg):
     open_quote = False
@@ -219,6 +220,9 @@ def process_src_line(src_line):
             processed_args = ", ".join(process_py_signature_arg(py_signature_arg) for py_signature_arg in py_signature_args)
             src_line = f"{func_name}{func_open_bracket}{processed_args}{func_end_bracket_and_arrow}{py_signature_ret}{func_colon_to_end}"
     return src_line
+
+def preprocess_doc_lines(doc_lines):
+    return list(map(process_src_line, doc_lines))
 
 def preprocess_docstring(docstring):
     src_lines = docstring.split("\n")

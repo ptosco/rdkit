@@ -64,4 +64,4 @@ if __name__ == "__main__":
     if site_packages_path is None:
         raise ValueError("Failed to find rdkit in PYTHONPATH")
     site_packages_path = Path(site_packages_path)
-    generate_stubs(site_packages_path, args.output_dirs, args.concurrency)
+    generate_stubs(site_packages_path, args.output_dirs, args.concurrency, args.verbose)
