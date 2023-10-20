@@ -2430,8 +2430,8 @@ ARGUMENTS:\n\
             - molecule: the molecule to update\n\
         \n\
         \n";
-    python::def("ReapplyMolBlockWedging", reapplyMolBlockWedging,
-                docString.c_str(), python::args("mol"));
+    python::def("ReapplyMolBlockWedging", Chirality::reapplyMolBlockWedging,
+                docString.c_str());
     docString =
         R"DOC(Constants used to set the thresholds for which single bonds can be made wavy.)DOC";
     python::class_<StereoBondThresholds>("StereoBondThresholds",
