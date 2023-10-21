@@ -15,6 +15,15 @@ if __name__ == "__main__":
     gen_rdkit_stubs = importlib.import_module("gen_rdkit_stubs")
 
     parse_function_docstring_orig = ExtractSignaturesFromPybind11Docstrings.parse_function_docstring
+    handle_property_orig = ExtractSignaturesFromPybind11Docstrings.handle_property
+
+    def handle_property_patched(self, path, prop, **kwargs):
+        if hasattr(prop, "fget") and hasattr(prop.fget, "__doc__") and prop.fget.__doc__ is None:
+            prop = property(getattr(prop, "fget", None),
+                            getattr(prop, "fset", None),
+                            getattr(prop, "fdel", None),
+                            "")
+        return handle_property_orig(self, path, prop, **kwargs)
 
     def parse_function_docstring_patched(self, func_name, doc_lines, **kwargs):
         doc_lines = gen_rdkit_stubs.preprocess_doc_lines(doc_lines)
@@ -27,6 +36,7 @@ if __name__ == "__main__":
         return parse_function_docstring_orig(self, func_name, doc_lines, **kwargs)
 
     ExtractSignaturesFromPybind11Docstrings.parse_function_docstring = parse_function_docstring_patched
+    ExtractSignaturesFromPybind11Docstrings.handle_property = handle_property_patched
 
     tempdir = sys.argv[1]
     m = sys.argv[2]
