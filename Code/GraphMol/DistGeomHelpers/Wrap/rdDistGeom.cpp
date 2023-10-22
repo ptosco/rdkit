@@ -514,10 +514,9 @@ BOOST_PYTHON_MODULE(rdDistGeom) {
           "use molecule symmetry when doing the RMSD pruning. Note that this "
           "option automatically also sets onlyHeavyAtomsForRMS to true.")
       .def("SetBoundsMat", &RDKit::setBoundsMatrix,
-           python::args("self", "boundsMatArg"),
            "set the distance-bounds matrix to be used (no triangle smoothing "
            "will be done on this) from a Numpy array")
-      .def("SetCPCI", &RDKit::setCPCI, python::args("self", "CPCIdict"),
+      .def("SetCPCI", &RDKit::setCPCI,
            "set the customised pairwise Columb-like interaction to atom pairs."
            "used during structural minimisation stage")
       .def_readwrite("forceTransAmides",
@@ -526,7 +525,7 @@ BOOST_PYTHON_MODULE(rdDistGeom) {
       .def_readwrite(
           "trackFailures", &RDKit::DGeomHelpers::EmbedParameters::trackFailures,
           "keep track of which checks during the embedding process fail")
-      .def("GetFailureCounts", &RDKit::getFailureCounts, python::args("self"),
+      .def("GetFailureCounts", &RDKit::getFailureCounts,
            "returns the counts of each failure type")
       .def_readwrite(
           "enableSequentialRandomSeeds",

@@ -62,17 +62,17 @@ struct stereogroup_wrap {
 
     python::class_<StereoGroup, boost::shared_ptr<StereoGroup>>(
         "StereoGroup", stereoGroupClassDoc.c_str(), python::no_init)
-        .def("GetGroupType", &StereoGroup::getGroupType, python::args("self"),
+        .def("GetGroupType", &StereoGroup::getGroupType,
              "Returns the StereoGroupType.\n")
-        .def("GetAtoms", getAtomsHelper, python::args("self"),
+        .def("GetAtoms", getAtomsHelper,
              "access the atoms in the StereoGroup.\n")
-        .def("GetReadId", &StereoGroup::getReadId, python::args("self"),
+        .def("GetReadId", &StereoGroup::getReadId,
              "return the StereoGroup's original ID.\n"
              "Note that the ID only makes sense for AND/OR groups.\n")
-        .def("GetWriteId", &StereoGroup::getWriteId, python::args("self"),
+        .def("GetWriteId", &StereoGroup::getWriteId,
              "return the StereoGroup's ID that will be exported.\n"
              "Note that the ID only makes sense for AND/OR groups.\n")
-        .def("SetWriteId", &StereoGroup::setWriteId, python::args("self", "id"),
+        .def("SetWriteId", &StereoGroup::setWriteId,
              "return the StereoGroup's ID that will be exported.\n"
              "Note that the ID only makes sense for AND/OR groups.\n");
 
@@ -87,7 +87,6 @@ struct stereogroup_wrap {
 
     python::def(
         "ForwardStereoGroupIds", &RDKit::forwardStereoGroupIds,
-        python::args("mol"),
         "Forward the original Stereo Group IDs when exporting the Mol.");
   }
 };

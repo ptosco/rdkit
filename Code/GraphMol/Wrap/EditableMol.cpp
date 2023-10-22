@@ -101,52 +101,45 @@ struct EditableMol_wrapper {
 ";
     python::class_<EditableMol, boost::noncopyable>(
         "EditableMol", "an editable molecule class",
-        python::init<const ROMol &>(python::args("self", "arg1"),
-                                    "Construct from a Mol"))
+        python::init<const ROMol &>("Construct from a Mol"))
         .def("RemoveAtom", &EditableMol::RemoveAtom,
-             python::args("self", "idx"),
              "Remove the specified atom from the molecule")
         .def("RemoveBond", &EditableMol::RemoveBond,
-             python::args("self", "idx1", "idx2"),
              "Remove the specified bond from the molecule")
 
         .def("AddBond", &EditableMol::AddBond,
-             ((python::arg("self"), python::arg("beginAtomIdx")),
-              python::arg("endAtomIdx"),
+             (python::arg("beginAtomIdx"), python::arg("endAtomIdx"),
               python::arg("order") = Bond::UNSPECIFIED),
              "add a bond, returns the total number of bonds")
 
-        .def("AddAtom", &EditableMol::AddAtom,
-             ((python::arg("self"), python::arg("atom"))),
+        .def("AddAtom", &EditableMol::AddAtom, (python::arg("atom")),
              "add an atom, returns the index of the newly added atom")
 
         .def("ReplaceAtom", &EditableMol::ReplaceAtom,
-             ((python::arg("self"), python::arg("index")),
-              python::arg("newAtom"), python::arg("updateLabel") = false,
+             (python::arg("index"), python::arg("newAtom"),
+              python::arg("updateLabel") = false,
               python::arg("preserveProps") = false),
              "replaces the specified atom with the provided one\n"
              "If updateLabel is True, the new atom becomes the active atom\n"
              "If preserveProps is True preserve keep the existing props unless "
              "explicit set on the new atom")
         .def("ReplaceBond", &EditableMol::ReplaceBond,
-             ((python::arg("self"), python::arg("index")),
-              python::arg("newBond"), python::arg("preserveProps") = false),
+             (python::arg("index"), python::arg("newBond"),
+              python::arg("preserveProps") = false),
              "replaces the specified bond with the provided one.\n"
              "If preserveProps is True preserve keep the existing props unless "
              "explicit set on the new bond")
 
         .def("BeginBatchEdit", &EditableMol::BeginBatchEdit,
-             python::args("self"), "starts batch editing")
+             "starts batch editing")
         .def("RollbackBatchEdit", &EditableMol::RollbackBatchEdit,
-             python::args("self"), "cancels batch editing")
+             "cancels batch editing")
         .def("CommitBatchEdit", &EditableMol::CommitBatchEdit,
-             python::args("self"),
              "finishes batch editing and makes the actual edits")
 
         .def("GetMol", &EditableMol::GetMol,
              "Returns a Mol (a normal molecule)",
-             python::return_value_policy<python::manage_new_object>(),
-             python::args("self"));
+             python::return_value_policy<python::manage_new_object>());
   };
 };
 

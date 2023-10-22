@@ -77,10 +77,9 @@ BOOST_PYTHON_MODULE(rdScaffoldNetwork) {
   iterable_converter().from_python<std::vector<std::string>>();
 
   python::class_<ScaffoldNetwork::ScaffoldNetworkParams>(
-      "ScaffoldNetworkParams", "Scaffold network parameters",
-      python::init<>(python::args("self")))
+      "ScaffoldNetworkParams", "Scaffold network parameters", python::init<>())
       .def(python::init<const std::vector<std::string> &>(
-          (python::arg("self"), python::arg("bondBreakerSmartsList")),
+          (python::arg("bondBreakerSmartsList")),
           "Constructor taking a list of Reaction SMARTS for the fragmentation "
           "reactions"))
       .def_readwrite(
@@ -142,10 +141,9 @@ BOOST_PYTHON_MODULE(rdScaffoldNetwork) {
       .def(python::self_ns::str(python::self_ns::self));
 
   python::class_<ScaffoldNetwork::ScaffoldNetwork>(
-      "ScaffoldNetwork", "A scaffold network",
-      python::init<>(python::args("self")))
+      "ScaffoldNetwork", "A scaffold network", python::init<>())
 #ifdef RDK_USE_BOOST_SERIALIZATION
-      .def(python::init<const std::string &>(python::args("self", "arg1")))
+      .def(python::init<const std::string &>())
       // enable pickle support
       .def_pickle(scaffoldnetwork_pickle_suite())
 #endif

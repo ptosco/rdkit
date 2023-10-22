@@ -17,11 +17,9 @@ namespace python = boost::python;
 namespace RDKit {
 struct fragFPgen_wrapper {
   static void wrap() {
-    python::class_<FragFPGenerator>("FragFPGenerator",
-                                    python::init<>(python::args("self")))
+    python::class_<FragFPGenerator>("FragFPGenerator", python::init<>())
         .def("GetFPForMol", &FragFPGenerator::getFPForMol,
-             python::return_value_policy<python::manage_new_object>(),
-             python::args("self", "mol", "fcat"));
+             python::return_value_policy<python::manage_new_object>());
   };
 };
 }  // namespace RDKit

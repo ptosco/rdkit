@@ -545,10 +545,9 @@ BOOST_PYTHON_MODULE(rdChemReactions) {
 
   python::class_<RDKit::ReactionFingerprintParams>(
       "ReactionFingerprintParams", docStringReactionFPParams.c_str(),
-      python::init<>(python::args("self"), "Constructor, takes no arguments"))
+      python::init<>("Constructor, takes no arguments"))
       .def(python::init<bool, double, unsigned int, int, unsigned int,
-                        RDKit::FingerprintType>(
-          python::args("self", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6")))
+                        RDKit::FingerprintType>())
       .def_readwrite("fpSize", &RDKit::ReactionFingerprintParams::fpSize)
       .def_readwrite("fpType", &RDKit::ReactionFingerprintParams::fpType)
       .def_readwrite("bitRatioAgents",
@@ -583,28 +582,24 @@ Sample Usage:
   python::class_<RDKit::ChemicalReaction,
                  std::shared_ptr<RDKit::ChemicalReaction>>(
       "ChemicalReaction", docString.c_str(),
-      python::init<>(python::args("self"), "Constructor, takes no arguments"))
-      .def(python::init<const std::string &>(python::args("self", "arg1")))
-      .def(python::init<const RDKit::ChemicalReaction &>(
-          python::args("self", "arg1")))
+      python::init<>("Constructor, takes no arguments"))
+      .def(python::init<const std::string &>())
+      .def(python::init<const RDKit::ChemicalReaction &>())
       .def("GetNumReactantTemplates",
            &RDKit::ChemicalReaction::getNumReactantTemplates,
-           python::args("self"),
            "returns the number of reactants this reaction expects")
       .def("GetNumProductTemplates",
            &RDKit::ChemicalReaction::getNumProductTemplates,
-           python::args("self"),
            "returns the number of products this reaction generates")
       .def("GetNumAgentTemplates",
-           &RDKit::ChemicalReaction::getNumAgentTemplates, python::args("self"),
+           &RDKit::ChemicalReaction::getNumAgentTemplates,
            "returns the number of agents this reaction expects")
       .def("AddReactantTemplate", &RDKit::ChemicalReaction::addReactantTemplate,
-           python::args("self", "mol"),
            "adds a reactant (a Molecule) to the reaction")
       .def("AddProductTemplate", &RDKit::ChemicalReaction::addProductTemplate,
-           python::args("self", "mol"), "adds a product (a Molecule)")
+           "adds a product (a Molecule)")
       .def("AddAgentTemplate", &RDKit::ChemicalReaction::addAgentTemplate,
-           python::args("self", "mol"), "adds a agent (a Molecule)")
+           "adds a agent (a Molecule)")
       .def("RemoveUnmappedReactantTemplates",
            RDKit::RemoveUnmappedReactantTemplates,
            (python::arg("self"), python::arg("thresholdUnmappedAtoms") = 0.2,
@@ -644,7 +639,6 @@ Sample Usage:
            " stop the reaction when maxProducts have been generated "
            "[default=1000]")
       .def("RunReactant", RDKit::RunReactant,
-           python::args("self", "reactant", "reactionIdx"),
            "apply the reaction to a single reactant")
       .def("RunReactantInPlace", RDKit::RunReactantInPlace,
            (python::arg("self"), python::arg("reactant"),
@@ -656,7 +650,7 @@ Sample Usage:
            (python::arg("self"), python::arg("silent") = false),
            "initializes the reaction so that it can be used")
       .def("IsInitialized", &RDKit::ChemicalReaction::isInitialized,
-           python::args("self"), "checks if the reaction is ready for use")
+           "checks if the reaction is ready for use")
       .def("Validate", &RDKit::ValidateReaction,
            (python::arg("self"), python::arg("silent") = false),
            "checks the reaction for potential problems, returns "
@@ -689,15 +683,12 @@ Sample Usage:
            (python::arg("self"), python::arg("propertyFlags")),
            "Returns a binary string representation of the reaction.")
       .def("IsMoleculeReactant", RDKit::IsMoleculeReactantOfReaction,
-           python::args("self", "mol"),
            "returns whether or not the molecule has a substructure match to "
            "one of the reactants.")
       .def("IsMoleculeProduct", RDKit::IsMoleculeProductOfReaction,
-           python::args("self", "mol"),
            "returns whether or not the molecule has a substructure match to "
            "one of the products.")
       .def("IsMoleculeAgent", RDKit::IsMoleculeAgentOfReaction,
-           python::args("self", "mol"),
            "returns whether or not the molecule has a substructure match to "
            "one of the agents.")
       .def("GetReactingAtoms", &RDKit::GetReactingAtoms,
@@ -713,18 +704,17 @@ Sample Usage:
 
       .def("GetReactants", &RDKit::ChemicalReaction::getReactants,
            python::return_value_policy<python::reference_existing_object>(),
-           python::args("self"), "get the reactant templates")
+           "get the reactant templates")
       .def("GetProducts", &RDKit::ChemicalReaction::getProducts,
            python::return_value_policy<python::reference_existing_object>(),
-           python::args("self"), "get the product templates")
+           "get the product templates")
       .def("GetAgents", &RDKit::ChemicalReaction::getAgents,
            python::return_value_policy<python::reference_existing_object>(),
-           python::args("self"), "get the agent templates")
+           "get the agent templates")
       .def("GetSubstructParams", RDKit::getParamsHelper,
            python::return_value_policy<
                python::reference_existing_object,
                python::with_custodian_and_ward_postcall<0, 1>>(),
-           python::args("self"),
            "get the parameter object controlling the substructure matching")
 
       // properties
@@ -781,13 +771,11 @@ Sample Usage:
            "computed.\n"
            "                Defaults to False.\n\n")
       .def("HasProp", RDKit::MolHasProp<RDKit::ChemicalReaction>,
-           python::args("self", "key"),
            "Queries a molecule to see if a particular property has been "
            "assigned.\n\n"
            "  ARGUMENTS:\n"
            "    - key: the name of the property to check for (a string).\n")
       .def("GetProp", RDKit::GetProp<RDKit::ChemicalReaction, std::string>,
-           python::args("self", "key"),
            "Returns the value of the property.\n\n"
            "  ARGUMENTS:\n"
            "    - key: the name of the property to return (a string).\n\n"
@@ -796,7 +784,6 @@ Sample Usage:
            "    - If the property has not been set, a KeyError exception "
            "will be raised.\n")
       .def("GetDoubleProp", RDKit::GetProp<RDKit::ChemicalReaction, double>,
-           python::args("self", "key"),
            "Returns the double value of the property if possible.\n\n"
            "  ARGUMENTS:\n"
            "    - key: the name of the property to return (a string).\n\n"
@@ -805,7 +792,6 @@ Sample Usage:
            "    - If the property has not been set, a KeyError exception "
            "will be raised.\n")
       .def("GetIntProp", RDKit::GetProp<RDKit::ChemicalReaction, int>,
-           python::args("self", "key"),
            "Returns the integer value of the property if possible.\n\n"
            "  ARGUMENTS:\n"
            "    - key: the name of the property to return (a string).\n\n"
@@ -815,7 +801,6 @@ Sample Usage:
            "will be raised.\n")
       .def("GetUnsignedProp",
            RDKit::GetProp<RDKit::ChemicalReaction, unsigned int>,
-           python::args("self", "key"),
            "Returns the unsigned int value of the property if possible.\n\n"
            "  ARGUMENTS:\n"
            "    - key: the name of the property to return (a string).\n\n"
@@ -824,7 +809,6 @@ Sample Usage:
            "    - If the property has not been set, a KeyError exception "
            "will be raised.\n")
       .def("GetBoolProp", RDKit::GetProp<RDKit::ChemicalReaction, bool>,
-           python::args("self", "key"),
            "Returns the Bool value of the property if possible.\n\n"
            "  ARGUMENTS:\n"
            "    - key: the name of the property to return (a string).\n\n"
@@ -833,14 +817,12 @@ Sample Usage:
            "    - If the property has not been set, a KeyError exception "
            "will be raised.\n")
       .def("ClearProp", RDKit::MolClearProp<RDKit::ChemicalReaction>,
-           python::args("self", "key"),
            "Removes a property from the reaction.\n\n"
            "  ARGUMENTS:\n"
            "    - key: the name of the property to clear (a string).\n")
 
       .def("ClearComputedProps",
            RDKit::MolClearComputedProps<RDKit::ChemicalReaction>,
-           python::args("self"),
            "Removes all computed properties from the reaction.\n\n")
 
       .def("GetPropNames", &RDKit::ChemicalReaction::getPropList,
@@ -963,12 +945,10 @@ of the replacements argument.",
 #ifdef RDK_USE_BOOST_IOSTREAMS
   python::def("ReactionFromPNGFile", RDKit::PNGFileToChemicalReaction,
               "construct a ChemicalReaction from metadata in a PNG file",
-              python::return_value_policy<python::manage_new_object>(),
-              python::args("fname"));
+              python::return_value_policy<python::manage_new_object>());
   python::def("ReactionFromPNGString", RDKit::PNGStringToChemicalReaction,
               "construct a ChemicalReaction from an string with PNG data",
-              python::return_value_policy<python::manage_new_object>(),
-              python::args("data"));
+              python::return_value_policy<python::manage_new_object>());
   python::def(
       "ReactionMetadataToPNGFile", RDKit::addReactionToPNGFileHelper,
       (python::arg("mol"), python::arg("filename"),
@@ -987,8 +967,7 @@ of the replacements argument.",
   python::def("ReactionFromMolecule", RDKit::RxnMolToChemicalReaction,
               "construct a ChemicalReaction from an molecule if the RXN role "
               "property of the molecule is set",
-              python::return_value_policy<python::manage_new_object>(),
-              python::args("mol"));
+              python::return_value_policy<python::manage_new_object>());
   python::def(
       "ReactionToMolecule", RDKit::ChemicalReactionToRxnMol,
       (python::arg("reaction")),
@@ -1048,7 +1027,6 @@ of the replacements argument.",
               "tests if a molecule can be classified as an agent depending on "
               "the ratio of mapped atoms and a give threshold");
   python::def("HasReactionAtomMapping", RDKit::hasReactionAtomMapping,
-              python::args("rxn"),
               "tests if a reaction obtains any atom mapping");
   python::def("HasReactionSubstructMatch", RDKit::hasReactionSubstructMatch,
               (python::arg("reaction"), python::arg("queryReaction"),

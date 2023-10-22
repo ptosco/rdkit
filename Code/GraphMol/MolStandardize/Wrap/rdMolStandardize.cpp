@@ -246,7 +246,6 @@ BOOST_PYTHON_MODULE(rdMolStandardize) {
 
   python::def("UpdateParamsFromJSON",
               &RDKit::MolStandardize::updateCleanupParamsFromJSON,
-              python::args("params", "json"),
               "updates the cleanup parameters from the provided JSON string");
 
   docString = "Standardizes a molecule";

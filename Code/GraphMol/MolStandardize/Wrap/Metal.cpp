@@ -76,8 +76,7 @@ struct metal_wrapper {
 
     std::string docString = "Metal Disconnector Options";
     python::class_<RDKit::MolStandardize::MetalDisconnectorOptions>(
-        "MetalDisconnectorOptions", docString.c_str(),
-        python::init<>(python::args("self")))
+        "MetalDisconnectorOptions", docString.c_str(), python::init<>())
         .def_readwrite(
             "splitGrignards",
             &RDKit::MolStandardize::MetalDisconnectorOptions::splitGrignards,
@@ -104,7 +103,7 @@ struct metal_wrapper {
     python::class_<MetalDisconnectorWrap, boost::noncopyable>(
         "MetalDisconnector", docString.c_str(),
         python::init<python::optional<python::object>>(
-            (python::arg("self"), python::arg("options") = python::object())))
+            (python::arg("options") = python::object())))
         .add_property("MetalNof", &getMetalNofHelper,
                       "SMARTS defining the metals to disconnect if attached to "
                       "Nitrogen, Oxygen or Fluorine")

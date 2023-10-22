@@ -1167,7 +1167,7 @@ struct molops_wrapper {
   RETURNS: Nothing\n\
 \n";
     python::def("SetTerminalAtomCoords", MolOps::setTerminalAtomCoords,
-                docString.c_str(), python::args("mol", "idx", "otherIdx"));
+                docString.c_str());
 
     // ------------------------------------------------------------------------
     docString =
@@ -1179,11 +1179,10 @@ struct molops_wrapper {
 \n\
   RETURNS: Nothing\n\
 \n";
-    python::def("FastFindRings", MolOps::fastFindRings, docString.c_str(),
-                python::args("mol"));
+    python::def("FastFindRings", MolOps::fastFindRings, docString.c_str());
 #ifdef RDK_USE_URF
     python::def("FindRingFamilies", MolOps::findRingFamilies,
-                python::args("mol"), "generate Unique Ring Families");
+                "generate Unique Ring Families");
 #endif
     // ------------------------------------------------------------------------
     docString =
@@ -2020,8 +2019,7 @@ RETURNS:
 \n\
     - mol: the molecule to use\n\
 \n";
-    python::def("GetFormalCharge", &MolOps::getFormalCharge, docString.c_str(),
-                python::args("mol"));
+    python::def("GetFormalCharge", &MolOps::getFormalCharge, docString.c_str());
 
     // ------------------------------------------------------------------------
     docString =
@@ -2033,8 +2031,7 @@ RETURNS:
     - idx1: index of the first atom\n\
     - idx2: index of the second atom\n\
 \n";
-    python::def("GetShortestPath", getShortestPathHelper, docString.c_str(),
-                python::args("mol", "aid1", "aid2"));
+    python::def("GetShortestPath", getShortestPathHelper, docString.c_str());
 
     // ------------------------------------------------------------------------
     docString =
@@ -2466,8 +2463,7 @@ ARGUMENTS:\n\
     - atom ID: the atom from which to do the wedging
     - conformer: the conformer to use to determine wedge direction
 )DOC";
-    python::def("WedgeBond", WedgeBond, docString.c_str(),
-                python::args("bond", "fromAtomIdx", "conf"));
+    python::def("WedgeBond", WedgeBond, docString.c_str());
 
     // ------------------------------------------------------------------------
     docString =
@@ -2716,7 +2712,7 @@ EXAMPLES:\n\n\
 ";
 
     python::class_<MolzipParams>("MolzipParams", docString.c_str(),
-                                 python::init<>(python::args("self")))
+                                 python::init<>())
         .def_readwrite("label", &MolzipParams::label,
                        "Set the atom labelling system to zip together")
         .def_readwrite("enforceValenceRules",
@@ -2728,7 +2724,6 @@ Setting this to false allows assembling chemically incorrect fragments.")
             "If true will add depiction coordinates to input molecules and\n\
 zipped molecule (for molzipFragments only)")
         .def("setAtomSymbols", &RDKit::setAtomSymbols,
-             python::args("self", "symbols"),
              "Set the atom symbols used to zip mols together when using "
              "AtomType labeling");
 
@@ -2963,14 +2958,14 @@ A note on the flags controlling which atoms/bonds are modified:
                 python::arg("mol"), "documentation");
     python::def(
         "SetAllowNontetrahedralChirality",
-        Chirality::setAllowNontetrahedralChirality, python::args("val"),
+        Chirality::setAllowNontetrahedralChirality,
         "toggles recognition of non-tetrahedral chirality from 3D structures");
     python::def("GetAllowNontetrahedralChirality",
                 Chirality::getAllowNontetrahedralChirality,
                 "returns whether or not recognition of non-tetrahedral "
                 "chirality from 3D structures is enabled");
     python::def("SetUseLegacyStereoPerception",
-                Chirality::setUseLegacyStereoPerception, python::args("val"),
+                Chirality::setUseLegacyStereoPerception,
                 "toggles usage of the legacy stereo perception code");
     python::def("GetUseLegacyStereoPerception",
                 Chirality::getUseLegacyStereoPerception,

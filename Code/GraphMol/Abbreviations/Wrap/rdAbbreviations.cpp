@@ -57,8 +57,7 @@ BOOST_PYTHON_MODULE(rdAbbreviations) {
   RegisterVectorConverter<Abbreviations::AbbreviationDefinition>();
 
   python::class_<Abbreviations::AbbreviationDefinition>(
-      "AbbreviationDefinition", "Abbreviation Definition",
-      python::init<>(python::args("self")))
+      "AbbreviationDefinition", "Abbreviation Definition", python::init<>())
       .def_readwrite("label", &Abbreviations::AbbreviationDefinition::label,
                      "the label")
       .def_readwrite(

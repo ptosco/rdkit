@@ -673,10 +673,10 @@ struct substructlibrary_wrapper {
   static void wrap() {
     python::class_<MolHolderBase, boost::shared_ptr<MolHolderBase>,
                    boost::noncopyable>("MolHolderBase", "", python::no_init)
-        .def("__len__", &MolHolderBase::size, python::args("self"))
-        .def("AddMol", &MolHolderBase::addMol, python::args("self", "m"),
+        .def("__len__", &MolHolderBase::size)
+        .def("AddMol", &MolHolderBase::addMol,
              "Adds molecule to the molecule holder")
-        .def("GetMol", &MolHolderBase::getMol, python::args("self", "arg1"),
+        .def("GetMol", &MolHolderBase::getMol,
              "Returns a particular molecule in the molecule holder\n\n"
              "  ARGUMENTS:\n"
              "    - idx: which molecule to return\n\n"
@@ -685,25 +685,22 @@ struct substructlibrary_wrapper {
              "  NOTE: molecule indices start at 0\n");
 
     python::class_<MolHolder, boost::shared_ptr<MolHolder>,
-                   python::bases<MolHolderBase>>(
-        "MolHolder", MolHolderDoc, python::init<>(python::args("self")));
+                   python::bases<MolHolderBase>>("MolHolder", MolHolderDoc,
+                                                 python::init<>());
 
     python::class_<CachedMolHolder, boost::shared_ptr<CachedMolHolder>,
                    python::bases<MolHolderBase>>(
-        "CachedMolHolder", CachedMolHolderDoc,
-        python::init<>(python::args("self")))
-        .def("AddBinary", &CachedMolHolder::addBinary,
-             (python::args("self", "pickle")),
+        "CachedMolHolder", CachedMolHolderDoc, python::init<>())
+        .def("AddBinary", &CachedMolHolder::addBinary, (python::args("pickle")),
              "Add a binary pickle to the molecule holder, no checking is done "
              "on the input data");
 
     python::class_<CachedSmilesMolHolder,
                    boost::shared_ptr<CachedSmilesMolHolder>,
                    python::bases<MolHolderBase>>(
-        "CachedSmilesMolHolder", CachedSmilesMolHolderDoc,
-        python::init<>(python::args("self")))
+        "CachedSmilesMolHolder", CachedSmilesMolHolderDoc, python::init<>())
         .def("AddSmiles", &CachedSmilesMolHolder::addSmiles,
-             (python::args("self", "smiles")),
+             (python::args("smiles")),
              "Add a trusted smiles string to the molecule holder, no checking "
              "is done on the input data");
 
@@ -711,106 +708,93 @@ struct substructlibrary_wrapper {
                    boost::shared_ptr<CachedTrustedSmilesMolHolder>,
                    python::bases<MolHolderBase>>(
         "CachedTrustedSmilesMolHolder", CachedTrustedSmilesMolHolderDoc,
-        python::init<>(python::args("self")))
+        python::init<>())
         .def("AddSmiles", &CachedTrustedSmilesMolHolder::addSmiles,
-             (python::args("self", "smiles")),
+             (python::args("smiles")),
              "Add a trusted smiles string to the molecule holder, no checking "
              "is done on the input data");
 
     python::class_<FPHolderBase, boost::shared_ptr<FPHolderBase>,
                    boost::noncopyable>("FPHolderBase", "", python::no_init)
-        .def("__len__", &FPHolderBase::size, python::args("self"))
+        .def("__len__", &FPHolderBase::size)
 
-        .def("AddMol", &FPHolderBase::addMol, python::args("self", "m"),
+        .def("AddMol", &FPHolderBase::addMol,
              "Adds a molecule to the fingerprint database, returns the index "
              "of the new pattern")
         .def("AddFingerprint",
              (unsigned int (FPHolderBase::*)(const ExplicitBitVect &)) &
                  FPHolderBase::addFingerprint,
-             python::args("self", "v"),
              "Adds a raw bit vector to the fingerprint database, returns the "
              "index of the supplied pattern")
         .def("GetFingerprint", &FPHolderBase::getFingerprint,
              python::return_value_policy<python::reference_existing_object>(),
-             python::args("self", "idx"),
              "Return the bit vector at the specified index")
         .def("PassesFilter", &FPHolderBase::passesFilter,
-             ((python::args("self"), python::args("idx")),
-              python::args("query")),
+             (python::args("idx"), python::args("query")),
              "Returns True if the specified index passes the filter supplied "
              "by the query bit vector")
         .def("MakeFingerprint", &FPHolderBase::makeFingerprint,
-             ((python::arg("self"), python::arg("mol"))),
+             (python::arg("mol")),
              python::return_value_policy<python::manage_new_object>(),
              "Compute the query bits for the holder");
 
     python::class_<PatternHolder, boost::shared_ptr<PatternHolder>,
                    python::bases<FPHolderBase>>(
-        "PatternHolder", PatternHolderDoc, python::init<>(python::args("self")))
-        .def(python::init<unsigned int>(python::args("self", "arg1")));
+        "PatternHolder", PatternHolderDoc, python::init<>())
+        .def(python::init<unsigned int>());
 
     python::class_<KeyHolderBase, boost::shared_ptr<KeyHolderBase>,
                    boost::noncopyable>("KeyHolderBase", "", python::no_init)
-        .def("__len__", &KeyHolderBase::size, python::args("self"))
+        .def("__len__", &KeyHolderBase::size)
 
-        .def("AddMol", &KeyHolderBase::addMol, python::args("self", "m"),
+        .def("AddMol", &KeyHolderBase::addMol,
              "Adds a molecule to the fingerprint database, returns the index "
              "of the new pattern")
-        .def("AddKey", &KeyHolderBase::addKey, python::args("self", "arg1"),
+        .def("AddKey", &KeyHolderBase::addKey,
              "Add a key to the key holder, must be manually synced")
         .def("GetKey", &KeyHolderBase::getKey,
              python::return_value_policy<python::copy_const_reference>(),
-             python::args("self", "arg1"),
              "Return the key at the specified index")
         .def("GetKeys", &KeyHolderBase::getKeys,
-             python::args("self", "indices"),
              "Returns the keys for the given indices as return by GetMatches "
              "\n\n"
              "  ARGUMENTS:\n"
              "    - indices: The indices of the keys\n\n");
 
     python::class_<KeyFromPropHolder, boost::shared_ptr<KeyFromPropHolder>,
-                   python::bases<KeyHolderBase>>(
-        "KeyFromPropHolder", KeyHolderDoc, python::init<>(python::args("self")))
-        .def(python::init<const std::string &>(python::args("self", "arg1")))
+                   python::bases<KeyHolderBase>>("KeyFromPropHolder",
+                                                 KeyHolderDoc, python::init<>())
+        .def(python::init<const std::string &>())
         .def("GetPropName",
              (const std::string &(KeyFromPropHolder::*)() const) &
                  KeyFromPropHolder::getPropName,
              python::return_value_policy<python::copy_const_reference>(),
-             python::args("self"),
              "Return the key for the given molecule index");
 
     python::class_<TautomerPatternHolder,
                    boost::shared_ptr<TautomerPatternHolder>,
                    python::bases<FPHolderBase>>(
-        "TautomerPatternHolder", TautomerPatternHolderDoc,
-        python::init<>(python::args("self")))
-        .def(python::init<unsigned int>(python::args("self", "arg1")));
+        "TautomerPatternHolder", TautomerPatternHolderDoc, python::init<>())
+        .def(python::init<unsigned int>());
 
     python::class_<SubstructLibraryWrap, SubstructLibraryWrap *,
                    const SubstructLibraryWrap *>(
-        "SubstructLibrary", SubstructLibraryDoc,
-        python::init<>(python::args("self")))
-        .def(python::init<boost::shared_ptr<MolHolderBase>>(
-            python::args("self", "arg1")))
+        "SubstructLibrary", SubstructLibraryDoc, python::init<>())
+        .def(python::init<boost::shared_ptr<MolHolderBase>>())
         .def(python::init<boost::shared_ptr<MolHolderBase>,
-                          boost::shared_ptr<FPHolderBase>>(
-            python::args("self", "arg1", "arg2")))
+                          boost::shared_ptr<FPHolderBase>>())
         .def(python::init<boost::shared_ptr<MolHolderBase>,
-                          boost::shared_ptr<KeyHolderBase>>(
-            python::args("self", "arg1", "arg2")))
+                          boost::shared_ptr<KeyHolderBase>>())
         .def(python::init<boost::shared_ptr<MolHolderBase>,
                           boost::shared_ptr<FPHolderBase>,
-                          boost::shared_ptr<KeyHolderBase>>(
-            python::args("self", "arg1", "arg2", "arg3")))
-        .def(python::init<std::string>(python::args("self", "arg1")))
+                          boost::shared_ptr<KeyHolderBase>>())
+        .def(python::init<std::string>())
 
-        .def("GetMolHolder", &GetMolHolder, python::args("self"))
-        .def("GetFpHolder", &GetFpHolder, python::args("self"))
-        .def("GetKeyHolder", &GetKeyHolder, python::args("self"))
+        .def("GetMolHolder", &GetMolHolder)
+        .def("GetFpHolder", &GetFpHolder)
+        .def("GetKeyHolder", &GetKeyHolder)
 
-        .def("AddMol", &SubstructLibraryWrap::addMol,
-             ((python::arg("self"), python::arg("mol"))),
+        .def("AddMol", &SubstructLibraryWrap::addMol, (python::arg("mol")),
              "Adds a molecule to the substruct library")
 
         // clang-format off
@@ -820,26 +804,23 @@ struct substructlibrary_wrapper {
         // clang-format on
 
         .def("GetMol", &SubstructLibraryWrap::getMol,
-             python::args("self", "idx"),
              "Returns a particular molecule in the molecule holder\n\n"
              "  ARGUMENTS:\n"
              "    - idx: which molecule to return\n\n"
              "  NOTE: molecule indices start at 0\n")
 
         .def("SetSearchOrder", setSearchOrderHelper,
-             python::args("self", "seq"),
              "Sets the search order for the library\n\n"
              "  ARGUMENTS:\n"
              "    - order: sequence of molecule indices\n\n"
              "  NOTE: molecule indices start at 0\n")
-        .def("GetSearchOrder", getSearchOrderHelper, python::args("self"),
+        .def("GetSearchOrder", getSearchOrderHelper,
              "Returns the search order for the library\n\n"
              "  NOTE: molecule indices start at 0\n")
 
-        .def("__len__", &SubstructLibraryWrap::size, python::args("self"))
+        .def("__len__", &SubstructLibraryWrap::size)
 
-        .def("ToStream", &toStream,
-             (python::arg("self"), python::arg("stream")),
+        .def("ToStream", &toStream, python::arg("stream"),
              "Serialize a substructure library to a python text stream.\n"
              "The stream can be a file in text mode or an io.StringIO type "
              "object\n\n"
@@ -854,8 +835,7 @@ struct substructlibrary_wrapper {
              "  >>> with open('rdkit.sslib', 'w') as stream:\n"
              "  ...  lib.ToStream(stream)\n")
 
-        .def("InitFromStream", &initFromStream,
-             (python::arg("self"), python::arg("stream")),
+        .def("InitFromStream", &initFromStream, python::arg("stream"),
              "Deserialize a substructure library from a python bytes stream.\n"
              "Python doesn't allow seeking operations inside a unicode or "
              "string stream anymore\n"
@@ -874,7 +854,7 @@ struct substructlibrary_wrapper {
              "  >>> with open('rdkit.sslib', 'rb') as f: "
              "lib.InitFromStream(f)\n")
 
-        .def("Serialize", &SubstructLibrary_Serialize, python::args("self"))
+        .def("Serialize", &SubstructLibrary_Serialize)
         // enable pickle support
         .def_pickle(substructlibrary_pickle_suite());
 

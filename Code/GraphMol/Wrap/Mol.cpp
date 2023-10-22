@@ -290,7 +290,7 @@ struct mol_wrapper {
                 MolPickler::getDefaultPickleProperties,
                 "Get the current global mol pickler options.");
     python::def("SetDefaultPickleProperties",
-                MolPickler::setDefaultPickleProperties, python::args("arg1"),
+                MolPickler::setDefaultPickleProperties,
                 "Set the current global mol pickler options.");
 
     // REVIEW: There's probably a better place for this definition
@@ -339,7 +339,6 @@ struct mol_wrapper {
             "bond properties that must be equivalent in order to match.")
         .def("setExtraFinalCheck", setSubstructMatchFinalCheck,
              python::with_custodian_and_ward<1, 2>(),
-             python::args("self", "func"),
              R"DOC(allows you to provide a function that will be called
                with the molecule
            and a vector of atom IDs containing a potential match.
@@ -348,43 +347,40 @@ struct mol_wrapper {
 
     python::class_<ROMol, ROMOL_SPTR, boost::noncopyable>(
         "Mol", molClassDoc.c_str(),
-        python::init<>(python::args("self"), "Constructor, takes no arguments"))
-        .def(python::init<const std::string &>(
-            python::args("self", "pklString")))
+        python::init<>("Constructor, takes no arguments"))
+        .def(python::init<const std::string &>(python::args("pklString")))
         .def(python::init<const std::string &, unsigned int>(
-            (python::args("self", "pklString", "propertyFlags"))))
+            (python::args("pklString", "propertyFlags"))))
         .def(python::init<const ROMol &, bool, int>(
-            (python::arg("self"), python::arg("mol"),
-             python::arg("quickCopy") = false, python::arg("confId") = -1)))
-        .def("__copy__", &generic__copy__<ROMol>, python::args("self"))
-        .def("__deepcopy__", &generic__deepcopy__<ROMol>,
-             python::args("self", "memo"))
-        .def("GetNumAtoms", getMolNumAtoms,
-             ((python::arg("self"), python::arg("onlyHeavy") = -1),
-              python::arg("onlyExplicit") = true),
-             "Returns the number of atoms in the molecule.\n\n"
-             "  ARGUMENTS:\n"
-             "    - onlyExplicit: (optional) include only explicit atoms "
-             "(atoms in the molecular graph)\n"
-             "                    defaults to 1.\n"
-             "  NOTE: the onlyHeavy argument is deprecated\n"
+            (python::arg("mol"), python::arg("quickCopy") = false,
+             python::arg("confId") = -1)))
+        .def("__copy__", &generic__copy__<ROMol>)
+        .def("__deepcopy__", &generic__deepcopy__<ROMol>)
+        .def(
+            "GetNumAtoms", getMolNumAtoms,
+            (python::arg("onlyHeavy") = -1, python::arg("onlyExplicit") = true),
+            "Returns the number of atoms in the molecule.\n\n"
+            "  ARGUMENTS:\n"
+            "    - onlyExplicit: (optional) include only explicit atoms "
+            "(atoms in the molecular graph)\n"
+            "                    defaults to 1.\n"
+            "  NOTE: the onlyHeavy argument is deprecated\n"
 
-             )
-        .def("GetNumHeavyAtoms", &ROMol::getNumHeavyAtoms, python::args("self"),
+            )
+        .def("GetNumHeavyAtoms", &ROMol::getNumHeavyAtoms,
              "Returns the number of heavy atoms (atomic number >1) in the "
              "molecule.\n\n")
         .def("GetAtomWithIdx",
              (Atom * (ROMol::*)(unsigned int)) & ROMol::getAtomWithIdx,
              python::return_internal_reference<
                  1, python::with_custodian_and_ward_postcall<0, 1>>(),
-             python::args("self", "idx"),
              "Returns a particular Atom.\n\n"
              "  ARGUMENTS:\n"
              "    - idx: which Atom to return\n\n"
              "  NOTE: atom indices start at 0\n")
 
         .def("GetNumBonds", &ROMol::getNumBonds,
-             ((python::arg("self"), python::arg("onlyHeavy") = true)),
+             (python::arg("onlyHeavy") = true),
              "Returns the number of Bonds in the molecule.\n\n"
              "  ARGUMENTS:\n"
              "    - onlyHeavy: (optional) include only bonds to heavy atoms "
@@ -395,13 +391,12 @@ struct mol_wrapper {
              (Bond * (ROMol::*)(unsigned int)) & ROMol::getBondWithIdx,
              python::return_internal_reference<
                  1, python::with_custodian_and_ward_postcall<0, 1>>(),
-             python::args("self", "idx"),
              "Returns a particular Bond.\n\n"
              "  ARGUMENTS:\n"
              "    - idx: which Bond to return\n\n"
              "  NOTE: bond indices start at 0\n")
 
-        .def("GetNumConformers", &ROMol::getNumConformers, python::args("self"),
+        .def("GetNumConformers", &ROMol::getNumConformers,
              "Return the number of conformations on the molecule")
 
         .def("AddConformer", AddMolConformer,
@@ -427,23 +422,19 @@ struct mol_wrapper {
              python::return_value_policy<
                  python::manage_new_object,
                  python::with_custodian_and_ward_postcall<0, 1>>(),
-             python::args("self"),
              "Returns a read-only sequence containing all of the molecule's "
              "Conformers.")
 
         .def("RemoveAllConformers", &ROMol::clearConformers,
-             python::args("self"),
              "Remove all the conformations on the molecule")
 
         .def("RemoveConformer", &ROMol::removeConformer,
-             python::args("self", "id"),
              "Remove the conformer with the specified ID")
         .def("GetBondBetweenAtoms",
              (Bond * (ROMol::*)(unsigned int, unsigned int)) &
                  ROMol::getBondBetweenAtoms,
              python::return_internal_reference<
                  1, python::with_custodian_and_ward_postcall<0, 1>>(),
-             python::args("self", "idx1", "idx2"),
              "Returns the bond between two atoms, if there is one.\n\n"
              "  ARGUMENTS:\n"
              "    - idx1,idx2: the Atom indices\n\n"
@@ -453,7 +444,7 @@ struct mol_wrapper {
              "instead.\n\n"
              "  NOTE: bond indices start at 0\n")
 
-        .def("HasQuery", &ROMol::hasQuery, python::args("self"),
+        .def("HasQuery", &ROMol::hasQuery,
              "Returns if any atom or bond in molecule has a query")
 
         // substructures
@@ -676,7 +667,7 @@ struct mol_wrapper {
              "    - computed: (optional) marks the property as being "
              "computed.\n"
              "                Defaults to False.\n\n")
-        .def("HasProp", MolHasProp<ROMol>, python::args("self", "key"),
+        .def("HasProp", MolHasProp<ROMol>,
              "Queries a molecule to see if a particular property has been "
              "assigned.\n\n"
              "  ARGUMENTS:\n"
@@ -694,7 +685,6 @@ struct mol_wrapper {
             "    - If the property has not been set, a KeyError exception "
             "will be raised.\n")
         .def("GetDoubleProp", GetProp<ROMol, double>,
-             python::args("self", "key"),
              "Returns the double value of the property if possible.\n\n"
              "  ARGUMENTS:\n"
              "    - key: the name of the property to return (a string).\n\n"
@@ -702,7 +692,7 @@ struct mol_wrapper {
              "  NOTE:\n"
              "    - If the property has not been set, a KeyError exception "
              "will be raised.\n")
-        .def("GetIntProp", GetProp<ROMol, int>, python::args("self", "key"),
+        .def("GetIntProp", GetProp<ROMol, int>,
              "Returns the integer value of the property if possible.\n\n"
              "  ARGUMENTS:\n"
              "    - key: the name of the property to return (a string).\n\n"
@@ -711,7 +701,6 @@ struct mol_wrapper {
              "    - If the property has not been set, a KeyError exception "
              "will be raised.\n")
         .def("GetUnsignedProp", GetProp<ROMol, unsigned int>,
-             python::args("self", "key"),
              "Returns the unsigned int value of the property if possible.\n\n"
              "  ARGUMENTS:\n"
              "    - key: the name of the property to return (a string).\n\n"
@@ -719,7 +708,7 @@ struct mol_wrapper {
              "  NOTE:\n"
              "    - If the property has not been set, a KeyError exception "
              "will be raised.\n")
-        .def("GetBoolProp", GetProp<ROMol, bool>, python::args("self", "key"),
+        .def("GetBoolProp", GetProp<ROMol, bool>,
              "Returns the Bool value of the property if possible.\n\n"
              "  ARGUMENTS:\n"
              "    - key: the name of the property to return (a string).\n\n"
@@ -727,7 +716,7 @@ struct mol_wrapper {
              "  NOTE:\n"
              "    - If the property has not been set, a KeyError exception "
              "will be raised.\n")
-        .def("ClearProp", MolClearProp<ROMol>, python::args("self", "key"),
+        .def("ClearProp", MolClearProp<ROMol>,
              "Removes a property from the molecule.\n\n"
              "  ARGUMENTS:\n"
              "    - key: the name of the property to clear (a string).\n")
@@ -752,8 +741,7 @@ struct mol_wrapper {
              "stereochemistry "
              "of the atoms.\n",
              python::return_internal_reference<
-                 1, python::with_custodian_and_ward_postcall<0, 1>>(),
-             python::args("self"))
+                 1, python::with_custodian_and_ward_postcall<0, 1>>())
 
         .def("GetPropNames", &ROMol::getPropList,
              (python::arg("self"), python::arg("includePrivate") = false,
@@ -788,14 +776,12 @@ struct mol_wrapper {
              python::return_value_policy<
                  python::manage_new_object,
                  python::with_custodian_and_ward_postcall<0, 1>>(),
-             python::args("self"),
              "Returns a read-only sequence containing all of the molecule's "
              "aromatic Atoms.\n")
         .def("GetAtomsMatchingQuery", MolGetQueryAtoms,
              python::return_value_policy<
                  python::manage_new_object,
                  python::with_custodian_and_ward_postcall<0, 1>>(),
-             python::args("self", "qa"),
              "Returns a read-only sequence containing all of the atoms in a "
              "molecule that match the query atom.\n")
 
@@ -806,7 +792,7 @@ struct mol_wrapper {
              (python::arg("self"), python::arg("useStdout") = true),
              "Prints debugging information about the molecule.\n")
 
-        .def("ToBinary", MolToBinary, python::args("self"),
+        .def("ToBinary", MolToBinary,
              "Returns a binary string representation of the molecule.\n")
         .def("ToBinary", MolToBinaryWithProps,
              (python::arg("self"), python::arg("propertyFlags")),
@@ -816,7 +802,6 @@ struct mol_wrapper {
 
         .def("GetRingInfo", &ROMol::getRingInfo,
              python::return_value_policy<python::reference_existing_object>(),
-             python::args("self"),
              "Returns the number of molecule's RingInfo object.\n\n");
     python::register_ptr_to_python<std::shared_ptr<ROMol>>();
 
@@ -840,50 +825,43 @@ struct mol_wrapper {
 
     python::class_<ReadWriteMol, python::bases<ROMol>>(
         "RWMol", rwmolClassDoc.c_str(),
-        python::init<const ROMol &>(python::args("self", "arg1"),
-                                    "Construct from a Mol"))
-        .def(python::init<>(python::args("self")))
-        .def(python::init<const std::string &>(
-            python::args("self", "pklString")))
+        python::init<const ROMol &>("Construct from a Mol"))
+        .def(python::init<>())
+        .def(python::init<const std::string &>(python::args("pklString")))
         .def(python::init<const std::string &, unsigned int>(
-            (python::args("self", "pklString", "propertyFlags"))))
+            (python::args("pklString", "propertyFlags"))))
         .def(python::init<const ROMol &, bool, int>(
-            (python::arg("self"), python::arg("mol"),
-             python::arg("quickCopy") = false, python::arg("confId") = -1)))
-        .def("__copy__", &generic__copy__<ReadWriteMol>, python::args("self"))
-        .def("__deepcopy__", &generic__deepcopy__<ReadWriteMol>,
-             python::args("self", "memo"))
+            (python::arg("mol"), python::arg("quickCopy") = false,
+             python::arg("confId") = -1)))
+        .def("__copy__", &generic__copy__<ReadWriteMol>)
+        .def("__deepcopy__", &generic__deepcopy__<ReadWriteMol>)
         .def("__enter__", &ReadWriteMol::enter,
              python::return_internal_reference<>())
         .def("__exit__", &ReadWriteMol::exit)
 
         .def("RemoveAtom", &ReadWriteMol::RemoveAtom,
-             python::args("self", "idx"),
              "Remove the specified atom from the molecule")
         .def("RemoveBond", &ReadWriteMol::RemoveBond,
-             python::args("self", "idx1", "idx2"),
              "Remove the specified bond from the molecule")
 
         .def("AddBond", &ReadWriteMol::AddBond,
-             ((python::arg("self"), python::arg("beginAtomIdx")),
-              python::arg("endAtomIdx"),
+             (python::arg("beginAtomIdx"), python::arg("endAtomIdx"),
               python::arg("order") = Bond::UNSPECIFIED),
              "add a bond, returns the new number of bonds")
 
-        .def("AddAtom", &ReadWriteMol::AddAtom,
-             ((python::arg("self"), python::arg("atom"))),
+        .def("AddAtom", &ReadWriteMol::AddAtom, (python::arg("atom")),
              "add an atom, returns the index of the newly added atom")
         .def("ReplaceAtom", &ReadWriteMol::ReplaceAtom,
-             ((python::arg("self"), python::arg("index")),
-              python::arg("newAtom"), python::arg("updateLabel") = false,
+             (python::arg("index"), python::arg("newAtom"),
+              python::arg("updateLabel") = false,
               python::arg("preserveProps") = false),
              "replaces the specified atom with the provided one\n"
              "If updateLabel is True, the new atom becomes the active atom\n"
              "If preserveProps is True preserve keep the existing props unless "
              "explicit set on the new atom")
         .def("ReplaceBond", &ReadWriteMol::ReplaceBond,
-             ((python::arg("self"), python::arg("index")),
-              python::arg("newBond"), python::arg("preserveProps") = false,
+             (python::arg("index"), python::arg("newBond"),
+              python::arg("preserveProps") = false,
               python::arg("keepSGroups") = true),
              "replaces the specified bond with the provided one.\n"
              "If preserveProps is True preserve keep the existing props unless "
@@ -891,22 +869,18 @@ struct mol_wrapper {
              "Substance Groups referencing the bond will be dropped.")
         .def("GetMol", &ReadWriteMol::GetMol,
              "Returns a Mol (a normal molecule)",
-             python::return_value_policy<python::manage_new_object>(),
-             python::args("self"))
+             python::return_value_policy<python::manage_new_object>())
 
         .def("SetStereoGroups", &ReadWriteMol::SetStereoGroups,
-             ((python::arg("self"), python::arg("stereo_groups"))),
-             "Set the stereo groups")
+             (python::arg("stereo_groups")), "Set the stereo groups")
 
-        .def("InsertMol", &ReadWriteMol::insertMol,
-             ((python::arg("self"), python::arg("mol"))),
+        .def("InsertMol", &ReadWriteMol::insertMol, (python::arg("mol")),
              "Insert (add) the given molecule into this one")
 
-        .def("BeginBatchEdit", &RWMol::beginBatchEdit, python::args("self"),
-             "starts batch editing")
+        .def("BeginBatchEdit", &RWMol::beginBatchEdit, "starts batch editing")
         .def("RollbackBatchEdit", &RWMol::rollbackBatchEdit,
-             python::args("self"), "cancels batch editing")
-        .def("CommitBatchEdit", &RWMol::commitBatchEdit, python::args("self"),
+             "cancels batch editing")
+        .def("CommitBatchEdit", &RWMol::commitBatchEdit,
              "finishes batch editing and makes the actual changes")
 
         // enable pickle support

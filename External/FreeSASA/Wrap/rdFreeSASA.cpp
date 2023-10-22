@@ -102,13 +102,11 @@ struct freesasa_wrapper {
 
     python::class_<FreeSASA::SASAOpts>(
         "SASAOpts", docString.c_str(),
-        python::init<>(python::args("self"), "Constructor takes no arguments"))
+        python::init<>("Constructor takes no arguments"))
         .def(python::init<FreeSASA::SASAOpts::Algorithm,
-                          FreeSASA::SASAOpts::Classifier>(
-            python::args("self", "arg1", "arg2")))
+                          FreeSASA::SASAOpts::Classifier>())
         .def(python::init<FreeSASA::SASAOpts::Algorithm,
-                          FreeSASA::SASAOpts::Classifier, double>(
-            python::args("self", "arg1", "arg2", "arg3")))
+                          FreeSASA::SASAOpts::Classifier, double>())
         .def_readwrite("algorithm", &FreeSASA::SASAOpts::algorithm)
         .def_readwrite("classifier", &FreeSASA::SASAOpts::classifier)
         .def_readwrite("probeRadius", &FreeSASA::SASAOpts::probeRadius);

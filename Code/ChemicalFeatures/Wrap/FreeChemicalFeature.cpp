@@ -35,39 +35,33 @@ std::string featClassDoc =
     to molecular featufres\n";
 struct freefeat_wrapper {
   static void wrap() {
-    python::class_<FreeChemicalFeature>(
-        "FreeChemicalFeature", featClassDoc.c_str(),
-        python::init<const std::string &>(python::args("self", "arg1")))
-        .def(python::init<>(python::args("self"), "Default Constructor"))
+    python::class_<FreeChemicalFeature>("FreeChemicalFeature",
+                                        featClassDoc.c_str(),
+                                        python::init<const std::string &>())
+        .def(python::init<>("Default Constructor"))
         .def(python::init<std::string, std::string, const RDGeom::Point3D &,
                           int>(
-            (python::arg("self"), python::arg("family"), python::arg("type"),
-             python::arg("loc"), python::arg("id") = -1),
+            (python::arg("family"), python::arg("type"), python::arg("loc"),
+             python::arg("id") = -1),
             "Constructor with family, type and location specified"))
         .def(python::init<std::string, const RDGeom::Point3D &>(
-            python::args("self", "family", "loc"),
+            python::args("family", "loc"),
             "constructor with family and location specified, empty type and "
             "id"))
-        .def("SetId", &FreeChemicalFeature::setId, python::args("self", "id"),
-             "Set the id of the feature")
+        .def("SetId", &FreeChemicalFeature::setId, "Set the id of the feature")
         .def("SetFamily", &FreeChemicalFeature::setFamily,
-             python::args("self", "family"), "Set the family of the feature")
+             "Set the family of the feature")
         .def("SetType", &FreeChemicalFeature::setType,
-             python::args("self", "type"),
              "Set the sepcific type for the feature")
-        .def("GetId", &FreeChemicalFeature::getId, python::args("self"),
-             "Get the id of the feature")
+        .def("GetId", &FreeChemicalFeature::getId, "Get the id of the feature")
         .def("GetFamily", &FreeChemicalFeature::getFamily,
              "Get the family of the feature",
-             python::return_value_policy<python::copy_const_reference>(),
-             python::args("self"))
+             python::return_value_policy<python::copy_const_reference>())
         .def("GetType", &FreeChemicalFeature::getType,
              "Get the sepcific type for the feature",
-             python::return_value_policy<python::copy_const_reference>(),
-             python::args("self"))
-        .def("SetPos", &FreeChemicalFeature::setPos,
-             python::args("self", "loc"), "Set the feature position")
-        .def("GetPos", &FreeChemicalFeature::getPos, python::args("self"),
+             python::return_value_policy<python::copy_const_reference>())
+        .def("SetPos", &FreeChemicalFeature::setPos, "Set the feature position")
+        .def("GetPos", &FreeChemicalFeature::getPos,
              "Get the position of the feature")
         .def_pickle(chemfeat_pickle_suite());
   };

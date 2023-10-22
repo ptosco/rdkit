@@ -316,18 +316,16 @@ RunFilterCatalogWrapper(const FilterCatalog &fc,
 struct filtercat_wrapper {
   static void wrap() {
     python::class_<std::pair<int, int>>("IntPair")
-        .def(python::init<const int &, const int &>(
-            python::args("self", "arg1", "arg2")))
+        .def(python::init<const int &, const int &>())
         .def_readwrite("query", &std::pair<int, int>::first)
         .def_readwrite("target", &std::pair<int, int>::second)
-        .def("__getitem__", &GetMatchVectItem, python::args("self", "idx"));
+        .def("__getitem__", &GetMatchVectItem);
 
     RegisterVectorConverter<std::pair<int, int>>("MatchTypeVect");
 
     python::class_<FilterMatch, FilterMatch *, boost::shared_ptr<FilterMatch>>(
         "FilterMatch", FilterMatchDoc,
-        python::init<boost::shared_ptr<FilterMatcherBase>, MatchVectType>(
-            python::args("self", "arg1", "arg2")))
+        python::init<boost::shared_ptr<FilterMatcherBase>, MatchVectType>())
         .def_readonly("filterMatch", &FilterMatch::filterMatch)
         .def_readonly("atomPairs", &FilterMatch::atomPairs);
 
@@ -336,94 +334,80 @@ struct filtercat_wrapper {
     python::class_<FilterMatcherBase, FilterMatcherBase *,
                    boost::shared_ptr<FilterMatcherBase>, boost::noncopyable>(
         "FilterMatcherBase", FilterMatcherBaseDoc, python::no_init)
-        .def("IsValid", &FilterMatcherBase::isValid, python::args("self"),
+        .def("IsValid", &FilterMatcherBase::isValid,
              "Return True if the filter matcher is valid, False otherwise")
-        .def("HasMatch", &FilterMatcherBase::hasMatch,
-             ((python::arg("self"), python::arg("mol"))),
+        .def("HasMatch", &FilterMatcherBase::hasMatch, (python::arg("mol")),
              "Returns True if mol matches the filter")
-        .def("GetMatches", &FilterMatcherBaseGetMatches,
-             ((python::arg("self"), python::arg("mol"))),
+        .def("GetMatches", &FilterMatcherBaseGetMatches, (python::arg("mol")),
              "Returns the list of matching subfilters mol matches any filter")
 
-        .def("GetName", &FilterMatcherBase::getName, python::args("self"))
-        .def("__str__", &FilterMatcherBase::getName, python::args("self"));
+        .def("GetName", &FilterMatcherBase::getName)
+        .def("__str__", &FilterMatcherBase::getName);
 
     python::register_ptr_to_python<boost::shared_ptr<FilterMatcherBase>>();
 
     python::class_<SmartsMatcher, SmartsMatcher *,
                    python::bases<FilterMatcherBase>>(
-        "SmartsMatcher", SmartsMatcherDoc,
-        python::init<const std::string &>(python::args("self", "arg1")))
-        .def(python::init<const ROMol &>(python::args("self", "arg1"),
-                                         "Construct from a molecule"))
+        "SmartsMatcher", SmartsMatcherDoc, python::init<const std::string &>())
+        .def(python::init<const ROMol &>("Construct from a molecule"))
         .def(python::init<const std::string &, const ROMol &, unsigned int,
                           unsigned int>(
-            (python::arg("self"), python::arg("name"), python::arg("mol"),
+            (python::arg("name"), python::arg("mol"),
              python::arg("minCount") = 1, python::arg("maxCount") = UINT_MAX),
             "Construct from a name, molecule, "
             "minimum and maximum count"))
 
         .def(python::init<const std::string &, const std::string &,
                           unsigned int, unsigned int>(
-            (python::arg("self"), python::arg("name"), python::arg("smarts"),
+            (python::arg("name"), python::arg("smarts"),
              python::arg("minCount") = 1, python::arg("maxCount") = UINT_MAX),
             "Construct from a name,smarts pattern, minimum and "
             "maximum count"))
 
-        .def("IsValid", &SmartsMatcher::isValid, python::args("self"),
+        .def("IsValid", &SmartsMatcher::isValid,
              "Returns True if the SmartsMatcher is valid")
         .def(
             "SetPattern",
             (void(SmartsMatcher::*)(const ROMol &)) & SmartsMatcher::setPattern,
-            python::args("self", "smarts"),
             "Set the pattern molecule for the SmartsMatcher")
         .def("SetPattern",
              (void(SmartsMatcher::*)(const std::string &)) &
                  SmartsMatcher::setPattern,
-             python::args("self", "smarts"),
              "Set the smarts pattern for the Smarts Matcher (warning: "
              "MinimumCount is not reset)")
         .def("GetPattern", &SmartsMatcher::getPattern,
-             python::return_value_policy<python::return_by_value>(),
-             python::args("self"))
-        .def("GetMinCount", &SmartsMatcher::getMinCount, python::args("self"),
+             python::return_value_policy<python::return_by_value>())
+        .def("GetMinCount", &SmartsMatcher::getMinCount,
              "Get the minimum times pattern must appear for the filter to "
              "match")
-        .def("SetMinCount", &SmartsMatcher::setMinCount,
-             ((python::arg("self"), python::arg("count"))),
+        .def("SetMinCount", &SmartsMatcher::setMinCount, (python::arg("count")),
              "Set the minimum times pattern must appear to match")
 
-        .def("GetMaxCount", &SmartsMatcher::getMaxCount, python::args("self"),
+        .def("GetMaxCount", &SmartsMatcher::getMaxCount,
              "Get the maximum times pattern can appear for the filter to match")
         .def(
-            "SetMaxCount", &SmartsMatcher::setMaxCount,
-            ((python::arg("self"), python::arg("count"))),
+            "SetMaxCount", &SmartsMatcher::setMaxCount, (python::arg("count")),
             "Set the maximum times pattern can appear for the filter to match");
 
     python::class_<ExclusionList, ExclusionList *,
-                   python::bases<FilterMatcherBase>>(
-        "ExclusionList", python::init<>(python::args("self")))
+                   python::bases<FilterMatcherBase>>("ExclusionList",
+                                                     python::init<>())
         .def("SetExclusionPatterns", &SetOffPatterns,
-             python::args("self", "list"),
              "Set a list of FilterMatcherBases that should not appear in a "
              "molecule")
         .def("AddPattern", &ExclusionList::addPattern,
-             python::args("self", "base"),
              "Add a FilterMatcherBase that should not appear in a molecule");
 
     python::class_<FilterHierarchyMatcher, FilterHierarchyMatcher *,
                    python::bases<FilterMatcherBase>>(
-        "FilterHierarchyMatcher", FilterHierarchyMatcherDoc,
-        python::init<>(python::args("self")))
+        "FilterHierarchyMatcher", FilterHierarchyMatcherDoc, python::init<>())
         .def(python::init<const FilterMatcherBase &>(
-            python::args("self", "arg1"), "Construct from a filtermatcher"))
+            "Construct from a filtermatcher"))
         .def("SetPattern", &FilterHierarchyMatcher::setPattern,
-             python::args("self", "matcher"),
              "Set the filtermatcher pattern for this node.  An empty node is "
              "considered "
              "a root node and passes along the matches to the children.")
         .def("AddChild", &FilterHierarchyMatcher::addChild,
-             python::args("self", "hierarchy"),
              "Add a child node to this hierarchy.");
 
     python::register_ptr_to_python<boost::shared_ptr<FilterHierarchyMatcher>>();
@@ -434,40 +418,33 @@ struct filtercat_wrapper {
     python::class_<FilterCatalogEntry, FilterCatalogEntry *,
                    const FilterCatalogEntry *,
                    boost::shared_ptr<const FilterCatalogEntry>>(
-        "FilterCatalogEntry", FilterCatalogEntryDoc,
-        python::init<>(python::args("self")))
-        .def(python::init<const std::string &, FilterMatcherBase &>(
-            python::args("self", "arg1", "arg2")))
-        .def("IsValid", &FilterCatalogEntry::isValid, python::args("self"))
+        "FilterCatalogEntry", FilterCatalogEntryDoc, python::init<>())
+        .def(python::init<const std::string &, FilterMatcherBase &>())
+        .def("IsValid", &FilterCatalogEntry::isValid)
 
         .def("GetDescription", &FilterCatalogEntry::getDescription,
-             python::args("self"), "Get the description of the catalog entry")
+             "Get the description of the catalog entry")
         .def("SetDescription", &FilterCatalogEntry::setDescription,
-             ((python::arg("self"), python::arg("description"))),
+             (python::arg("description")),
              "Set the description of the catalog entry")
         .def("GetFilterMatches", &FilterCatalogEntryGetMatches,
-             (python::args("self", "mol")),
+             (python::args("mol")),
              "Retrieve the list of filters that match the molecule")
         .def("HasFilterMatch", &FilterCatalogEntry::hasFilterMatch,
-             (python::args("self", "mol")),
+             (python::args("mol")),
              "Returns True if the catalog entry contains filters that match "
              "the molecule")
 
-        .def("Serialize", &FilterCatalogEntry_Serialize, python::args("self"))
-        .def("GetPropList", &FilterCatalogEntry::getPropList,
-             python::args("self"))
+        .def("Serialize", &FilterCatalogEntry_Serialize)
+        .def("GetPropList", &FilterCatalogEntry::getPropList)
         .def("SetProp",
              (void(FilterCatalogEntry::*)(const std::string &, std::string)) &
-                 FilterCatalogEntry::setProp<std::string>,
-             python::args("self", "key", "val"))
+                 FilterCatalogEntry::setProp<std::string>)
         .def("GetProp",
              (std::string(FilterCatalogEntry::*)(const std::string &) const) &
-                 FilterCatalogEntry::getProp<std::string>,
-             python::args("self", "key"))
-        .def("ClearProp",
-             (void(FilterCatalogEntry::*)(const std::string &)) &
-                 FilterCatalogEntry::clearProp,
-             python::args("self", "key"));
+                 FilterCatalogEntry::getProp<std::string>)
+        .def("ClearProp", (void(FilterCatalogEntry::*)(const std::string &)) &
+                              FilterCatalogEntry::clearProp);
 
     python::register_ptr_to_python<boost::shared_ptr<FilterCatalogEntry>>();
     python::register_ptr_to_python<
@@ -500,13 +477,11 @@ struct filtercat_wrapper {
     {
       python::scope in_FilterCatalogParams =
           python::class_<FilterCatalogParams, FilterCatalogParams *>(
-              "FilterCatalogParams", python::init<>(python::args("self")))
+              "FilterCatalogParams", python::init<>())
               .def(python::init<FilterCatalogParams::FilterCatalogs>(
-                  python::args("self", "arg1"),
                   "Construct from a FilterCatalogs identifier (i.e. "
                   "FilterCatalogParams.PAINS)"))
-              .def("AddCatalog", &FilterCatalogParams::addCatalog,
-                   python::args("self", "catalogs"));
+              .def("AddCatalog", &FilterCatalogParams::addCatalog);
 
       python::enum_<FilterCatalogParams::FilterCatalogs>("FilterCatalogs")
           .value("PAINS_A", FilterCatalogParams::PAINS_A)
@@ -528,48 +503,38 @@ struct filtercat_wrapper {
           .value("ALL", FilterCatalogParams::ALL);
     }
 
-    python::class_<FilterCatalog>("FilterCatalog",
-                                  python::init<>(python::args("self")))
-        .def(python::init<const std::string &>(python::args("self", "arg1")))
-        .def(python::init<const FilterCatalogParams &>(
-            python::args("self", "arg1")))
-        .def(python::init<FilterCatalogParams::FilterCatalogs>(
-            python::args("self", "arg1")))
-        .def("Serialize", &FilterCatalog_Serialize, python::args("self"))
+    python::class_<FilterCatalog>("FilterCatalog", python::init<>())
+        .def(python::init<const std::string &>())
+        .def(python::init<const FilterCatalogParams &>())
+        .def(python::init<FilterCatalogParams::FilterCatalogs>())
+        .def("Serialize", &FilterCatalog_Serialize)
         .def("AddEntry", &filter_catalog_add_entry,
              (python::args("entry"), python::args("updateFPLength") = false),
              "Add a FilterCatalogEntry to the catalog")
         .def("RemoveEntry", &FilterCatalogRemoveEntry,
-             python::args("self", "obj"),
              "Remove the given entry from the catalog")
         .def("GetNumEntries", &FilterCatalog::getNumEntries,
-             python::args("self"),
              "Returns the number of entries in the catalog")
-        .def("GetEntryWithIdx", &FilterCatalog::getEntry,
-             ((python::arg("self"), python::arg("idx"))),
+        .def("GetEntryWithIdx", &FilterCatalog::getEntry, (python::arg("idx")),
              "Return the FilterCatalogEntry at the specified index")
-        .def("GetEntry", &FilterCatalog::getEntry,
-             ((python::arg("self"), python::arg("idx"))),
+        .def("GetEntry", &FilterCatalog::getEntry, (python::arg("idx")),
              "Return the FilterCatalogEntry at the specified index")
-        .def("HasMatch", &FilterCatalog::hasMatch,
-             ((python::arg("self"), python::arg("mol"))),
+        .def("HasMatch", &FilterCatalog::hasMatch, (python::arg("mol")),
              "Returns True if the catalog has an entry that matches mol")
         .def("GetFirstMatch", &FilterCatalog::getFirstMatch,
-             ((python::arg("self"), python::arg("mol"))),
+             (python::arg("mol")),
              "Return the first catalog entry that matches mol")
-        .def("GetMatches", &FilterCatalog::getMatches,
-             ((python::arg("self"), python::arg("mol"))),
+        .def("GetMatches", &FilterCatalog::getMatches, (python::arg("mol")),
              "Return all catalog entries that match mol")
         .def("GetFilterMatches", &FilterCatalog::getFilterMatches,
-             ((python::arg("self"), python::arg("mol"))),
+             (python::arg("mol")),
              "Return every matching filter from all catalog entries that match "
              "mol")
         // enable pickle support
         .def_pickle(filtercatalog_pickle_suite());
 
     python::class_<PythonFilterMatch, python::bases<FilterMatcherBase>>(
-        "PythonFilterMatcher",
-        python::init<PyObject *>(python::args("self", "arg1")));
+        "PythonFilterMatcher", python::init<PyObject *>());
 
     python::def("FilterCatalogCanSerialize", FilterCatalogCanSerialize,
                 "Returns True if the FilterCatalog is serializable "
@@ -596,17 +561,15 @@ struct filtercat_wrapper {
 
     python::class_<FilterMatchOps::And, FilterMatchOps::And *,
                    python::bases<FilterMatcherBase>>(
-        "And", python::init<FilterMatcherBase &, FilterMatcherBase &>(
-                   python::args("self", "arg1", "arg2")));
+        "And", python::init<FilterMatcherBase &, FilterMatcherBase &>());
 
     python::class_<FilterMatchOps::Or, FilterMatchOps::Or *,
                    python::bases<FilterMatcherBase>>(
-        "Or", python::init<FilterMatcherBase &, FilterMatcherBase &>(
-                  python::args("self", "arg1", "arg2")));
+        "Or", python::init<FilterMatcherBase &, FilterMatcherBase &>());
 
     python::class_<FilterMatchOps::Not, FilterMatchOps::Not *,
                    python::bases<FilterMatcherBase>>(
-        "Not", python::init<FilterMatcherBase &>(python::args("self", "arg1")));
+        "Not", python::init<FilterMatcherBase &>());
   };
 };
 

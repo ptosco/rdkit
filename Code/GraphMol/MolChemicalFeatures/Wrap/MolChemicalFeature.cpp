@@ -42,17 +42,15 @@ struct feat_wrapper {
     python::class_<MolChemicalFeature, FeatSPtr>(
         "MolChemicalFeature", featClassDoc.c_str(), python::no_init)
 
-        .def("GetId", &MolChemicalFeature::getId, python::args("self"),
+        .def("GetId", &MolChemicalFeature::getId,
              "Returns the identifier of the feature\n")
         .def("GetFamily", &MolChemicalFeature::getFamily,
              "Get the family to which the feature belongs; donor, acceptor, "
              "etc.",
-             python::return_value_policy<python::copy_const_reference>(),
-             python::args("self"))
+             python::return_value_policy<python::copy_const_reference>())
         .def("GetType", &MolChemicalFeature::getType,
              "Get the specific type for the feature",
-             python::return_value_policy<python::copy_const_reference>(),
-             python::args("self"))
+             python::return_value_policy<python::copy_const_reference>())
         .def("GetPos",
              (RDGeom::Point3D(MolChemicalFeature::*)(int) const) &
                  MolChemicalFeature::getPos,
@@ -64,24 +62,20 @@ struct feat_wrapper {
                 MolChemicalFeature::getPos,
             python::arg("self"),
             "Get the location of the default chemical feature (first position)")
-        .def("GetAtomIds", getFeatAtomIds, python::args("self"),
+        .def("GetAtomIds", getFeatAtomIds,
              "Get the IDs of the atoms that participate in the feature")
         .def("GetMol", &MolChemicalFeature::getMol,
              "Get the molecule used to derive the features",
-             python::return_value_policy<python::reference_existing_object>(),
-             python::args("self"))
+             python::return_value_policy<python::reference_existing_object>())
         .def("GetFactory", &MolChemicalFeature::getFactory,
              "Get the factory used to generate this feature",
-             python::return_value_policy<python::reference_existing_object>(),
-             python::args("self"))
+             python::return_value_policy<python::reference_existing_object>())
         .def("ClearCache", &MolChemicalFeature::clearCache,
-             python::args("self"),
              "Clears the cache used to store position information.")
         .def("SetActiveConformer", &MolChemicalFeature::setActiveConformer,
-             python::args("self", "confId"),
              "Sets the conformer to use (must be associated with a molecule).")
         .def("GetActiveConformer", &MolChemicalFeature::getActiveConformer,
-             python::args("self"), "Gets the conformer to use.");
+             "Gets the conformer to use.");
   };
 };
 }  // namespace RDKit

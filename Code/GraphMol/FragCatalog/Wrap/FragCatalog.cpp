@@ -116,35 +116,28 @@ struct fragcat_wrapper {
     // right now, adding entries for example should happen through the
     // FragCatGenerator
 
-    python::class_<FragCatalog>(
-        "FragCatalog",
-        python::init<FragCatParams *>(python::args("self", "arg1")))
-        .def(python::init<const std::string &>(python::args("self", "arg1")))
-        .def("GetNumEntries", &FragCatalog::getNumEntries, python::args("self"))
-        .def("GetFPLength", &FragCatalog::getFPLength, python::args("self"))
+    python::class_<FragCatalog>("FragCatalog", python::init<FragCatParams *>())
+        .def(python::init<const std::string &>())
+        .def("GetNumEntries", &FragCatalog::getNumEntries)
+        .def("GetFPLength", &FragCatalog::getFPLength)
         .def("GetCatalogParams",
              (FragCatParams * (FragCatalog::*)()) &
                  FragCatalog::getCatalogParams,
-             python::return_value_policy<python::reference_existing_object>(),
-             python::args("self"))
-        .def("Serialize", &FragCatalog::Serialize, python::args("self"))
+             python::return_value_policy<python::reference_existing_object>())
+        .def("Serialize", &FragCatalog::Serialize)
 
-        .def("GetBitDescription", &GetBitDescription,
-             python::args("self", "idx"))
-        .def("GetBitOrder", &GetBitOrder, python::args("self", "idx"))
-        .def("GetBitFuncGroupIds", &GetBitFuncGroupIds,
-             python::args("self", "idx"))
-        .def("GetBitEntryId", &GetBitEntryId, python::args("self", "idx"))
+        .def("GetBitDescription", &GetBitDescription)
+        .def("GetBitOrder", &GetBitOrder)
+        .def("GetBitFuncGroupIds", &GetBitFuncGroupIds)
+        .def("GetBitEntryId", &GetBitEntryId)
 
-        .def("GetEntryBitId", &GetEntryBitId, python::args("self", "idx"))
-        .def("GetEntryDescription", &GetEntryDescription,
-             python::args("self", "idx"))
-        .def("GetEntryOrder", &GetEntryOrder, python::args("self", "idx"))
-        .def("GetEntryFuncGroupIds", &GetEntryFuncGroupIds,
-             python::args("self", "idx"))
-        .def("GetEntryDownIds", &GetEntryDownIds, python::args("self", "idx"))
+        .def("GetEntryBitId", &GetEntryBitId)
+        .def("GetEntryDescription", &GetEntryDescription)
+        .def("GetEntryOrder", &GetEntryOrder)
+        .def("GetEntryFuncGroupIds", &GetEntryFuncGroupIds)
+        .def("GetEntryDownIds", &GetEntryDownIds)
 
-        .def("GetBitDiscrims", &GetBitDiscrims, python::args("self", "idx"))
+        .def("GetBitDiscrims", &GetBitDiscrims)
 
         // enable pickle support
         .def_pickle(fragcatalog_pickle_suite())

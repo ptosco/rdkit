@@ -57,9 +57,8 @@ struct charge_wrapper {
     std::string docString = "";
 
     python::class_<MolStandardize::ChargeCorrection, boost::noncopyable>(
-        "ChargeCorrection",
-        python::init<std::string, std::string, int>(
-            python::args("self", "name", "smarts", "charge")))
+        "ChargeCorrection", python::init<std::string, std::string, int>(
+                                python::args("name", "smarts", "charge")))
         .def_readwrite("Name", &MolStandardize::ChargeCorrection::Name)
         .def_readwrite("Smarts", &MolStandardize::ChargeCorrection::Smarts)
         .def_readwrite("Charge", &MolStandardize::ChargeCorrection::Charge);
@@ -67,11 +66,10 @@ struct charge_wrapper {
     python::def("CHARGE_CORRECTIONS", defaultChargeCorrections);
 
     python::class_<MolStandardize::Reionizer, boost::noncopyable>(
-        "Reionizer", python::init<>(python::args("self")))
-        .def(python::init<std::string>(python::args("self", "arg1")))
+        "Reionizer", python::init<>())
+        .def(python::init<std::string>())
         .def(python::init<std::string,
-                          std::vector<MolStandardize::ChargeCorrection>>(
-            python::args("self", "arg1", "arg2")))
+                          std::vector<MolStandardize::ChargeCorrection>>())
         .def("reionize", &reionizeHelper,
              (python::arg("self"), python::arg("mol")), "",
              python::return_value_policy<python::manage_new_object>())

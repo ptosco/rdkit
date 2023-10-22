@@ -567,33 +567,29 @@ BOOST_PYTHON_MODULE(rdFingerprintGenerator) {
 
   python::class_<AdditionalOutput, boost::noncopyable>("AdditionalOutput")
       .def("AllocateAtomToBits", &AdditionalOutput::allocateAtomToBits,
-           python::args("self"), "synonym for CollectAtomToBits()")
+           "synonym for CollectAtomToBits()")
       .def("AllocateBitInfoMap", &AdditionalOutput::allocateBitInfoMap,
-           python::args("self"), "synonym for CollectBitInfoMap()")
+           "synonym for CollectBitInfoMap()")
       .def("AllocateBitPaths", &AdditionalOutput::allocateBitPaths,
-           python::args("self"), "synonym for CollectBitPaths()")
+           "synonym for CollectBitPaths()")
       .def("AllocateAtomCounts", &AdditionalOutput::allocateAtomCounts,
-           python::args("self"), "synonym for CollectAtomCounts()")
+           "synonym for CollectAtomCounts()")
       .def(
           "CollectAtomToBits", &AdditionalOutput::allocateAtomToBits,
-          python::args("self"),
           "toggle collection of information mapping each atom to the bits it is involved in.")
       .def(
           "CollectBitInfoMap", &AdditionalOutput::allocateBitInfoMap,
-          python::args("self"),
           "toggles collection of information mapping each atom to more detail about the atom environment (not available from all fingerprints)")
       .def(
           "CollectBitPaths", &AdditionalOutput::allocateBitPaths,
-          python::args("self"),
           "toggles collection of information matching each atom to information about the paths it is involved in (not available from all fingerprints).")
       .def(
           "CollectAtomCounts", &AdditionalOutput::allocateAtomCounts,
-          python::args("self"),
           "toggles collection of information about the number of bits each atom is involved in")
-      .def("GetAtomToBits", &getAtomToBitsHelper, python::args("self"))
-      .def("GetBitInfoMap", &getBitInfoMapHelper, python::args("self"))
-      .def("GetBitPaths", &getBitPathsHelper, python::args("self"))
-      .def("GetAtomCounts", &getAtomCountsHelper, python::args("self"));
+      .def("GetAtomToBits", &getAtomToBitsHelper)
+      .def("GetBitInfoMap", &getBitInfoMapHelper)
+      .def("GetBitPaths", &getBitPathsHelper)
+      .def("GetAtomCounts", &getAtomCountsHelper);
 
   python::class_<FingerprintArguments, boost::noncopyable>("FingerprintOptions",
                                                            python::no_init)
@@ -609,7 +605,7 @@ BOOST_PYTHON_MODULE(rdFingerprintGenerator) {
                      &FingerprintArguments::d_numBitsPerFeature,
                      "number of bits to set for each feature")
       .def("SetCountBounds", &setCountBoundsHelper,
-           python::args("self", "bounds"), "set the bins for the count bounds");
+           "set the bins for the count bounds");
 
   wrapGenerator<std::uint32_t>("FingeprintGenerator32");
   wrapGenerator<std::uint64_t>("FingeprintGenerator64");
