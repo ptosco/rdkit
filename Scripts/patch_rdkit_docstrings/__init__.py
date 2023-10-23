@@ -1268,7 +1268,9 @@ class FixSignatures:
                 self.logger.warning(f"ERROR: {str(e)}")
                 continue
             for entry_name in dir(pyi_module):
-                entry = getattr(pyi_module, entry_name)
+                entry = getattr(pyi_module, entry_name, None)
+                if (entry is None):
+                    continue
                 if entry.__class__.__name__ != "class":
                     self.add_func_to_dict_if_arg1(entry)
                 else:
