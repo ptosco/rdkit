@@ -1256,7 +1256,7 @@ class FixSignatures:
             f" {rdk_build_defs} {self.clang_flags}{user_clang_flags}"
         ).strip().split()
         self.clang_worker_data = ClangWorkerData(clang_flags)
-        for p in sorted(rdkit_stubs_path.rglob("__init__.pyi")):
+        for p in sorted(rdkit_stubs_path.rglob("*.pyi")):
             pyi_module_path = str(p.parent.relative_to(rdkit_stubs_path)).replace("/", ".")
             if pyi_module_path == ".":
                 pyi_module_path = RDKIT_MODULE_NAME
