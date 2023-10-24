@@ -1257,7 +1257,9 @@ class FixSignatures:
         ).strip().split()
         self.clang_worker_data = ClangWorkerData(clang_flags)
         for p in sorted(rdkit_stubs_path.rglob("*.pyi")):
-            pyi_module_path = str(p.parent.relative_to(rdkit_stubs_path)).replace("/", ".")
+            if str(p.stem) == "__init__":
+                p = p.parent
+            pyi_module_path = os.path.splitext(str(p.relative_to(rdkit_stubs_path)).replace("/", "."))[0]
             if pyi_module_path == ".":
                 pyi_module_path = RDKIT_MODULE_NAME
             else:
