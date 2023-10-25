@@ -26,6 +26,7 @@ Warnings printed to console can be safely ignored.
 
 import sys
 import os
+import importlib
 import argparse
 import multiprocessing
 from pathlib import Path
@@ -63,5 +64,9 @@ if __name__ == "__main__":
             break
     if site_packages_path is None:
         raise ValueError("Failed to find rdkit in PYTHONPATH")
+    try:
+        importlib.import_module("pybind11_stubgen")
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError("Failed to find pybind11_stubgen in PYTHONPATH. Please install pybind11_stubgen (available on PyPI and GitHub)")
     site_packages_path = Path(site_packages_path)
     generate_stubs(site_packages_path, args.output_dirs, args.concurrency, args.verbose)

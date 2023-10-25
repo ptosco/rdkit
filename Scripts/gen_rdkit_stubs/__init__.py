@@ -1,5 +1,7 @@
 import sys
 import os
+import builtins
+import importlib
 import re
 import pathlib
 import subprocess
@@ -156,20 +158,21 @@ class ProcessDocLines:
         "=": "__EQUALS_TAG__"
     }
     CPP_PYTHONIC_RETURN_TYPES = {
-        "_listSt6vectorIiSaIiEE": "typing.Sequence[Sequence[int]]",
-        "_ROConformerSeq": "typing.Sequence[Conformer]",
-        "_ROQAtomSeq": "typing.Sequence[QueryAtom]",
+        "_listSt6vectorIiSaIiEE": "typing.Sequence[typing.Sequence[int]]",
+        "_ROConformerSeq": "typing.Sequence[rdkit.Chem.Conformer]",
+        "_ROQAtomSeq": "typing.Sequence[rdkit.Chem.QueryAtom]",
         "_vectd": "typing.Sequence[double]",
         "_vecti": "typing.Sequence[int]",
         "_vectj": "typing.Sequence[int]",
-        "_vectN5RDKit13Abbreviations22AbbreviationDefinitionE": "typing.Sequence[AbbreviationDefinition]",
-        "_vectN5RDKit9Chirality10StereoInfoE": "typing.Sequence[StereoInfo]",
+        "_vectN5RDKit13Abbreviations22AbbreviationDefinitionE": "rdkit.Chem.rdAbbreviations.AbbreviationDefinition]",
+        "_vectN5RDKit9Chirality10StereoInfoE": "typing.Sequence[rdkit.Chem.StereoInfo]",
         "_vectNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE": "typing.Sequence[str]",
-        "_vectSt6vectorIiSaIiEE": "typing.Sequence[Sequence[int]]",
-        "_vectSt6vectorIjSaIjEE": "typing.Sequence[Sequence[int]]",
+        "_vectSt6vectorIiSaIiEE": "typing.Sequence[typing.Sequence[int]]",
+        "_vectSt6vectorIjSaIjEE": "typing.Sequence[typing.Sequence[int]]",
     }
 
-    def __init__(self, doc_lines):
+    def __init__(self, module_name, doc_lines):
+        self.module_name = module_name
         self.doc_lines = doc_lines
         self.num_overloads = 0
         self.overload_num = 0
@@ -216,6 +219,19 @@ class ProcessDocLines:
     def find_def_match(cls, src_line):
         return cls.DEF_REGEX.match(src_line)
 
+    def convert_to_valid_type(self, py_signature_ret):
+        res = self.CPP_PYTHONIC_RETURN_TYPES.get(py_signature_ret, py_signature_ret)
+        is_valid_type = hasattr(builtins, py_signature_ret)
+        module_name_tmp = self.module_name
+        while module_name_tmp and not is_valid_type:
+            module_tmp = importlib.import_module(module_name_tmp)
+            is_valid_type = hasattr(module_tmp, res)
+            if is_valid_type:
+                res = f"{module_name_tmp}.{py_signature_ret}"
+            else:
+                module_name_tmp = ".".join(module_name_tmp.split(".")[:-1])
+        return res
+
     def process_src_line(self, src_line):
         def_match = self.find_def_match(src_line)
         if def_match:
@@ -236,7 +252,7 @@ class ProcessDocLines:
                 else:
                     py_signature_args = []
                 py_signature_ret = py_signature_match.group(2)
-                py_signature_ret = self.CPP_PYTHONIC_RETURN_TYPES.get(py_signature_ret, py_signature_ret)
+                py_signature_ret = self.convert_to_valid_type(py_signature_ret)
                 processed_args = ", ".join(self.process_py_signature_arg(py_signature_arg) for py_signature_arg in py_signature_args)
                 src_line = f"{func_name}{func_open_bracket}{processed_args}{func_end_bracket_and_arrow}{py_signature_ret}{func_colon_to_end}"
                 if self.top_signature is None:
@@ -260,13 +276,9 @@ class ProcessDocLines:
         return doc_lines
 
     @classmethod
-    def process(cls, doc_lines):
-        instance = cls(doc_lines)
+    def process(cls, module_name, doc_lines):
+        instance = cls(module_name, doc_lines)
         return instance.process_src_lines()
 
-def preprocess_doc_lines(doc_lines):
-    return ProcessDocLines.process(doc_lines)
-
-def preprocess_docstring(docstring):
-    doc_lines = docstring.split("\n")
-    return preprocess_doc_lines(doc_lines)
+def preprocess_doc_lines(module_name, doc_lines):
+    return ProcessDocLines.process(module_name, doc_lines)

@@ -12,6 +12,9 @@ worker script
 2nd param is the module name
 """
 if __name__ == "__main__":
+    tempdir = sys.argv[1]
+    module_name = sys.argv[2]
+    outer_dirs = sys.argv[3:]
     sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
     gen_rdkit_stubs = importlib.import_module("gen_rdkit_stubs")
 
@@ -19,8 +22,7 @@ if __name__ == "__main__":
         parse_function_docstring_orig = ExtractSignaturesFromPybind11Docstrings.parse_function_docstring
 
         def parse_function_docstring_patched(self, func_name, doc_lines, **kwargs):
-            doc_lines = gen_rdkit_stubs.preprocess_doc_lines(doc_lines)
-            doc_lines_out = "\n".join(f"'{doc_line}'" for doc_line in doc_lines)
+            doc_lines = gen_rdkit_stubs.preprocess_doc_lines(module_name, doc_lines)
             return parse_function_docstring_orig(self, func_name, doc_lines, **kwargs)
 
         ExtractSignaturesFromPybind11Docstrings.parse_function_docstring = parse_function_docstring_patched
@@ -33,9 +35,6 @@ if __name__ == "__main__":
 
         Printer.print_submodule_import = print_submodule_import_patched
 
-    tempdir = sys.argv[1]
-    m = sys.argv[2]
-    outer_dirs = sys.argv[3:]
     stored_argv = list(sys.argv)
     try:
         sys.argv = ["",
@@ -44,7 +43,7 @@ if __name__ == "__main__":
                     "--ignore-all-errors",
                     "-o",
                     tempdir,
-                    m]
+                    module_name]
         pybind11_stubgen.main()
     except Exception as e:
         if isinstance(e, AssertionError):
@@ -53,4 +52,4 @@ if __name__ == "__main__":
             print(str(e))
     finally:
         sys.argv = stored_argv
-    gen_rdkit_stubs.copy_stubs(os.path.join(tempdir, *m.split(".")), outer_dirs)
+    gen_rdkit_stubs.copy_stubs(os.path.join(tempdir, *module_name.split(".")), outer_dirs)
