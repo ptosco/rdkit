@@ -12,34 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 WORKER_SCRIPT = "worker.py"
-PY_SIGNATURE_ARG_REGEX = re.compile(r"^\((\S+)\)([^\=]+)\=?(.*)?$")
-DEF_REGEX = re.compile(r"^([^(]+)(\s*\(\s*).*(\s*\)\s*->\s*)[^:]+:(\s*)$")
-PURGE_CPP_OBJECT_ANGLE_BRACKETS = re.compile(r"^(.*)<(\S*\.)?(\S+)\s*object\s*at\s*\S+\s*>(.*)$")
-PURGE_OPEN_SQUARE_BRACKET = re.compile(r"\[(?!\])")
-PURGE_CLOSE_SQUARE_BRACKET = re.compile(r"(?<!\[)\]")
 IMPORT_MODULES = re.compile(r"^\s*import\s+(.*)$")
 FROM_IMPORT_MODULES = re.compile(r"^\s*from\s+(\S+)\s+import\s+(.*)$")
 RDKIT_MODULE_NAME = "rdkit"
 RDBASE_MODULE_NAME = "rdBase"
-PROTECTIONS = {
-    "[": "__OPEN_SQUARE_BRACKET_TAG__",
-    "]": "__CLOSE_SQUARE_BRACKET_TAG__",
-    "=": "__EQUALS_TAG__"
-}
 INIT_PY = "__init__.py"
-CPP_PYTHONIC_RETURN_TYPES = {
-    "_listSt6vectorIiSaIiEE": "typing.Sequence[Sequence[int]]",
-    "_ROConformerSeq": "typing.Sequence[Conformer]",
-    "_ROQAtomSeq": "typing.Sequence[QueryAtom]",
-    "_vectd": "typing.Sequence[double]",
-    "_vecti": "typing.Sequence[int]",
-    "_vectj": "typing.Sequence[int]",
-    "_vectN5RDKit13Abbreviations22AbbreviationDefinitionE": "typing.Sequence[AbbreviationDefinition]",
-    "_vectN5RDKit9Chirality10StereoInfoE": "typing.Sequence[StereoInfo]",
-    "_vectNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE": "typing.Sequence[str]",
-    "_vectSt6vectorIiSaIiEE": "typing.Sequence[Sequence[int]]",
-    "_vectSt6vectorIjSaIjEE": "typing.Sequence[Sequence[int]]",
-}
 
 def rdkit_has_rdbase(rdkit_dir):
     return any(f.startswith(RDBASE_MODULE_NAME) for f in os.listdir(rdkit_dir))
@@ -95,7 +72,7 @@ def clear_stubs(outer_dir):
             shutil.rmtree(entry)
         else:
             os.remove(entry)
-            
+
 def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1, verbose=False):
     modules = set()
     exclusions_cache = {}
@@ -166,64 +143,130 @@ def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1,
                 if os.path.isfile(src_entry):
                     copy_stubs(src_entry, outer_dirs)
 
-def protect_quoted_square_brackets_and_equals(arg):
-    open_quote = False
-    protected_arg = ""
-    for c in arg:
-        if c == "'":
-            open_quote ^= True
-        elif open_quote:
-            replacement = PROTECTIONS.get(c, None)
-            if replacement is not None:
-                c = replacement
-        protected_arg += c
-    return protected_arg
+class ProcessDocLines:
 
-def deprotect_quoted_square_brackets_and_equals(arg):
-    for k, v in PROTECTIONS.items():
-        arg = arg.replace(v, k)
-    return arg
+    PY_SIGNATURE_ARG_REGEX = re.compile(r"^\((\S+)\)([^\=]+)\=?(.*)?$")
+    DEF_REGEX = re.compile(r"^([^(]+)(\s*\(\s*).*(\s*\)\s*->\s*)[^:]+:(\s*)$")
+    PURGE_CPP_OBJECT_ANGLE_BRACKETS = re.compile(r"^(.*)<(\S*\.)?(\S+)\s*object\s*at\s*\S+\s*>(.*)$")
+    PURGE_OPEN_SQUARE_BRACKET = re.compile(r"\[(?!\])")
+    PURGE_CLOSE_SQUARE_BRACKET = re.compile(r"(?<!\[)\]")
+    PROTECTIONS = {
+        "[": "__OPEN_SQUARE_BRACKET_TAG__",
+        "]": "__CLOSE_SQUARE_BRACKET_TAG__",
+        "=": "__EQUALS_TAG__"
+    }
+    CPP_PYTHONIC_RETURN_TYPES = {
+        "_listSt6vectorIiSaIiEE": "typing.Sequence[Sequence[int]]",
+        "_ROConformerSeq": "typing.Sequence[Conformer]",
+        "_ROQAtomSeq": "typing.Sequence[QueryAtom]",
+        "_vectd": "typing.Sequence[double]",
+        "_vecti": "typing.Sequence[int]",
+        "_vectj": "typing.Sequence[int]",
+        "_vectN5RDKit13Abbreviations22AbbreviationDefinitionE": "typing.Sequence[AbbreviationDefinition]",
+        "_vectN5RDKit9Chirality10StereoInfoE": "typing.Sequence[StereoInfo]",
+        "_vectNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE": "typing.Sequence[str]",
+        "_vectSt6vectorIiSaIiEE": "typing.Sequence[Sequence[int]]",
+        "_vectSt6vectorIjSaIjEE": "typing.Sequence[Sequence[int]]",
+    }
 
-def process_py_signature_arg(arg):
-    arg = PURGE_CPP_OBJECT_ANGLE_BRACKETS.sub(r"\1\3()\4", arg)
-    arg = protect_quoted_square_brackets_and_equals(arg)
-    arg = PURGE_OPEN_SQUARE_BRACKET.sub("", arg)
-    arg = PURGE_CLOSE_SQUARE_BRACKET.sub("", arg)
-    arg = arg.replace(" ", "")
-    py_signature_arg_match = PY_SIGNATURE_ARG_REGEX.match(arg)
-    assert py_signature_arg_match
-    py_signature_arg_type = py_signature_arg_match.group(1)
-    py_signature_arg_name = py_signature_arg_match.group(2)
-    py_signature_arg_default = deprotect_quoted_square_brackets_and_equals(py_signature_arg_match.group(3))
-    res = f"{py_signature_arg_name}: {py_signature_arg_type}"
-    if py_signature_arg_default:
-        res += f" = {py_signature_arg_default}"
-    return res
+    def __init__(self, doc_lines):
+        self.doc_lines = doc_lines
+        self.num_overloads = 0
+        self.overload_num = 0
+        self.top_signature = None
 
-def process_src_line(src_line):
-    def_match = DEF_REGEX.match(src_line)
-    if def_match:
-        func_name = def_match.group(1)
-        func_open_bracket = def_match.group(2)
-        func_end_bracket_and_arrow = def_match.group(3)
-        func_colon_to_end = def_match.group(4)
-        py_signature_regex = re.compile(r"^\s*" + func_name + r"\s*\((.*)\)\s*->\s*(\S+)\s*:\s*$")
-        py_signature_match = py_signature_regex.match(src_line)
-        if py_signature_match:
-            py_signature_args = py_signature_match.group(1)
-            if py_signature_args:
-                py_signature_args = py_signature_args.split(", ")
-            else:
-                py_signature_args = []
-            py_signature_ret = py_signature_match.group(2)
-            py_signature_ret = CPP_PYTHONIC_RETURN_TYPES.get(py_signature_ret, py_signature_ret)
-            processed_args = ", ".join(process_py_signature_arg(py_signature_arg) for py_signature_arg in py_signature_args)
-            src_line = f"{func_name}{func_open_bracket}{processed_args}{func_end_bracket_and_arrow}{py_signature_ret}{func_colon_to_end}"
-    return src_line
+    @classmethod
+    def protect_quoted_square_brackets_and_equals(cls, arg):
+        open_quote = False
+        protected_arg = ""
+        for c in arg:
+            if c == "'":
+                open_quote ^= True
+            elif open_quote:
+                replacement = cls.PROTECTIONS.get(c, None)
+                if replacement is not None:
+                    c = replacement
+            protected_arg += c
+        return protected_arg
+
+    @classmethod
+    def deprotect_quoted_square_brackets_and_equals(cls, arg):
+        for k, v in cls.PROTECTIONS.items():
+            arg = arg.replace(v, k)
+        return arg
+
+    @classmethod
+    def process_py_signature_arg(cls, arg):
+        arg = cls.PURGE_CPP_OBJECT_ANGLE_BRACKETS.sub(r"\1\3()\4", arg)
+        arg = cls.protect_quoted_square_brackets_and_equals(arg)
+        arg = cls.PURGE_OPEN_SQUARE_BRACKET.sub("", arg)
+        arg = cls.PURGE_CLOSE_SQUARE_BRACKET.sub("", arg)
+        arg = arg.replace(" ", "")
+        py_signature_arg_match = cls.PY_SIGNATURE_ARG_REGEX.match(arg)
+        assert py_signature_arg_match
+        py_signature_arg_type = py_signature_arg_match.group(1)
+        py_signature_arg_name = py_signature_arg_match.group(2)
+        py_signature_arg_default = cls.deprotect_quoted_square_brackets_and_equals(py_signature_arg_match.group(3))
+        res = f"{py_signature_arg_name}: {py_signature_arg_type}"
+        if py_signature_arg_default:
+            res += f" = {py_signature_arg_default}"
+        return res
+
+    @classmethod
+    def find_def_match(cls, src_line):
+        return cls.DEF_REGEX.match(src_line)
+
+    def process_src_line(self, src_line):
+        def_match = self.find_def_match(src_line)
+        if def_match:
+            func_name = def_match.group(1)
+            overload_prefix = ""
+            self.overload_num += 1
+            if self.num_overloads > 1:
+                overload_prefix = f"{self.overload_num}. "
+            func_open_bracket = def_match.group(2)
+            func_end_bracket_and_arrow = def_match.group(3)
+            func_colon_to_end = def_match.group(4)
+            py_signature_regex = re.compile(r"^\s*" + func_name + r"\s*\((.*)\)\s*->\s*(\S+)\s*:\s*$")
+            py_signature_match = py_signature_regex.match(src_line)
+            if py_signature_match:
+                py_signature_args = py_signature_match.group(1)
+                if py_signature_args:
+                    py_signature_args = py_signature_args.split(", ")
+                else:
+                    py_signature_args = []
+                py_signature_ret = py_signature_match.group(2)
+                py_signature_ret = self.CPP_PYTHONIC_RETURN_TYPES.get(py_signature_ret, py_signature_ret)
+                processed_args = ", ".join(self.process_py_signature_arg(py_signature_arg) for py_signature_arg in py_signature_args)
+                src_line = f"{func_name}{func_open_bracket}{processed_args}{func_end_bracket_and_arrow}{py_signature_ret}{func_colon_to_end}"
+                if self.top_signature is None:
+                    self.top_signature = src_line
+                if overload_prefix:
+                    src_line = overload_prefix + src_line
+        return src_line
+
+    def process_src_lines(self):
+        self.num_overloads = len(tuple(filter(None, [self.find_def_match(doc_line) for doc_line in self.doc_lines])))
+        doc_lines = list(map(self.process_src_line, self.doc_lines))
+        i = 0
+        for i, doc_line in enumerate(doc_lines):
+            if doc_line:
+                break
+        for _ in range(i):
+            doc_lines.pop(0)
+        if self.num_overloads > 1:
+            doc_lines.insert(0, self.top_signature)
+            doc_lines.insert(1, "Overloaded function.")
+        return doc_lines
+
+    @classmethod
+    def process(cls, doc_lines):
+        instance = cls(doc_lines)
+        return instance.process_src_lines()
 
 def preprocess_doc_lines(doc_lines):
-    return list(map(process_src_line, doc_lines))
+    return ProcessDocLines.process(doc_lines)
 
 def preprocess_docstring(docstring):
-    src_lines = docstring.split("\n")
-    return "\n".join(map(process_src_line, src_lines))
+    doc_lines = docstring.split("\n")
+    return preprocess_doc_lines(doc_lines)

@@ -2,6 +2,7 @@ import sys
 import os
 import pybind11_stubgen
 from pybind11_stubgen.parser.mixins.parse import ExtractSignaturesFromPybind11Docstrings
+from pybind11_stubgen.printer import Printer
 import importlib
 
 
@@ -14,19 +15,23 @@ if __name__ == "__main__":
     sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
     gen_rdkit_stubs = importlib.import_module("gen_rdkit_stubs")
 
-    parse_function_docstring_orig = ExtractSignaturesFromPybind11Docstrings.parse_function_docstring
+    if hasattr(ExtractSignaturesFromPybind11Docstrings, "parse_function_docstring"):
+        parse_function_docstring_orig = ExtractSignaturesFromPybind11Docstrings.parse_function_docstring
 
-    def parse_function_docstring_patched(self, func_name, doc_lines, **kwargs):
-        doc_lines = gen_rdkit_stubs.preprocess_doc_lines(doc_lines)
-        i = 0
-        for i, doc_line in enumerate(doc_lines):
-            if doc_line:
-                break
-        for _ in range(i):
-            doc_lines.pop(0)
-        return parse_function_docstring_orig(self, func_name, doc_lines, **kwargs)
+        def parse_function_docstring_patched(self, func_name, doc_lines, **kwargs):
+            doc_lines = gen_rdkit_stubs.preprocess_doc_lines(doc_lines)
+            doc_lines_out = "\n".join(f"'{doc_line}'" for doc_line in doc_lines)
+            return parse_function_docstring_orig(self, func_name, doc_lines, **kwargs)
 
-    ExtractSignaturesFromPybind11Docstrings.parse_function_docstring = parse_function_docstring_patched
+        ExtractSignaturesFromPybind11Docstrings.parse_function_docstring = parse_function_docstring_patched
+
+    if hasattr(Printer, "print_submodule_import"):
+        print_submodule_import_orig = Printer.print_submodule_import
+
+        def print_submodule_import_patched(self, name):
+            return [f"from {name} import *"]
+
+        Printer.print_submodule_import = print_submodule_import_patched
 
     tempdir = sys.argv[1]
     m = sys.argv[2]
