@@ -2,14 +2,17 @@ if(RDK_BUILD_PYTHON_STUBS)
   string(REGEX REPLACE "\\\\" "/" CMAKE_SOURCE_DIR_FWDSLASH ${CMAKE_SOURCE_DIR})
   string(REGEX REPLACE "\\\\" "/" CMAKE_CURRENT_BINARY_DIR_FWDSLASH ${CMAKE_CURRENT_BINARY_DIR})
   string(REGEX REPLACE "\\\\" "/" PYTHON_INSTDIR_FWDSLASH ${PYTHON_INSTDIR})
-  string(CONCAT RUN_GEN_RDKIT_STUBS_PY "execute_process("
-      "COMMAND "
-      "${PYTHON_EXECUTABLE} -m Scripts.gen_rdkit_stubs "
-      "\"${CMAKE_SOURCE_DIR_FWDSLASH}\" \"${PYTHON_INSTDIR_FWDSLASH}\" "
-      "WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR_FWDSLASH}\" "
-      "OUTPUT_FILE \"${CMAKE_CURRENT_BINARY_DIR_FWDSLASH}/gen_rdkit_stubs.out\" "
-      "ERROR_FILE \"${CMAKE_CURRENT_BINARY_DIR_FWDSLASH}/gen_rdkit_stubs.err\""
-    ")"
+  string(CONCAT RUN_GEN_RDKIT_STUBS_PY "message("
+    "\"-- Installing rdkit-stubs into the following directories: "
+    "${CMAKE_SOURCE_DIR_FWDSLASH}, "
+    "${PYTHON_INSTDIR_FWDSLASH}\")\n"
+    "execute_process("
+    "COMMAND "
+    "${PYTHON_EXECUTABLE} -m Scripts.gen_rdkit_stubs "
+    "\"${CMAKE_SOURCE_DIR_FWDSLASH}\" \"${PYTHON_INSTDIR_FWDSLASH}\" "
+    "WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR_FWDSLASH}\" "
+    "OUTPUT_FILE \"${CMAKE_CURRENT_BINARY_DIR_FWDSLASH}/gen_rdkit_stubs.out\" "
+    "ERROR_FILE \"${CMAKE_CURRENT_BINARY_DIR_FWDSLASH}/gen_rdkit_stubs.err\")"
   )
   install(CODE "${RUN_GEN_RDKIT_STUBS_PY}" COMPONENT python)
 else(RDK_BUILD_PYTHON_STUBS)

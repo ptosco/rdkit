@@ -32,7 +32,6 @@ import multiprocessing
 from pathlib import Path
 from . import generate_stubs, purge_rdkit_source_dir_from_sys_path, rdkit_has_rdbase, RDKIT_MODULE_NAME
 
-
 def parse_args():
     """Parse command line arguments."""
     default_n_cpus = max(1, multiprocessing.cpu_count() - 2)
