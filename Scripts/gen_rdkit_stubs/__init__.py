@@ -5,6 +5,7 @@ import importlib
 import re
 import pathlib
 import subprocess
+from multiprocessing import cpu_count
 from multiprocessing.pool import ThreadPool
 import tempfile
 import shutil
@@ -21,9 +22,18 @@ RDBASE_MODULE_NAME = "rdBase"
 INIT_PY = "__init__.py"
 
 def rdkit_has_rdbase(rdkit_dir):
+    """Returns True if rdkit_dir contains the rdBase Python module.
+
+    Args:
+        rdkit_dir (str): directory path
+
+    Returns:
+        bool: True if rdkit_dir contains the rdBase Python module
+    """
     return any(f.startswith(RDBASE_MODULE_NAME) for f in os.listdir(rdkit_dir))
 
 def purge_rdkit_source_dir_from_sys_path():
+    """Remove the rdkit source dir from sys.path if present."""
     if os.path.isdir(RDKIT_MODULE_NAME) and not rdkit_has_rdbase(RDKIT_MODULE_NAME):
         abs_cwd = os.path.abspath(os.getcwd())
         indices_to_pop = sorted([i for i, p in enumerate(sys.path) if os.path.abspath(p) == abs_cwd], reverse=True)
@@ -31,6 +41,15 @@ def purge_rdkit_source_dir_from_sys_path():
             sys.path.pop(i)
 
 def copy_stubs(src_entry, outer_dirs):
+    """Copy src_entry to each directory in outer_dirs.
+    If src_entry is a directory it will be recursively copied.
+    The src_entry path is stripped off any leading directory
+    including the "rdkit" directory.
+
+    Args:
+        src_entry (str): full path to a file or directory
+        outer_dirs (list[str]): list of destination directory paths
+    """
     base_src_entry = None
     for part in pathlib.Path(src_entry).parts:
         if base_src_entry is not None:
@@ -45,6 +64,16 @@ def copy_stubs(src_entry, outer_dirs):
             shutil.copyfile(src_entry, dst_entry)
 
 def run_worker(module_name):
+    """Worker function passed to multiprocessing.Pool.map.
+
+    Args:
+        module_name (str): name of the Python module we
+        are working on
+
+    Returns:
+        tuple[str, str]: tuple with stdout and stderr.
+        The stderr contents are only reported if return code is nonzero
+    """
     out = ""
     err = ""
     cmd = run_worker.cmd + [run_worker.tempdir, module_name] + run_worker.outer_dirs
@@ -58,14 +87,38 @@ def run_worker(module_name):
     return out, err
 
 def parse_modules_to_set(modules):
+    """Convert comma-separated list of Python module names to a set.
+
+    Args:
+        modules (str): comma-separated list of Python module names
+
+    Returns:
+        set: set of unique Python module names
+    """
     return {m.strip() for m in modules.split(",")}
 
 def concat_parent_child_module(parent_module, child_module):
+    """Convert "from x import y" to "import x.y".
+    If y is "*", "from x import *" becomes "import x".
+
+    Args:
+        parent_module (str): from module
+        child_module (str): imported module
+
+    Returns:
+        str: dot-separated concatenated import
+    """
     if child_module != "*":
         parent_module += "." + child_module
     return parent_module
 
 def clear_stubs(outer_dir):
+    """Remove all files and directories from "rdkit-stubs"
+    except CMakeLists.txt.
+
+    Args:
+        outer_dir (_type_): _description_
+    """
     for entry in os.listdir(outer_dir):
         if entry == "CMakeLists.txt":
             continue
@@ -75,7 +128,19 @@ def clear_stubs(outer_dir):
         else:
             os.remove(entry)
 
-def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1, verbose=False):
+def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=cpu_count(), verbose=False):
+    """Generate RDKit stubs.
+
+    Args:
+        site_packages_path (str): full path from where RDKit modules are
+        imported.
+        output_dirs (list, optional): List of directories where a rdkit-stubs.
+        directory is created. Defaults to [os.getcwd()].
+        concurrency (int, optional): Number of CPUs used to generate stubs.
+        Defaults to cpu_count().
+        verbose (bool, optional): Whether output should be verbose.
+        Defaults to False.
+    """
     modules = set()
     exclusions_cache = {}
     for p in (
@@ -146,6 +211,7 @@ def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1,
                     copy_stubs(src_entry, outer_dirs)
 
 class ProcessDocLines:
+    """A class to pre-process docstrings before feeding them to pybind11_stubgen."""
 
     PY_SIGNATURE_ARG_REGEX = re.compile(r"^\((\S+)\)([^\=]+)\=?(.*)?$")
     DEF_REGEX = re.compile(r"^([^(]+)(\s*\(\s*).*(\s*\)\s*->\s*)[^:]+:(\s*)$")
@@ -170,16 +236,25 @@ class ProcessDocLines:
         "_vectSt6vectorIiSaIiEE": "typing.Sequence[typing.Sequence[int]]",
         "_vectSt6vectorIjSaIjEE": "typing.Sequence[typing.Sequence[int]]",
     }
+    OVERLOADED_FUNCTION_TAG = "Overloaded function."
 
     def __init__(self, module_name, doc_lines):
         self.module_name = module_name
-        self.doc_lines = doc_lines
         self.num_overloads = 0
         self.overload_num = 0
         self.top_signature = None
 
     @classmethod
     def protect_quoted_square_brackets_and_equals(cls, arg):
+        """Replaces [, ], = with string tags.
+
+        Args:
+            arg (str): raw single Python signature parameter
+
+        Returns:
+            str: single Python signature parameter with symbols
+            replaced by string tags
+        """
         open_quote = False
         protected_arg = ""
         for c in arg:
@@ -194,12 +269,29 @@ class ProcessDocLines:
 
     @classmethod
     def deprotect_quoted_square_brackets_and_equals(cls, arg):
+        """Restores [, ], = which were replaced by string tags.
+
+        Args:
+            arg (str): single Python signature parameter with symbols
+            replaced by string tags
+
+        Returns:
+            str: single Python signature parameter with original symbols
+        """
         for k, v in cls.PROTECTIONS.items():
             arg = arg.replace(v, k)
         return arg
 
     @classmethod
     def process_py_signature_arg(cls, arg):
+        """Process single Python signature parameter.
+
+        Args:
+            arg (str): raw single Python signature parameter
+
+        Returns:
+            str: processed single Python signature parameter
+        """
         arg = cls.PURGE_CPP_OBJECT_ANGLE_BRACKETS.sub(r"\1\3()\4", arg)
         arg = cls.protect_quoted_square_brackets_and_equals(arg)
         arg = cls.PURGE_OPEN_SQUARE_BRACKET.sub("", arg)
@@ -217,9 +309,31 @@ class ProcessDocLines:
 
     @classmethod
     def find_def_match(cls, src_line):
+        """Find Python function def in src_line.
+
+        Args:
+            src_line (str): single docstring line
+
+        Returns:
+            re.Match|None: the re.Match or None if no match
+        """
         return cls.DEF_REGEX.match(src_line)
 
     def convert_to_valid_type(self, py_signature_ret):
+        """Takes as input a return type which may be either a builtin
+        or an RDKit class type. Builtins are returned unchanged, while
+        RDKit class types are prefixed with the appropriate module such
+        that an import can be added at the top of the .pyi file by
+        pybind11_stubgen and the return type is correctly recognized
+        by Pyright.
+
+        Args:
+            py_signature_ret (str): raw return type
+
+        Returns:
+            str: return type prefixed with the relevant Python module
+            if needed
+        """
         res = self.CPP_PYTHONIC_RETURN_TYPES.get(py_signature_ret, py_signature_ret)
         is_valid_type = hasattr(builtins, py_signature_ret)
         module_name_tmp = self.module_name
@@ -233,6 +347,29 @@ class ProcessDocLines:
         return res
 
     def process_src_line(self, src_line):
+        """Process single docstring line.
+        Function def lines are processed, others are returned with
+        no change.
+        Currently, processing involves:
+        * Processing function parameters to assign a type
+          (extracted from the docstring itself)
+        * Processing return type to prepend the Pythonmodule
+          where the type is defined as needed
+        * For overloaded functiona and methods, the first overload becomes
+          the top-line signature, followed by a line with the
+          OVERLOADED_FUNCTION_TAG. Then all the overloads follow as
+          listed in the docstring prepended by a "#." tag where
+          # is the 1-based overload number.
+          This is the overload format that pybind11_stubgen expects
+          and that will trigger the addition of the @typing.overload
+          decorators as well as the per-overload docstring trimming
+
+        Args:
+            src_line (str): single docstring line
+
+        Returns:
+            str: processed docstring line
+        """
         def_match = self.find_def_match(src_line)
         if def_match:
             func_name = def_match.group(1)
@@ -261,9 +398,25 @@ class ProcessDocLines:
                     src_line = overload_prefix + src_line
         return src_line
 
-    def process_src_lines(self):
-        self.num_overloads = len(tuple(filter(None, [self.find_def_match(doc_line) for doc_line in self.doc_lines])))
-        doc_lines = list(map(self.process_src_line, self.doc_lines))
+    def process_doc_lines(self, doc_lines):
+        """Process the raw docstring lines.
+        * Coount the number of overloads for the function described
+          in the docstring
+        * Trim any empty lines at the beginning of the docstring,
+          as pybind11_stubgen does expects no empty lines
+          at the top of the docstring or it will misbehave
+        * If the function has >1 overload, prepend the first overload
+          as top signature followed by a 2nd line bearing the
+          OVERLOADED_FUNCTION_TAG string
+
+        Args:
+            doc_lines (list[str]): raw docstring lines
+
+        Returns:
+            list[str]: processed docstring lines
+        """
+        self.num_overloads = len(tuple(filter(None, [self.find_def_match(doc_line) for doc_line in doc_lines])))
+        doc_lines = list(map(self.process_src_line, doc_lines))
         i = 0
         for i, doc_line in enumerate(doc_lines):
             if doc_line:
@@ -272,13 +425,22 @@ class ProcessDocLines:
             doc_lines.pop(0)
         if self.num_overloads > 1:
             doc_lines.insert(0, self.top_signature)
-            doc_lines.insert(1, "Overloaded function.")
+            doc_lines.insert(1, self.OVERLOADED_FUNCTION_TAG)
         return doc_lines
 
     @classmethod
     def process(cls, module_name, doc_lines):
-        instance = cls(module_name, doc_lines)
-        return instance.process_src_lines()
+        """Process the raw docstring lines.
+        This is a convenience static function that creates an instance
+        of ProcessDocLines and calls process_doc_lines() on it.
 
-def preprocess_doc_lines(module_name, doc_lines):
-    return ProcessDocLines.process(module_name, doc_lines)
+        Args:
+            module_name (str): fully qualified Python module
+            name the docstring belongs to
+            doc_lines (list[str]): raw docstring lines
+
+        Returns:
+            list[str]: processed docstring lines
+        """
+        instance = cls(module_name)
+        return instance.process_doc_lines(doc_lines)

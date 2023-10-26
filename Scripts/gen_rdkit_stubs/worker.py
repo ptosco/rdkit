@@ -22,7 +22,7 @@ if __name__ == "__main__":
         parse_function_docstring_orig = ExtractSignaturesFromPybind11Docstrings.parse_function_docstring
 
         def parse_function_docstring_patched(self, func_name, doc_lines, **kwargs):
-            doc_lines = gen_rdkit_stubs.preprocess_doc_lines(module_name, doc_lines)
+            doc_lines = gen_rdkit_stubs.ProcessDocLines.process(module_name, doc_lines)
             return parse_function_docstring_orig(self, func_name, doc_lines, **kwargs)
 
         ExtractSignaturesFromPybind11Docstrings.parse_function_docstring = parse_function_docstring_patched
