@@ -31,7 +31,7 @@ if __name__ == "__main__":
         print_submodule_import_orig = Printer.print_submodule_import
 
         def print_submodule_import_patched(self, name):
-            return [f"from {name} import *"]
+            return [f"from .{name} import *"]
 
         Printer.print_submodule_import = print_submodule_import_patched
 
