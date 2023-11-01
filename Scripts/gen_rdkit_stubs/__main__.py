@@ -68,4 +68,5 @@ if __name__ == "__main__":
     except ModuleNotFoundError:
         raise ModuleNotFoundError("Failed to find pybind11_stubgen in PYTHONPATH. Please install pybind11_stubgen (available on PyPI and GitHub)")
     site_packages_path = Path(site_packages_path)
-    generate_stubs(site_packages_path, args.output_dirs, args.concurrency, args.verbose)
+    #generate_stubs(site_packages_path, args.output_dirs, args.concurrency, args.verbose)
+    generate_stubs(site_packages_path, args.output_dirs, 1, args.verbose)

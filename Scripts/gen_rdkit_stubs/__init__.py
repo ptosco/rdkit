@@ -5,7 +5,6 @@ import importlib
 import re
 import pathlib
 import subprocess
-from multiprocessing import cpu_count
 from multiprocessing.pool import ThreadPool
 import tempfile
 import shutil
@@ -128,7 +127,7 @@ def clear_stubs(outer_dir):
         else:
             os.remove(entry)
 
-def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=cpu_count(), verbose=False):
+def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1, verbose=False):
     """Generate RDKit stubs.
 
     Args:
@@ -137,7 +136,7 @@ def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=cp
         output_dirs (list, optional): List of directories where a rdkit-stubs.
         directory is created. Defaults to [os.getcwd()].
         concurrency (int, optional): Number of CPUs used to generate stubs.
-        Defaults to cpu_count().
+        Defaults to auto.
         verbose (bool, optional): Whether output should be verbose.
         Defaults to False.
     """
@@ -152,16 +151,24 @@ def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=cp
         module_file = p.relative_to(site_packages_path)
         d = p.parent
         if module_file.name == INIT_PY:
+            # if __init__.py, take the parent directory and replace the
+            # os separator with "." to get the fully qualified module name
             m = str(d.relative_to(site_packages_path)).replace(os.sep, ".")
             modules.add(m)
         else:
+            # otherwise trim off the extension and get the fully qualified
+            # module name
             noext, ext = os.path.splitext(str(module_file))
             noext = noext.replace(os.sep, ".")
             init_py_file = str(d.joinpath(INIT_PY))
+            # if there is an __init__.py file in the same directory, we
+            # need to exclude submodules which are already imported by
+            # the main module
             if os.path.exists(init_py_file):
                 exclusions = exclusions_cache.get(init_py_file, None)
                 if exclusions is None:
                     exclusions = set()
+                    # we get the list of submodules by parsing __init__.py
                     with open(init_py_file, "r") as hnd:
                         for line in hnd:
                             import_modules_match = IMPORT_MODULES.match(line)
@@ -238,7 +245,7 @@ class ProcessDocLines:
     }
     OVERLOADED_FUNCTION_TAG = "Overloaded function."
 
-    def __init__(self, module_name, doc_lines):
+    def __init__(self, module_name):
         self.module_name = module_name
         self.num_overloads = 0
         self.overload_num = 0
