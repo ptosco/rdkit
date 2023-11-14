@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 WORKER_SCRIPT = "worker.py"
 IMPORT_MODULES = re.compile(r"^\s*import\s+(.*)$")
 FROM_IMPORT_MODULES = re.compile(r"^\s*from\s+(\S+)\s+import\s+(.*)$")
+PYI_TO_PY = re.compile(r"\.pyi$")
 RDKIT_MODULE_NAME = "rdkit"
 RDBASE_MODULE_NAME = "rdBase"
 INIT_PY = "__init__.py"
@@ -127,76 +128,8 @@ def clear_stubs(outer_dir):
         else:
             os.remove(entry)
 
-def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1, verbose=False):
-    """Generate RDKit stubs.
-
-    Args:
-        site_packages_path (str): full path from where RDKit modules are
-        imported.
-        output_dirs (list, optional): List of directories where a rdkit-stubs.
-        directory is created. Defaults to [os.getcwd()].
-        concurrency (int, optional): Number of CPUs used to generate stubs.
-        Defaults to auto.
-        verbose (bool, optional): Whether output should be verbose.
-        Defaults to False.
-    """
-    modules = set()
-    exclusions_cache = {}
-    for p in (
-        # order is important here
-        sorted(site_packages_path.joinpath(RDKIT_MODULE_NAME).rglob("*.pyd")) +
-        sorted(site_packages_path.joinpath(RDKIT_MODULE_NAME).rglob("*.so")) +
-        sorted(site_packages_path.joinpath(RDKIT_MODULE_NAME).rglob("*.py"))
-    ):
-        module_file = p.relative_to(site_packages_path)
-        d = p.parent
-        if module_file.name == INIT_PY:
-            # if __init__.py, take the parent directory and replace the
-            # os separator with "." to get the fully qualified module name
-            m = str(d.relative_to(site_packages_path)).replace(os.sep, ".")
-            modules.add(m)
-        else:
-            # otherwise trim off the extension and get the fully qualified
-            # module name
-            noext, ext = os.path.splitext(str(module_file))
-            noext = noext.replace(os.sep, ".")
-            init_py_file = str(d.joinpath(INIT_PY))
-            # if there is an __init__.py file in the same directory, we
-            # need to exclude submodules which are already imported by
-            # the main module
-            if os.path.exists(init_py_file):
-                exclusions = exclusions_cache.get(init_py_file, None)
-                if exclusions is None:
-                    exclusions = set()
-                    # we get the list of submodules by parsing __init__.py
-                    with open(init_py_file, "r") as hnd:
-                        for line in hnd:
-                            import_modules_match = IMPORT_MODULES.match(line)
-                            if import_modules_match:
-                                comma_sep_modules = import_modules_match.group(1)
-                                exclusions.update(parse_modules_to_set(comma_sep_modules))
-                                continue
-                            from_import_modules_match = FROM_IMPORT_MODULES.match(line)
-                            if from_import_modules_match:
-                                parent_module = from_import_modules_match.group(1)
-                                comma_sep_modules = from_import_modules_match.group(2)
-                                exclusions.update({concat_parent_child_module(parent_module, child_module)
-                                                   for child_module in parse_modules_to_set(comma_sep_modules)})
-                    exclusions_cache[init_py_file] = exclusions
-            else:
-                exclusions = set()
-            if (ext == ".py") or (noext not in exclusions):
-                modules.add(noext)
-    outer_dirs = []
-    for output_dir in output_dirs:
-        outer_dir = os.path.join(output_dir, f"{RDKIT_MODULE_NAME}-stubs")
-        outer_dirs.append(outer_dir)
-        if os.path.isdir(outer_dir):
-            clear_stubs(outer_dir)
-        elif os.path.isfile(outer_dir):
-            os.remove(outer_dir)
-        if not os.path.isdir(outer_dir):
-            os.makedirs(outer_dir)
+def generate_stubs_internal(modules, outer_dirs, concurrency=1, verbose=False):
+    concurrency = min(concurrency, len(modules))
     with tempfile.TemporaryDirectory() as tempdir:
         src_dir = os.path.join(tempdir, RDKIT_MODULE_NAME)
         run_worker.cmd = [sys.executable, os.path.join(os.path.dirname(__file__), WORKER_SCRIPT)]
@@ -214,8 +147,45 @@ def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1,
         if os.path.isdir(src_dir):
             for f in os.listdir(src_dir):
                 src_entry = os.path.join(src_dir, f)
-                if os.path.isfile(src_entry):
+                if os.path.exists(src_entry):
                     copy_stubs(src_entry, outer_dirs)
+
+def generate_stubs(site_packages_path, output_dirs=[os.getcwd()], concurrency=1, verbose=False):
+    """Generate RDKit stubs.
+
+    Args:
+        site_packages_path (str): full path from where RDKit modules are
+        imported.
+        output_dirs (list, optional): List of directories where a rdkit-stubs.
+        directory is created. Defaults to [os.getcwd()].
+        concurrency (int, optional): Number of CPUs used to generate stubs.
+        Defaults to auto.
+        verbose (bool, optional): Whether output should be verbose.
+        Defaults to False.
+    """
+    modules = {str(p.parent.relative_to(site_packages_path)).replace(os.sep, ".")
+               for p in sorted(site_packages_path.joinpath(RDKIT_MODULE_NAME).rglob(INIT_PY))}
+    outer_dirs = []
+    for output_dir in output_dirs:
+        outer_dir = os.path.join(output_dir, f"{RDKIT_MODULE_NAME}-stubs")
+        outer_dirs.append(outer_dir)
+        if os.path.isdir(outer_dir):
+            clear_stubs(outer_dir)
+        elif os.path.isfile(outer_dir):
+            os.remove(outer_dir)
+        if not os.path.isdir(outer_dir):
+            os.makedirs(outer_dir)
+    generate_stubs_internal(modules, outer_dirs, concurrency, verbose)
+    pyi_path = pathlib.Path(outer_dirs[0])
+    pyi_files = {PYI_TO_PY.sub(".py", str(p.relative_to(pyi_path))) for p in pyi_path.rglob("*.pyi")}
+    modules = {str(p.relative_to(site_packages_path.joinpath(RDKIT_MODULE_NAME)))
+               for p in (
+        sorted(site_packages_path.joinpath(RDKIT_MODULE_NAME).rglob("*.pyd")) +
+        sorted(site_packages_path.joinpath(RDKIT_MODULE_NAME).rglob("*.so")) +
+        sorted(site_packages_path.joinpath(RDKIT_MODULE_NAME).rglob("*.py"))
+    ) if p.name != INIT_PY}.difference(pyi_files)
+    modules = {RDKIT_MODULE_NAME + "." + os.path.splitext(p.replace(os.sep, "."))[0] for p in modules}
+    generate_stubs_internal(modules, outer_dirs, concurrency, verbose)
 
 class ProcessDocLines:
     """A class to pre-process docstrings before feeding them to pybind11_stubgen."""
