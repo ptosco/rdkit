@@ -696,4 +696,17 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
   function("get_mcs_as_smarts", &get_mcs_as_smarts);
   function("get_mcs_as_smarts", &get_mcs_as_smarts_no_details);
 #endif
+#ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
+  class_<JSRgroupDecomp>("RgroupDecomp")
+    .function("smiles_by_col_and_idx", &JSRgroupDecomp::smiles_by_col_and_idx)
+    .function("next", &JSRgroupDecomp::next)
+    .function("reset", &JSRgroupDecomp::reset)
+    .function("get_unmatched_at", &JSRgroupDecomp::get_unmatched_at)
+    .function("col_at", &JSRgroupDecomp::col_at)
+    .function("columns_size", &JSRgroupDecomp::columns_size)
+    .function("size", &JSRgroupDecomp::size)
+    .function("unmatched_size", &JSRgroupDecomp::unmatched_size);
+  
+  function("rgroups", &rgroups, allow_raw_pointers());
+#endif
 }

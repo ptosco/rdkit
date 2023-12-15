@@ -17,6 +17,9 @@
 #ifdef RDK_BUILD_MINIMAL_LIB_MMPA
 #include <GraphMol/MMPA/MMPA.h>
 #endif
+#ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
+#include <GraphMol/RGroupDecomposition/RGroupDecomp.h>
+#endif
 
 class JSMolList;
 
@@ -284,4 +287,63 @@ JSLog *set_log_capture(const std::string &log_name);
 std::string get_mcs_as_json(const JSMolList &mols, const std::string &details_json);
 std::string get_mcs_as_smarts(const JSMolList &mols, const std::string &details_json);
 JSMol *get_mcs_as_mol(const JSMolList &mols, const std::string &details_json);
+#endif
+
+
+#ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
+static const std::map<std::string, RDKit::RGroupLabels> rGroupLabelsMap = {
+  {"IsotopeLabels", RDKit::IsotopeLabels},
+  {"AtomMapLabels", RDKit::AtomMapLabels},
+  {"AtomIndexLabels", RDKit::AtomIndexLabels},
+  {"RelabelDuplicateLabels", RDKit::RelabelDuplicateLabels},
+  {"MDLRGroupLabels", RDKit::MDLRGroupLabels},
+  {"DummyAtomLabels", RDKit::DummyAtomLabels},
+  {"AutoDetect", RDKit::AutoDetect}};
+
+static const std::map<std::string, RDKit::RGroupMatching> matchingStrategyMap = {
+  {"Greedy", RDKit::Greedy},
+  {"GreedyChunks", RDKit::GreedyChunks},
+  {"Exhaustive", RDKit::Exhaustive},
+  {"NoSymmetrization", RDKit::NoSymmetrization},
+  {"GA", RDKit::GA}};
+
+static const std::map<std::string, RDKit::RGroupScore> rGroupScoreMap = {
+  {"Match", RDKit::Match},
+  {"FingerprintVariance", RDKit::FingerprintVariance}};
+
+static const std::map<std::string, RDKit::RGroupLabelling> rGroupLabellingMap = {
+  {"AtomMap", RDKit::AtomMap},
+  {"Isotope", RDKit::Isotope},
+  {"MDLRGroup", RDKit::MDLRGroup}};
+
+static const std::map<std::string, RDKit::RGroupCoreAlignment> alignmentMap = {
+  {"None", RDKit::None},
+  {"NoAlignment", RDKit::NoAlignment},
+  {"MCS", RDKit::MCS}};
+class JSRgroupDecomp {
+public:
+  JSRgroupDecomp(std::vector<unsigned int> unmatched, long int full_size) : d_idx(0), unmatched(unmatched) {
+    this->d_smiles.resize(full_size);
+  };
+  std::string next();
+  void reset() { d_idx = 0; }
+  std::string smiles_by_col_and_idx(const std::string col_name, const int idx);
+  std::string col_at(int idx) {
+    return idx < cols.size() ? cols[idx] : ""; 
+  };
+  size_t size() const { return cols.size() > 0 ? d_smiles.size()/cols.size() : 0; }
+  size_t columns_size() const { return cols.size(); }
+  size_t unmatched_size() const { return unmatched.size(); }
+
+  void add(const std::string col_name, const std::vector<RDKit::ROMOL_SPTR> d_mols);
+  long int get_unmatched_at(int pos_u);
+
+private:
+  int d_idx;
+  std::vector<std::string> cols;
+  std::vector<std::string> d_smiles;
+  std::vector<unsigned int> unmatched;
+};
+
+JSRgroupDecomp *rgroups(const JSMol &core, const JSMolList &mols, const std::string &details);
 #endif

@@ -954,3 +954,115 @@ JSLog *set_log_capture(const std::string &log_name) {
 void enable_logging() { RDKit::MinimalLib::LogHandle::enableLogging(); }
 
 void disable_logging() { RDKit::MinimalLib::LogHandle::disableLogging(); }
+
+//#ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
+std::string JSRgroupDecomp::smiles_by_col_and_idx(const std::string col_name, const int idx){
+  bool proceed = false;
+  int n = -1;
+  for(size_t i = 0; i < cols.size(); i++) {
+    if(col_name == cols[i]) {
+      proceed = true;
+      n = i;
+      break;
+    }
+  }
+
+  if (proceed) 
+    return idx < size() ? d_smiles[n*size() + idx] : "";
+  else 
+    return "";
+};
+
+std::string JSRgroupDecomp::next() {
+  return (d_idx < d_smiles.size()
+              ? d_smiles[d_idx++]
+              : "");
+}
+
+void JSRgroupDecomp::add(std:: string col_name, std::vector<RDKit::ROMOL_SPTR> d_mols) {
+
+  size_t idx = cols.size() > 0 ? cols.size()*d_mols.size() : 0;
+
+  for(size_t i = 0; i < d_mols.size(); i++)
+    d_smiles[idx + i] = MolToSmiles(*(d_mols[i].get()));
+
+  cols.push_back(col_name);
+}
+
+long int JSRgroupDecomp::get_unmatched_at(int pos_u) {
+  return pos_u < unmatched.size() ? unmatched[pos_u] : -1;
+}
+
+JSRgroupDecomp *rgroups(const JSMol &core, const JSMolList &mols, const std::string &details) {
+  
+  RWMol* mol = new RWMol(*core.d_mol);
+  RDKit::RGroupDecompositionParameters params;
+
+  params.chunkSize = 5;
+  params.matchingStrategy = RDKit::NoSymmetrization;
+  params.alignment = RDKit::NoAlignment;
+
+  if (!details.empty()) {
+    std::istringstream ss;
+    boost::property_tree::ptree pt;
+    ss.str(details);
+    boost::property_tree::read_json(ss, pt);
+
+    std::string labels;
+    labels = pt.get<std::string>("labels", labels);
+    if (rGroupLabelsMap.find(labels) != rGroupLabelsMap.end())
+      params.labels = rGroupLabelsMap.at(labels);
+    
+    std::string matchingStrategy;
+    matchingStrategy = pt.get<std::string>("matchingStrategy", matchingStrategy);
+    if (matchingStrategyMap.find(matchingStrategy) != matchingStrategyMap.end())
+      params.matchingStrategy = matchingStrategyMap.at(matchingStrategy);
+
+    std::string scoreMethod;
+    scoreMethod = pt.get<std::string>("scoreMethod", scoreMethod);
+    if (rGroupScoreMap.find(scoreMethod) != rGroupScoreMap.end())
+      params.scoreMethod = rGroupScoreMap.at(scoreMethod);
+
+    std::string rgroupLabelling;
+    rgroupLabelling = pt.get<std::string>("rgroupLabelling", rgroupLabelling);
+    if (rGroupLabellingMap.find(rgroupLabelling) != rGroupLabellingMap.end())
+      params.rgroupLabelling = rGroupLabellingMap.at(rgroupLabelling);
+
+    std::string alignment;
+    alignment = pt.get<std::string>("alignment", alignment);
+    if (alignmentMap.find(alignment) != alignmentMap.end())
+      params.alignment = alignmentMap.at(alignment); 
+
+    params.chunkSize = pt.get<unsigned int>("chunkSize", params.chunkSize);
+    params.onlyMatchAtRGroups = pt.get<bool>("onlyMatchAtRGroups", params.onlyMatchAtRGroups);
+    params.removeAllHydrogenRGroups = pt.get<bool>("removeAllHydrogenRGroups", params.removeAllHydrogenRGroups);;
+    params.removeAllHydrogenRGroupsAndLabels = pt.get<bool>("removeAllHydrogenRGroupsAndLabels", params.removeAllHydrogenRGroupsAndLabels);;
+    params.removeHydrogensPostMatch = pt.get<bool>("removeHydrogensPostMatch", params.removeHydrogensPostMatch);;
+    params.allowNonTerminalRGroups = pt.get<bool>("allowNonTerminalRGroups", params.allowNonTerminalRGroups);;
+    params.allowMultipleRGroupsOnUnlabelled = pt.get<bool>("allowMultipleRGroupsOnUnlabelled", params.allowMultipleRGroupsOnUnlabelled);;
+    params.timeout = pt.get<double>("timeout", params.timeout);
+  }
+
+  RDKit::RGroupDecomposition decomp(*mol, params);
+  std::vector<unsigned int> unmatched;
+  for (int i = 0; i < mols.size(); ++i) {
+    int v = decomp.add(*(mols.mols()[i].get()));
+    if (v == -1)
+      unmatched.push_back(i);
+  }
+
+  decomp.process();
+
+  RGroupColumns cols = decomp.getRGroupsAsColumns();
+
+  std::vector<std::string> keys;
+  for (std::map<std::string, RGroupColumn>::iterator it = cols.begin(); it != cols.end(); ++it)
+    keys.push_back(it->first);
+  
+  JSRgroupDecomp * res = new JSRgroupDecomp(unmatched, keys.size()*cols.at(keys[0]).size());
+  for (size_t i = 0; i < keys.size(); ++i)
+    res->add(keys[i], cols[keys[i]]);
+
+  return res;
+}
+//#endif
