@@ -955,68 +955,46 @@ void enable_logging() { RDKit::MinimalLib::LogHandle::enableLogging(); }
 
 void disable_logging() { RDKit::MinimalLib::LogHandle::disableLogging(); }
 
-//#ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
-std::string JSRgroupDecomp::smiles_by_col_and_idx(const std::string col_name, const int idx){
-  bool proceed = false;
-  int n = -1;
-  for(size_t i = 0; i < cols.size(); i++) {
-    if(col_name == cols[i]) {
-      proceed = true;
-      n = i;
-      break;
-    }
-  }
-
-  if (proceed) 
-    return idx < size() ? d_smiles[n*size() + idx] : "";
-  else 
-    return "";
-};
-
-std::string JSRgroupDecomp::next() {
-  return (d_idx < d_smiles.size()
-              ? d_smiles[d_idx++]
-              : "");
+#ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
+int JSRgroupDecomp::add(const JSMol &mol) {
+  return decomp.add(RDKit::RWMol(*mol.d_mol));
 }
 
-void JSRgroupDecomp::add(std:: string col_name, std::vector<RDKit::ROMOL_SPTR> d_mols) {
-
-  size_t idx = cols.size() > 0 ? cols.size()*d_mols.size() : 0;
-
-  for(size_t i = 0; i < d_mols.size(); i++)
-    d_smiles[idx + i] = MolToSmiles(*(d_mols[i].get()));
-
-  cols.push_back(col_name);
+bool JSRgroupDecomp::process() {
+  return decomp.process();
 }
 
-long int JSRgroupDecomp::get_unmatched_at(int pos_u) {
-  return pos_u < unmatched.size() ? unmatched[pos_u] : -1;
-}
-
-JSRgroupDecomp *rgroups(const JSMol &core, const JSMolList &mols, const std::string &details_json) {
-  
-  RWMol* mol = new RWMol(*core.d_mol);
-
-  RDKit::RGroupDecomposition decomp(*mol, details_json);
-  std::vector<unsigned int> unmatched;
-  for (int i = 0; i < mols.size(); ++i) {
-    int v = decomp.add(*(mols.mols()[i].get()));
-    if (v == -1)
-      unmatched.push_back(i);
-  }
-
-  decomp.process();
-
+std::pair<std::vector<std::string>, std::vector<JSMolList*>> JSRgroupDecomp::getRGroupsAsColumns() const {
   RGroupColumns cols = decomp.getRGroupsAsColumns();
 
   std::vector<std::string> keys;
   for (std::map<std::string, RGroupColumn>::iterator it = cols.begin(); it != cols.end(); ++it)
     keys.push_back(it->first);
   
-  JSRgroupDecomp * res = new JSRgroupDecomp(unmatched, keys.size()*cols.at(keys[0]).size());
+  std::vector<JSMolList*> res(keys.size());
   for (size_t i = 0; i < keys.size(); ++i)
-    res->add(keys[i], cols[keys[i]]);
+    res[i] = new JSMolList(cols[keys[i]]);
 
-  return res;
+  return std::make_pair(keys, res);
 }
-//#endif
+
+std::pair<std::vector<std::string>, std::vector<JSMolList*>> JSRgroupDecomp::getRGroupsAsRows() const {
+  RGroupRows rows = decomp.getRGroupsAsRows();
+
+  std::vector<int> ns(rows.size());
+  std::vector<std::string> keys;
+  for (RGroupRow::iterator it = rows[0].begin(); it != rows[0].end(); ++it)
+    keys.push_back(it->first);
+
+  std::vector<JSMolList*> res(rows.size());
+  for (size_t i = 0; i < rows.size(); ++i) {
+    std::vector<ROMOL_SPTR> row(keys.size());
+    for (size_t j = 0; j < keys.size(); ++j)
+      row[i] = rows[i][keys[i]];
+
+    res[i] = new JSMolList(row);
+  }
+
+  return std::make_pair(keys, res);
+}
+#endif

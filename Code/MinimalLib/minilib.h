@@ -293,28 +293,16 @@ JSMol *get_mcs_as_mol(const JSMolList &mols, const std::string &details_json);
 #ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
 class JSRgroupDecomp {
 public:
-  JSRgroupDecomp(std::vector<unsigned int> unmatched, long int full_size) : d_idx(0), unmatched(unmatched) {
-    this->d_smiles.resize(full_size);
-  };
-  std::string next();
-  void reset() { d_idx = 0; }
-  std::string smiles_by_col_and_idx(const std::string col_name, const int idx);
-  std::string col_at(int idx) {
-    return idx < cols.size() ? cols[idx] : ""; 
-  };
-  size_t size() const { return cols.size() > 0 ? d_smiles.size()/cols.size() : 0; }
-  size_t columns_size() const { return cols.size(); }
-  size_t unmatched_size() const { return unmatched.size(); }
+  JSRgroupDecomp(const JSMol &core, const std::string &details_json) :
+    decomp(RDKit::RWMol(*core.d_mol)) {};
 
-  void add(const std::string col_name, const std::vector<RDKit::ROMOL_SPTR> d_mols);
-  long int get_unmatched_at(int pos_u);
+  int add(const JSMol &mol);
+  bool process();
+  std::pair<std::vector<std::string>, std::vector<JSMolList*>> getRGroupsAsColumns() const;
+  std::pair<std::vector<std::string>, std::vector<JSMolList*>> getRGroupsAsRows() const;
 
 private:
-  int d_idx;
-  std::vector<std::string> cols;
-  std::vector<std::string> d_smiles;
+  RDKit::RGroupDecomposition decomp;
   std::vector<unsigned int> unmatched;
 };
-
-JSRgroupDecomp *rgroups(const JSMol &core, const JSMolList &mols, const std::string &details_json);
 #endif
