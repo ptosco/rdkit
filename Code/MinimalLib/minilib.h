@@ -291,35 +291,6 @@ JSMol *get_mcs_as_mol(const JSMolList &mols, const std::string &details_json);
 
 
 #ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
-static const std::map<std::string, RDKit::RGroupLabels> rGroupLabelsMap = {
-  {"IsotopeLabels", RDKit::IsotopeLabels},
-  {"AtomMapLabels", RDKit::AtomMapLabels},
-  {"AtomIndexLabels", RDKit::AtomIndexLabels},
-  {"RelabelDuplicateLabels", RDKit::RelabelDuplicateLabels},
-  {"MDLRGroupLabels", RDKit::MDLRGroupLabels},
-  {"DummyAtomLabels", RDKit::DummyAtomLabels},
-  {"AutoDetect", RDKit::AutoDetect}};
-
-static const std::map<std::string, RDKit::RGroupMatching> matchingStrategyMap = {
-  {"Greedy", RDKit::Greedy},
-  {"GreedyChunks", RDKit::GreedyChunks},
-  {"Exhaustive", RDKit::Exhaustive},
-  {"NoSymmetrization", RDKit::NoSymmetrization},
-  {"GA", RDKit::GA}};
-
-static const std::map<std::string, RDKit::RGroupScore> rGroupScoreMap = {
-  {"Match", RDKit::Match},
-  {"FingerprintVariance", RDKit::FingerprintVariance}};
-
-static const std::map<std::string, RDKit::RGroupLabelling> rGroupLabellingMap = {
-  {"AtomMap", RDKit::AtomMap},
-  {"Isotope", RDKit::Isotope},
-  {"MDLRGroup", RDKit::MDLRGroup}};
-
-static const std::map<std::string, RDKit::RGroupCoreAlignment> alignmentMap = {
-  {"None", RDKit::None},
-  {"NoAlignment", RDKit::NoAlignment},
-  {"MCS", RDKit::MCS}};
 class JSRgroupDecomp {
 public:
   JSRgroupDecomp(std::vector<unsigned int> unmatched, long int full_size) : d_idx(0), unmatched(unmatched) {
@@ -345,5 +316,5 @@ private:
   std::vector<unsigned int> unmatched;
 };
 
-JSRgroupDecomp *rgroups(const JSMol &core, const JSMolList &mols, const std::string &details);
+JSRgroupDecomp *rgroups(const JSMol &core, const JSMolList &mols, const std::string &details_json);
 #endif
