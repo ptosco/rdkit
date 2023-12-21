@@ -720,6 +720,7 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
 #ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
   class_<JSRgroupDecomp>("RGroupDecomp")
   .constructor<const JSMol &, const std::string &>()
+  .constructor<const JSMolList &, const std::string &, bool>()
   .function("add", &JSRgroupDecomp::add)
   .function("process", &JSRgroupDecomp::process)
   .function("get_rgroups_as_columns", select_overload<emscripten::val(const JSRgroupDecomp &)>(

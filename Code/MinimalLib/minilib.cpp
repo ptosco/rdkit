@@ -966,14 +966,15 @@ bool JSRgroupDecomp::process() {
 
 std::pair<std::vector<std::string>, std::vector<JSMolList*>> JSRgroupDecomp::getRGroupsAsColumns() const {
   RGroupColumns cols = decomp.getRGroupsAsColumns();
-
-  std::vector<std::string> keys;
-  for (std::map<std::string, RGroupColumn>::iterator it = cols.begin(); it != cols.end(); ++it)
-    keys.push_back(it->first);
-  
-  std::vector<JSMolList*> res(keys.size());
-  for (size_t i = 0; i < keys.size(); ++i)
+  size_t length = cols.size();
+  std::vector<std::string> keys(length);
+    std::vector<JSMolList*> res(length);
+  size_t i = 0;
+  for (std::map<std::string, RGroupColumn>::iterator it = cols.begin(); it != cols.end(); ++it) {
+    keys[i] = (it->first);
     res[i] = new JSMolList(cols[keys[i]]);
+    ++i;
+  }
 
   return std::make_pair(keys, res);
 }
@@ -986,10 +987,13 @@ std::pair<std::vector<std::string>, std::vector<JSMolList*>> JSRgroupDecomp::get
   for (RGroupRow::iterator it = rows[0].begin(); it != rows[0].end(); ++it)
     keys.push_back(it->first);
 
-  std::vector<JSMolList*> res(rows.size());
+  size_t nrows = rows.size();
+  size_t nkeys = keys.size();
+
+  std::vector<JSMolList*> res(nrows);
   for (size_t i = 0; i < rows.size(); ++i) {
-    std::vector<ROMOL_SPTR> row(keys.size());
-    for (size_t j = 0; j < keys.size(); ++j)
+    std::vector<ROMOL_SPTR> row(nkeys);
+    for (size_t j = 0; j < nkeys; ++j)
       row[i] = rows[i][keys[i]];
 
     res[i] = new JSMolList(row);

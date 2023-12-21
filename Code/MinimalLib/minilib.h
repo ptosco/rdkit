@@ -296,6 +296,9 @@ public:
   JSRgroupDecomp(const JSMol &core, const std::string &details_json) :
     decomp(RDKit::RWMol(*core.d_mol)) {};
 
+  JSRgroupDecomp(const JSMolList &cores, const std::string &details_json, bool manyCores) :
+    decomp(cores.mols()) {};
+
   int add(const JSMol &mol);
   bool process();
   std::pair<std::vector<std::string>, std::vector<JSMolList*>> getRGroupsAsColumns() const;
