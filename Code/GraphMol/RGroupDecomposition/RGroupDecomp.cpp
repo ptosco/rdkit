@@ -80,6 +80,16 @@ RGroupDecomposition::RGroupDecomposition(
     const RGroupDecompositionParameters &params)
     : data(new RGroupDecompData(cores, params)) {}
 
+RGroupDecomposition::RGroupDecomposition(const ROMol &inputCore, const std::string &json) {
+  RDKit::RGroupDecompositionParameters params(json);
+  data = new RGroupDecompData(inputCore, params);
+}
+
+RGroupDecomposition::RGroupDecomposition( const std::vector<ROMOL_SPTR> &cores, const std::string &json) {
+  RDKit::RGroupDecompositionParameters params(json);
+  data = new RGroupDecompData(cores, params);
+}
+
 RGroupDecomposition::~RGroupDecomposition() { delete data; }
 
 int RGroupDecomposition::getMatchingCoreIdx(

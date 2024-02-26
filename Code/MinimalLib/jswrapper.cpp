@@ -351,6 +351,27 @@ emscripten::val get_mmpa_frags_helper(const JSMol &self, unsigned int minCuts,
   return obj;
 }
 #endif
+#ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
+emscripten::val get_rgroup_ascols_helper(const JSRgroupDecomp &self) {
+  auto obj = emscripten::val::object();
+  auto pairs = self.getRGroupsAsColumns();
+
+  for (size_t i = 0; i < pairs.first.size(); ++i)
+    obj.set(pairs.first[i], pairs.second[i]);
+
+  return obj;
+}
+
+emscripten::val get_rgroup_asrows_helper(const JSRgroupDecomp &self) {
+  auto obj = emscripten::val::object();
+  auto pairs = self.getRGroupsAsRows();
+
+  for (size_t i = 0; i < pairs.second.size(); ++i)
+    obj.set(std::to_string(i), pairs.second[i]);
+
+  return obj;
+}
+#endif
 }  // namespace
 
 using namespace emscripten;
@@ -663,5 +684,17 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
   function("get_mcs_as_mol", &get_mcs_as_mol_no_details, allow_raw_pointers());
   function("get_mcs_as_smarts", &get_mcs_as_smarts);
   function("get_mcs_as_smarts", &get_mcs_as_smarts_no_details);
+#endif
+#ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
+  class_<JSRgroupDecomp>("RGroupDecomp")
+  .constructor<const JSMol &, const std::string &>()
+  .constructor<const JSMolList &, const std::string &, bool>()
+  .function("add", &JSRgroupDecomp::add)
+  .function("process", &JSRgroupDecomp::process)
+  .function("get_rgroups_as_columns", select_overload<emscripten::val(const JSRgroupDecomp &)>(
+    get_rgroup_ascols_helper))
+  .function("get_rgroups_as_rows", select_overload<emscripten::val(const JSRgroupDecomp &)>(
+    get_rgroup_asrows_helper));
+
 #endif
 }

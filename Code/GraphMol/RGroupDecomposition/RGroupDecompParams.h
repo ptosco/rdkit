@@ -14,6 +14,8 @@
 
 #include "../RDKitBase.h"
 #include <GraphMol/Substruct/SubstructMatch.h>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
 
 namespace RDKit {
 
@@ -52,6 +54,36 @@ typedef enum {
   Match = 0x1,
   FingerprintVariance = 0x4,
 } RGroupScore;
+
+const std::map<std::string, RDKit::RGroupLabels> rGroupLabelsMap = {
+  {"IsotopeLabels", RDKit::IsotopeLabels},
+  {"AtomMapLabels", RDKit::AtomMapLabels},
+  {"AtomIndexLabels", RDKit::AtomIndexLabels},
+  {"RelabelDuplicateLabels", RDKit::RelabelDuplicateLabels},
+  {"MDLRGroupLabels", RDKit::MDLRGroupLabels},
+  {"DummyAtomLabels", RDKit::DummyAtomLabels},
+  {"AutoDetect", RDKit::AutoDetect}};
+
+const std::map<std::string, RDKit::RGroupMatching> matchingStrategyMap = {
+  {"Greedy", RDKit::Greedy},
+  {"GreedyChunks", RDKit::GreedyChunks},
+  {"Exhaustive", RDKit::Exhaustive},
+  {"NoSymmetrization", RDKit::NoSymmetrization},
+  {"GA", RDKit::GA}};
+
+const std::map<std::string, RDKit::RGroupScore> rGroupScoreMap = {
+  {"Match", RDKit::Match},
+  {"FingerprintVariance", RDKit::FingerprintVariance}};
+
+const std::map<std::string, RDKit::RGroupLabelling> rGroupLabellingMap = {
+  {"AtomMap", RDKit::AtomMap},
+  {"Isotope", RDKit::Isotope},
+  {"MDLRGroup", RDKit::MDLRGroup}};
+
+const std::map<std::string, RDKit::RGroupCoreAlignment> alignmentMap = {
+  {"None", RDKit::None},
+  {"NoAlignment", RDKit::NoAlignment},
+  {"MCS", RDKit::MCS}};
 
 struct RDKIT_RGROUPDECOMPOSITION_EXPORT RGroupDecompositionParameters {
   unsigned int labels = AutoDetect;
@@ -112,6 +144,7 @@ struct RDKIT_RGROUPDECOMPOSITION_EXPORT RGroupDecompositionParameters {
   SubstructMatchParameters substructmatchParams;
 
   RGroupDecompositionParameters() { substructmatchParams.useChirality = true; }
+  RGroupDecompositionParameters(const std::string &json);
 
  private:
   int indexOffset{-1};
