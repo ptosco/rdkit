@@ -441,62 +441,62 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
                 &draw_to_canvas_with_highlights)
       .function("generate_aligned_coords",
                 select_overload<std::string(JSMol &, const JSMol &,
-                                            const emscripten::val &)>(
+                                            const val &)>(
                     generate_aligned_coords_helper))
       .function("get_morgan_fp_as_uint8array",
-                select_overload<emscripten::val(const JSMol &)>(
+                select_overload<val(const JSMol &)>(
                     get_morgan_fp_as_uint8array))
       .function(
           "get_morgan_fp_as_uint8array",
-          select_overload<emscripten::val(const JSMol &, const std::string &)>(
+          select_overload<val(const JSMol &, const std::string &)>(
               get_morgan_fp_as_uint8array))
       .function(
           "get_pattern_fp",
-          select_overload<std::string(const JSMol &, const emscripten::val &)>(
+          select_overload<std::string(const JSMol &, const val &)>(
               get_pattern_fp_helper))
       .function("get_pattern_fp_as_uint8array",
-                select_overload<emscripten::val(const JSMol &)>(
+                select_overload<val(const JSMol &)>(
                     get_pattern_fp_as_uint8array))
       .function("get_pattern_fp_as_uint8array",
-                select_overload<emscripten::val(const JSMol &,
-                                                const emscripten::val &)>(
+                select_overload<val(const JSMol &,
+                                                const val &)>(
                     get_pattern_fp_as_uint8array_helper))
       .function("get_topological_torsion_fp_as_uint8array",
-                select_overload<emscripten::val(const JSMol &)>(
+                select_overload<val(const JSMol &)>(
                     get_topological_torsion_fp_as_uint8array))
       .function(
           "get_topological_torsion_fp_as_uint8array",
-          select_overload<emscripten::val(const JSMol &, const std::string &)>(
+          select_overload<val(const JSMol &, const std::string &)>(
               get_topological_torsion_fp_as_uint8array))
       .function("get_rdkit_fp_as_uint8array",
-                select_overload<emscripten::val(const JSMol &)>(
+                select_overload<val(const JSMol &)>(
                     get_rdkit_fp_as_uint8array))
       .function(
           "get_rdkit_fp_as_uint8array",
-          select_overload<emscripten::val(const JSMol &, const std::string &)>(
+          select_overload<val(const JSMol &, const std::string &)>(
               get_rdkit_fp_as_uint8array))
       .function("get_atom_pair_fp_as_uint8array",
-                select_overload<emscripten::val(const JSMol &)>(
+                select_overload<val(const JSMol &)>(
                     get_atom_pair_fp_as_uint8array))
       .function(
           "get_atom_pair_fp_as_uint8array",
-          select_overload<emscripten::val(const JSMol &, const std::string &)>(
+          select_overload<val(const JSMol &, const std::string &)>(
               get_atom_pair_fp_as_uint8array))
       .function("get_maccs_fp_as_uint8array", &get_maccs_fp_as_uint8array)
       .function("get_frags",
-                select_overload<emscripten::val(JSMol &, const std::string &)>(
+                select_overload<val(JSMol &, const std::string &)>(
                     get_frags_helper),
                 allow_raw_pointers())
       .function("get_frags",
-                select_overload<emscripten::val(JSMol &)>(get_frags_helper),
+                select_overload<val(JSMol &)>(get_frags_helper),
                 allow_raw_pointers())
 #ifdef RDK_BUILD_AVALON_SUPPORT
       .function("get_avalon_fp_as_uint8array",
-                select_overload<emscripten::val(const JSMol &)>(
+                select_overload<val(const JSMol &)>(
                     get_avalon_fp_as_uint8array))
       .function(
           "get_avalon_fp_as_uint8array",
-          select_overload<emscripten::val(const JSMol &, const std::string &)>(
+          select_overload<val(const JSMol &, const std::string &)>(
               get_avalon_fp_as_uint8array))
 #endif
 #endif
@@ -596,7 +596,7 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("get_num_bonds", &JSMol::get_num_bonds)
 #ifdef RDK_BUILD_MINIMAL_LIB_MMPA
       .function("get_mmpa_frags",
-                select_overload<emscripten::val(const JSMol &, unsigned int,
+                select_overload<val(const JSMol &, unsigned int,
                                                 unsigned int, unsigned int)>(
                     get_mmpa_frags_helper))
 #endif
@@ -641,22 +641,22 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
 #ifdef __EMSCRIPTEN__
       .function("add_trusted_smiles_and_pattern_fp",
                 select_overload<int(JSSubstructLibrary &, const std::string &,
-                                    const emscripten::val &)>(
+                                    const val &)>(
                     add_trusted_smiles_and_pattern_fp_helper))
       .function("get_pattern_fp_as_uint8array",
-                select_overload<emscripten::val(const JSSubstructLibrary &,
+                select_overload<val(const JSSubstructLibrary &,
                                                 unsigned int)>(
                     get_pattern_fp_as_uint8array_from_sslib))
       .function("get_matches_as_uint32array",
-                select_overload<emscripten::val(const JSSubstructLibrary &,
+                select_overload<val(const JSSubstructLibrary &,
                                                 const JSMol &, bool, int, int)>(
                     get_matches_as_uint32array))
       .function("get_matches_as_uint32array",
-                select_overload<emscripten::val(const JSSubstructLibrary &,
+                select_overload<val(const JSSubstructLibrary &,
                                                 const JSMol &, int)>(
                     get_matches_as_uint32array))
       .function("get_matches_as_uint32array",
-                select_overload<emscripten::val(const JSSubstructLibrary &,
+                select_overload<val(const JSSubstructLibrary &,
                                                 const JSMol &)>(
                     get_matches_as_uint32array))
 #endif
@@ -719,11 +719,12 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
   class_<JSRGroupDecomposition>("RGroupDecomposition")
       .function("add", &JSRGroupDecomposition::add)
       .function("process", &JSRGroupDecomposition::process)
-      .function("get_rgroups_as_columns", select_overload<emscripten::val(const JSRGroupDecomposition &)>(
+      .function("get_rgroups_as_columns", select_overload<val(const JSRGroupDecomposition &)>(
         get_rgroups_as_cols_helper))
-      .function("get_rgroups_as_rows", select_overload<emscripten::val(const JSRGroupDecomposition &)>(
+      .function("get_rgroups_as_rows", select_overload<val(const JSRGroupDecomposition &)>(
         get_rgroups_as_rows_helper));
-  function("get_rgd", select_overload<JSRGroupDecomposition*(const val &, const std::string &)>(get_rgd_helper), allow_raw_pointers());
-  function("get_rgd", select_overload<JSRGroupDecomposition*(const val &)>(get_rgd_no_details_helper), allow_raw_pointers());
+  // cannot use a constructor; see https://github.com/emscripten-core/emscripten/issues/11274
+  function("get_rgd", &get_rgd_helper, allow_raw_pointers());
+  function("get_rgd", &get_rgd_no_details_helper, allow_raw_pointers());
 #endif
 }
