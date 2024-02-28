@@ -351,25 +351,55 @@ emscripten::val get_mmpa_frags_helper(const JSMol &self, unsigned int minCuts,
   return obj;
 }
 #endif
+  // cols is RGroupColumns, which maps R group names (including Core) to vectors of R groups (or cores)
+  // rows is RGroupRows, which is a vector of maps, each mapping a single R group name (including Core) to a single R group (or core)
 #ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
-emscripten::val get_rgroup_ascols_helper(const JSRgroupDecomp &self) {
-  auto obj = emscripten::val::object();
-  auto pairs = self.getRGroupsAsColumns();
+JSRGroupDecomposition *get_rgd_helper(const emscripten::val &singleOrMultipleCores, const std::string &details_json) {
+  static const auto JSMOL = emscripten::val::module_property("Mol");
+  static const auto JSMOLLIST = emscripten::val::module_property("MolList");
+  JSRGroupDecomposition *res = nullptr;
+  if (singleOrMultipleCores.instanceof(JSMOL)) {
+    const auto jsMolPtr = singleOrMultipleCores.as<JSMol *>(emscripten::allow_raw_pointers());
+    if (jsMolPtr) {
+      res = new JSRGroupDecomposition(*jsMolPtr, details_json);
+    }
+  } else if (singleOrMultipleCores.instanceof(JSMOLLIST)) {
+    const auto jsMolListPtr = singleOrMultipleCores.as<JSMolList *>(emscripten::allow_raw_pointers());
+    if (jsMolListPtr) {
+      res = new JSRGroupDecomposition(*jsMolListPtr, details_json);
+    }
+  }
+  return res;
+}
 
-  for (size_t i = 0; i < pairs.first.size(); ++i)
-    obj.set(pairs.first[i], pairs.second[i]);
+JSRGroupDecomposition *get_rgd_no_details_helper(const emscripten::val &singleOrMultipleCores) {
+  return get_rgd_helper(singleOrMultipleCores, "");
+}
+
+emscripten::val get_rgroups_as_cols_helper(const JSRGroupDecomposition &self) {
+  auto cols = self.getRGroupsAsColumns();
+  auto obj = emscripten::val::object();
+
+  for (auto &rlabelJSMolListPair : cols) {
+    obj.set(std::move(rlabelJSMolListPair.first), rlabelJSMolListPair.second.release());
+  }
 
   return obj;
 }
 
-emscripten::val get_rgroup_asrows_helper(const JSRgroupDecomp &self) {
-  auto obj = emscripten::val::object();
-  auto pairs = self.getRGroupsAsRows();
+emscripten::val get_rgroups_as_rows_helper(const JSRGroupDecomposition &self) {
+  auto rows = self.getRGroupsAsRows();
+  auto arr = emscripten::val::array();
 
-  for (size_t i = 0; i < pairs.second.size(); ++i)
-    obj.set(std::to_string(i), pairs.second[i]);
+  for (auto &row : rows) {
+    auto obj = emscripten::val::object();
+    for (auto &rlabelJSMolPair : row) {
+      obj.set(std::move(rlabelJSMolPair.first), rlabelJSMolPair.second.release());
+    }
+    arr.call<void>("push", std::move(obj));
+  }
 
-  return obj;
+  return arr;
 }
 #endif
 }  // namespace
@@ -685,16 +715,15 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
   function("get_mcs_as_smarts", &get_mcs_as_smarts);
   function("get_mcs_as_smarts", &get_mcs_as_smarts_no_details);
 #endif
-#ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
-  class_<JSRgroupDecomp>("RGroupDecomp")
-  .constructor<const JSMol &, const std::string &>()
-  .constructor<const JSMolList &, const std::string &, bool>()
-  .function("add", &JSRgroupDecomp::add)
-  .function("process", &JSRgroupDecomp::process)
-  .function("get_rgroups_as_columns", select_overload<emscripten::val(const JSRgroupDecomp &)>(
-    get_rgroup_ascols_helper))
-  .function("get_rgroups_as_rows", select_overload<emscripten::val(const JSRgroupDecomp &)>(
-    get_rgroup_asrows_helper));
-
+#if defined(RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP) && defined(__EMSCRIPTEN__)
+  class_<JSRGroupDecomposition>("RGroupDecomposition")
+      .function("add", &JSRGroupDecomposition::add)
+      .function("process", &JSRGroupDecomposition::process)
+      .function("get_rgroups_as_columns", select_overload<emscripten::val(const JSRGroupDecomposition &)>(
+        get_rgroups_as_cols_helper))
+      .function("get_rgroups_as_rows", select_overload<emscripten::val(const JSRGroupDecomposition &)>(
+        get_rgroups_as_rows_helper));
+  function("get_rgd", select_overload<JSRGroupDecomposition*(const val &, const std::string &)>(get_rgd_helper), allow_raw_pointers());
+  function("get_rgd", select_overload<JSRGroupDecomposition*(const val &)>(get_rgd_no_details_helper), allow_raw_pointers());
 #endif
 }

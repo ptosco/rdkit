@@ -70,8 +70,6 @@ class RDKIT_RGROUPDECOMPOSITION_EXPORT RGroupDecomposition {
   RGroupDecomposition(const std::vector<ROMOL_SPTR> &cores,
                       const RGroupDecompositionParameters &params =
                           RGroupDecompositionParameters());
-  RGroupDecomposition(const ROMol &core, const std::string &json);
-  RGroupDecomposition(const std::vector<ROMOL_SPTR> &cores, const std::string &json);
 
   ~RGroupDecomposition();
 

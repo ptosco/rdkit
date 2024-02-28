@@ -956,49 +956,47 @@ void enable_logging() { RDKit::MinimalLib::LogHandle::enableLogging(); }
 void disable_logging() { RDKit::MinimalLib::LogHandle::disableLogging(); }
 
 #ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
-int JSRgroupDecomp::add(const JSMol &mol) {
-  return decomp.add(RDKit::RWMol(*mol.d_mol));
+JSRGroupDecomposition::JSRGroupDecomposition(const JSMol &core, const std::string &details_json) {
+  RGroupDecompositionParameters params;
+  updateRGroupDecompositionParametersFromJSON(params, details_json);
+  d_decomp.reset(new RGroupDecomposition(*core.d_mol, params));
 }
 
-bool JSRgroupDecomp::process() {
-  return decomp.process();
+JSRGroupDecomposition::JSRGroupDecomposition(const JSMolList &cores, const std::string &details_json) {
+  RGroupDecompositionParameters params;
+  updateRGroupDecompositionParametersFromJSON(params, details_json);
+  d_decomp.reset(new RGroupDecomposition(cores.mols(), params));
 }
 
-std::pair<std::vector<std::string>, std::vector<JSMolList*>> JSRgroupDecomp::getRGroupsAsColumns() const {
-  RGroupColumns cols = decomp.getRGroupsAsColumns();
-  size_t length = cols.size();
-  std::vector<std::string> keys(length);
-    std::vector<JSMolList*> res(length);
-  size_t i = 0;
-  for (std::map<std::string, RGroupColumn>::iterator it = cols.begin(); it != cols.end(); ++it) {
-    keys[i] = (it->first);
-    res[i] = new JSMolList(cols[keys[i]]);
-    ++i;
-  }
-
-  return std::make_pair(keys, res);
+int JSRGroupDecomposition::add(const JSMol &mol) {
+  return d_decomp->add(*mol.d_mol);
 }
 
-std::pair<std::vector<std::string>, std::vector<JSMolList*>> JSRgroupDecomp::getRGroupsAsRows() const {
-  RGroupRows rows = decomp.getRGroupsAsRows();
+bool JSRGroupDecomposition::process() {
+  return d_decomp->process();
+}
 
-  std::vector<int> ns(rows.size());
-  std::vector<std::string> keys;
-  for (RGroupRow::iterator it = rows[0].begin(); it != rows[0].end(); ++it)
-    keys.push_back(it->first);
+std::map<std::string, std::unique_ptr<JSMolList>> JSRGroupDecomposition::getRGroupsAsColumns() const {
+  auto cols = d_decomp->getRGroupsAsColumns();
+  std::map<std::string, std::unique_ptr<JSMolList>> res;
+  std::transform(cols.begin(), cols.end(), std::inserter(res, res.begin()), [](const auto &keyValuePair) {
+    return std::make_pair(std::move(keyValuePair.first), std::unique_ptr<JSMolList>(new JSMolList(keyValuePair.second)));
+  });
+  return res;
+}
 
-  size_t nrows = rows.size();
-  size_t nkeys = keys.size();
-
-  std::vector<JSMolList*> res(nrows);
-  for (size_t i = 0; i < rows.size(); ++i) {
-    std::vector<ROMOL_SPTR> row(nkeys);
-    for (size_t j = 0; j < nkeys; ++j)
-      row[i] = rows[i][keys[i]];
-
-    res[i] = new JSMolList(row);
-  }
-
-  return std::make_pair(keys, res);
+std::vector<std::map<std::string, std::unique_ptr<JSMol>>> JSRGroupDecomposition::getRGroupsAsRows() const {
+  auto rows = d_decomp->getRGroupsAsRows();
+  std::vector<std::map<std::string, std::unique_ptr<JSMol>>> res;
+  res.reserve(rows.size());
+  std::transform(rows.begin(), rows.end(), std::back_inserter(res), [](const auto &originalMap) {
+    std::map<std::string, std::unique_ptr<JSMol>> transformedMap;
+    std::transform(originalMap.begin(), originalMap.end(), std::inserter(transformedMap, transformedMap.begin()), [](const auto &keyValuePair) {
+      CHECK_INVARIANT(keyValuePair.second, "ROMOL_SPTR must not be null");
+      return std::make_pair(std::move(keyValuePair.first), std::unique_ptr<JSMol>(new JSMol(new RWMol(*keyValuePair.second))));
+    });
+    return transformedMap;
+  });
+  return res;
 }
 #endif

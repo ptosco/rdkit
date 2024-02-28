@@ -16,10 +16,15 @@
 #include <GraphMol/FMCS/FMCS.h>
 #include <GraphMol/QueryBond.h>
 #include <set>
+#include <RDGeneral/BoostStartInclude.h>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <RDGeneral/BoostEndInclude.h>
 
 namespace RDKit {
 
 namespace {
+
 bool hasLabel(const Atom *atom, unsigned int autoLabels) {
   bool atomHasLabel = false;
   if (autoLabels & MDLRGroupLabels) {
@@ -68,50 +73,77 @@ bool hasAttachedLabels(const ROMol &mol, const Atom *atom,
 
 }  // namespace
 
-RGroupDecompositionParameters::RGroupDecompositionParameters(const std::string &json) {
-  chunkSize = 5;
-  matchingStrategy = RDKit::NoSymmetrization;
-  alignment = RDKit::NoAlignment;
+void updateRGroupDecompositionParametersFromJSON(RGroupDecompositionParameters &params, const std::string &details_json) {
+  updateRGroupDecompositionParametersFromJSON(params, details_json.c_str());
+}
 
-  if (!json.empty()) {
+void updateRGroupDecompositionParametersFromJSON(RGroupDecompositionParameters &params, const char *details_json) {
+  static const std::map<std::string, RGroupLabels> rGroupLabelsMap{
+    RGROUPLABELS_ENUM_ITEMS
+  };
+  static const std::map<std::string, RGroupMatching> rGroupMatchingMap{
+    RGROUPMATCHING_ENUM_ITEMS
+  };
+  static const std::map<std::string, RGroupLabelling> rGroupLabellingMap{
+    RGROUPLABELLING_ENUM_ITEMS
+  };
+  static const std::map<std::string, RGroupCoreAlignment> rGroupCoreAlignmentMap{
+    RGROUPCOREALIGNMENT_ENUM_ITEMS
+  };
+  static const std::map<std::string, RGroupScore> rGroupScoreMap{
+    RGROUPSCORE_ENUM_ITEMS
+  };
+  if (details_json && strlen(details_json)) {
     std::istringstream ss;
     boost::property_tree::ptree pt;
-    ss.str(json);
+    ss.str(details_json);
     boost::property_tree::read_json(ss, pt);
 
     std::string labels;
     labels = pt.get<std::string>("labels", labels);
-    if (rGroupLabelsMap.find(labels) != rGroupLabelsMap.end())
-      this->labels = rGroupLabelsMap.at(labels);
-    
+    auto rGroupLabelsMapIt =  rGroupLabelsMap.find(labels);
+    if (rGroupLabelsMapIt != rGroupLabelsMap.end()) {
+      params.labels = rGroupLabelsMapIt->second;
+    }
+
     std::string matchingStrategy;
     matchingStrategy = pt.get<std::string>("matchingStrategy", matchingStrategy);
-    if (matchingStrategyMap.find(matchingStrategy) != matchingStrategyMap.end())
-      this->matchingStrategy = matchingStrategyMap.at(matchingStrategy);
+    auto rGroupMatchingMapIt =  rGroupMatchingMap.find(matchingStrategy);
+    if (rGroupMatchingMapIt != rGroupMatchingMap.end()) {
+      params.matchingStrategy = rGroupMatchingMapIt->second;
+    }
 
     std::string scoreMethod;
     scoreMethod = pt.get<std::string>("scoreMethod", scoreMethod);
-    if (rGroupScoreMap.find(scoreMethod) != rGroupScoreMap.end())
-      this->scoreMethod = rGroupScoreMap.at(scoreMethod);
+    auto rGroupScoreMapIt =  rGroupScoreMap.find(scoreMethod);
+    if (rGroupScoreMapIt != rGroupScoreMap.end()) {
+      params.scoreMethod = rGroupScoreMapIt->second;
+    }
 
     std::string rgroupLabelling;
     rgroupLabelling = pt.get<std::string>("rgroupLabelling", rgroupLabelling);
-    if (rGroupLabellingMap.find(rgroupLabelling) != rGroupLabellingMap.end())
-      this->rgroupLabelling = rGroupLabellingMap.at(rgroupLabelling);
+    auto rGroupLabellingMapIt =  rGroupLabellingMap.find(rgroupLabelling);
+    if (rGroupLabellingMapIt != rGroupLabellingMap.end()) {
+      params.rgroupLabelling = rGroupLabellingMapIt->second;
+    }
 
     std::string alignment;
     alignment = pt.get<std::string>("alignment", alignment);
-    if (alignmentMap.find(alignment) != alignmentMap.end())
-      this->alignment = alignmentMap.at(alignment); 
+    auto rGroupCoreAlignmentMapIt =  rGroupCoreAlignmentMap.find(alignment);
+    if (rGroupCoreAlignmentMapIt != rGroupCoreAlignmentMap.end()) {
+      params.alignment = rGroupCoreAlignmentMapIt->second;
+    }
 
-    this->chunkSize = pt.get<unsigned int>("chunkSize", this->chunkSize);
-    this->onlyMatchAtRGroups = pt.get<bool>("onlyMatchAtRGroups", this->onlyMatchAtRGroups);
-    this->removeAllHydrogenRGroups = pt.get<bool>("removeAllHydrogenRGroups", this->removeAllHydrogenRGroups);;
-    this->removeAllHydrogenRGroupsAndLabels = pt.get<bool>("removeAllHydrogenRGroupsAndLabels", this->removeAllHydrogenRGroupsAndLabels);;
-    this->removeHydrogensPostMatch = pt.get<bool>("removeHydrogensPostMatch", this->removeHydrogensPostMatch);;
-    this->allowNonTerminalRGroups = pt.get<bool>("allowNonTerminalRGroups", this->allowNonTerminalRGroups);;
-    this->allowMultipleRGroupsOnUnlabelled = pt.get<bool>("allowMultipleRGroupsOnUnlabelled", this->allowMultipleRGroupsOnUnlabelled);;
-    this->timeout = pt.get<double>("timeout", this->timeout);
+    params.chunkSize = pt.get<unsigned int>("chunkSize", params.chunkSize);
+    params.onlyMatchAtRGroups = pt.get<bool>("onlyMatchAtRGroups", params.onlyMatchAtRGroups);
+    params.removeAllHydrogenRGroups = pt.get<bool>("removeAllHydrogenRGroups", params.removeAllHydrogenRGroups);
+    params.removeAllHydrogenRGroupsAndLabels = pt.get<bool>("removeAllHydrogenRGroupsAndLabels", params.removeAllHydrogenRGroupsAndLabels);
+    params.removeHydrogensPostMatch = pt.get<bool>("removeHydrogensPostMatch", params.removeHydrogensPostMatch);
+    params.allowNonTerminalRGroups = pt.get<bool>("allowNonTerminalRGroups", params.allowNonTerminalRGroups);
+    params.allowMultipleRGroupsOnUnlabelled = pt.get<bool>("allowMultipleRGroupsOnUnlabelled", params.allowMultipleRGroupsOnUnlabelled);
+    params.doTautomers = pt.get<bool>("doTautomers", params.doTautomers);
+    params.doEnumeration = pt.get<bool>("doEnumeration", params.doEnumeration);
+    params.timeout = pt.get<double>("timeout", params.timeout);
   }
 }
 
