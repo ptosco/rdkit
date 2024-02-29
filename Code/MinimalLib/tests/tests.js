@@ -2287,9 +2287,11 @@ function test_mol_list() {
                 try {
                     mol = molList.next();
                     assert(mol);
-                    if (!mol.has_prop('molIdx')) {
+                    if (loopIdx == 0) {
+                        assert(!mol.has_prop('molIdx'));
                         mol.set_prop('molIdx', `${++i}`);
                     } else {
+                        assert(mol.has_prop('molIdx'));
                         i = parseInt(mol.get_prop('molIdx'));
                     }
                 } finally {
