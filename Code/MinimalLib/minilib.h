@@ -25,8 +25,11 @@ class JSMolList;
 
 class JSMol {
  public:
-  JSMol() : d_mol(new RDKit::RWMol()) {}
-  JSMol(RDKit::RWMol *mol) : d_mol(mol) { assert(d_mol); }
+  JSMol() {};
+  JSMol(const JSMol &) = delete;
+  JSMol& operator=(const JSMol &) = delete;
+  virtual ~JSMol() {};
+  virtual RDKit::RWMol *get() const = 0;
   std::string get_smiles() const;
   std::string get_cxsmiles() const;
   std::string get_smarts() const;
@@ -156,9 +159,52 @@ class JSMol {
       unsigned int maxCutBonds) const;
 #endif
 
-  std::unique_ptr<RDKit::RWMol> d_mol;
   static constexpr int d_defaultWidth = 250;
   static constexpr int d_defaultHeight = 200;
+};
+
+class JSMolUnique : public JSMol {
+ public:
+  JSMolUnique() : d_mol(new RDKit::RWMol()) {}
+  JSMolUnique(RDKit::RWMol *mol) : d_mol(mol) { checkNotNull(); }
+  JSMolUnique(const JSMolUnique &other) {
+    d_mol.reset(new RDKit::RWMol(*other.get()));
+  }
+  JSMolUnique& operator=(const JSMolUnique &other) {
+    d_mol.reset(new RDKit::RWMol(*other.get()));
+    return *this;
+  }
+  RDKit::RWMol *get() const {
+    checkNotNull();
+    return d_mol.get();
+  }
+ private:
+  void checkNotNull() const {
+    CHECK_INVARIANT(d_mol, "d_mol cannot be null");
+  }
+  std::unique_ptr<RDKit::RWMol> d_mol;
+};
+
+class JSMolShared : public JSMol {
+ public:
+  JSMolShared() = delete;
+  JSMolShared(const RDKit::ROMOL_SPTR &mol) : d_mol(mol) { checkNotNull(); }
+  JSMolShared(const JSMolShared &other) {
+    d_mol = other.d_mol;
+  }
+  JSMolShared& operator=(const JSMolShared &other) {
+    d_mol = other.d_mol;
+    return *this;
+  }
+  RDKit::RWMol *get() const {
+    checkNotNull();
+    return static_cast<RDKit::RWMol *>(d_mol.get());
+  }
+ private:
+  void checkNotNull() const {
+    CHECK_INVARIANT(d_mol, "d_mol cannot be null");
+  }
+  RDKit::ROMOL_SPTR d_mol;
 };
 
 class JSMolList {

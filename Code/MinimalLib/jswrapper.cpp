@@ -23,9 +23,6 @@ namespace {
 std::string draw_to_canvas_with_offset(JSMol &self, emscripten::val canvas,
                                        int offsetx, int offsety, int width,
                                        int height) {
-  if (!self.d_mol) {
-    return "no molecule";
-  }
   auto ctx = canvas.call<emscripten::val>("getContext", std::string("2d"));
   if (width < 0) {
     width = canvas["width"].as<int>();
@@ -35,7 +32,7 @@ std::string draw_to_canvas_with_offset(JSMol &self, emscripten::val canvas,
   }
   std::unique_ptr<MolDraw2DJS> d2d(new MolDraw2DJS(width, height, ctx));
   d2d->setOffset(offsetx, offsety);
-  MolDraw2DUtils::prepareAndDrawMolecule(*d2d, *self.d_mol);
+  MolDraw2DUtils::prepareAndDrawMolecule(*d2d, *self.get());
   return "";
 }
 
@@ -46,10 +43,6 @@ std::string draw_to_canvas(JSMol &self, emscripten::val canvas, int width,
 
 std::string draw_to_canvas_with_highlights(JSMol &self, emscripten::val canvas,
                                            const std::string &details) {
-  if (!self.d_mol) {
-    return "no molecule";
-  }
-
   auto ctx = canvas.call<emscripten::val>("getContext", std::string("2d"));
   MinimalLib::MolDrawingDetails molDrawingDetails;
   molDrawingDetails.width = canvas["width"].as<int>();
@@ -71,7 +64,7 @@ std::string draw_to_canvas_with_highlights(JSMol &self, emscripten::val canvas,
   d2d->setOffset(molDrawingDetails.offsetx, molDrawingDetails.offsety);
 
   MolDraw2DUtils::prepareAndDrawMolecule(
-      *d2d, *self.d_mol, molDrawingDetails.legend, &molDrawingDetails.atomIds,
+      *d2d, *self.get(), molDrawingDetails.legend, &molDrawingDetails.atomIds,
       &molDrawingDetails.bondIds,
       molDrawingDetails.atomMap.empty() ? nullptr : &molDrawingDetails.atomMap,
       molDrawingDetails.bondMap.empty() ? nullptr : &molDrawingDetails.bondMap,
@@ -308,7 +301,7 @@ emscripten::val get_matches_as_uint32array(const JSSubstructLibrary &self,
                                            const JSMol &q, bool useChirality,
                                            int numThreads, int maxResults) {
   auto indices = self.d_sslib->size()
-                     ? self.d_sslib->getMatches(*q.d_mol, true, useChirality,
+                     ? self.d_sslib->getMatches(*q.get(), true, useChirality,
                                                 false, numThreads, maxResults)
                      : std::vector<unsigned int>();
   return uint_vector_to_uint32array(indices);
@@ -594,6 +587,7 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("get_num_atoms",
                 select_overload<unsigned int() const>(&JSMol::get_num_atoms))
       .function("get_num_bonds", &JSMol::get_num_bonds)
+      .function("copy", select_overload<JSMol*(const JSMol &)>(get_mol_copy), allow_raw_pointers())
 #ifdef RDK_BUILD_MINIMAL_LIB_MMPA
       .function("get_mmpa_frags",
                 select_overload<val(const JSMol &, unsigned int,
