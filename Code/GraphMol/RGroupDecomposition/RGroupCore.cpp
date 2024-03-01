@@ -72,9 +72,12 @@ RWMOL_SPTR RCore::extractCoreFromMolMatch(
   std::vector<Bond *> newBonds;
   std::map<Atom *, int> dummyAtomMap;
   std::map<const Atom *, Atom *> molAtomMap;
-  for (auto &pair : match) {
+  for (const auto &pair : match) {
     const auto queryAtom = core->getAtomWithIdx(pair.first);
-    auto const targetAtom = extractedCore->getAtomWithIdx(pair.second);
+    const auto targetAtom = extractedCore->getAtomWithIdx(pair.second);
+    if (params.addAtomBondHighlightsProps) {
+      targetAtom->setProp(TARGET_ATOM_IDX, pair.second);
+    }
     if (int rLabel; queryAtom->getPropIfPresent(RLABEL, rLabel)) {
       targetAtom->setProp(RLABEL, rLabel);
     }
@@ -294,6 +297,13 @@ RWMOL_SPTR RCore::extractCoreFromMolMatch(
     MolOps::sanitizeMol(*extractedCore, failed,
                         MolOps::SANITIZE_SYMMRINGS | MolOps::SANITIZE_CLEANUP);
   } catch (const MolSanitizeException &) {
+  }
+  if (params.addAtomBondHighlightsProps) {
+    std::vector<int> highlightAtoms;
+    std::vector<int> highlightBonds;
+    for (const auto &atom : extractedCore->atoms()) {
+      atom->getPropIfPresent(TARGET_ATOM_IDX)
+    }
   }
 
   return extractedCore;

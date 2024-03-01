@@ -89,11 +89,16 @@ struct RDKIT_RGROUPDECOMPOSITION_EXPORT RGroupDecompositionParameters {
   bool removeHydrogensPostMatch = true;
   //! allow labelled Rgroups of degree 2 or more
   bool allowNonTerminalRGroups = false;
-  // unlabelled core atoms can have multiple rgroups
+  //! unlabelled core atoms can have multiple rgroups
   bool allowMultipleRGroupsOnUnlabelled = false;
   // extended query settings for core matching
   bool doTautomers = false;
   bool doEnumeration = false;
+  //! add highlight_atoms and highlight_bonds properties
+  //! with atom and bond indices referring to the target molecule
+  //! to rgroups and core molecules for SAR analysis
+  //! (see https://greglandrum.github.io/rdkit-blog/posts/2021-08-07-rgd-and-highlighting.html)
+  bool addAtomBondHighlightsProps = false;
 
   double timeout = -1.0;  ///< timeout in seconds. <=0 indicates no timeout
 

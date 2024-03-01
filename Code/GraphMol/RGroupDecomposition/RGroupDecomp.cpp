@@ -62,6 +62,7 @@ const std::string CORE = "Core";
 const std::string RPREFIX = "R";
 const std::string _rgroupInputDummy = "_rgroupInputDummy";
 const std::string UNLABELED_CORE_ATTACHMENT = "unlabeledCoreAttachment";
+const std::string TARGET_ATOM_IDX = "__rgdTargetAtomIdx";
 
 namespace {
 void ADD_MATCH(R_DECOMP &match, int rlabel) {
