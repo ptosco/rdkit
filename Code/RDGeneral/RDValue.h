@@ -179,7 +179,10 @@ std::string vectToString(RDValue val) {
   sstr.imbue(std::locale("C"));
   sstr << std::setprecision(17);
   sstr << "[";
-  std::copy(tv.begin(), tv.end(), std::ostream_iterator<T>(sstr, ","));
+  if (!tv.empty()) {
+    std::copy(tv.begin(), tv.end() - 1, std::ostream_iterator<T>(sstr, ","));
+    sstr << tv.back();
+  }
   sstr << "]";
   return sstr.str();
 }

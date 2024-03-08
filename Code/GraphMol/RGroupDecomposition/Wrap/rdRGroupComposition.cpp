@@ -346,7 +346,8 @@ struct rgroupdecomp_wrapper {
                        &RDKit::RGroupDecompositionParameters::doEnumeration)
         .def_readonly(
             "substructMatchParams",
-            &RDKit::RGroupDecompositionParameters::substructmatchParams);
+            &RDKit::RGroupDecompositionParameters::substructmatchParams)
+        .def_readwrite("addAtomBondHighlightsProps", &RDKit::RGroupDecompositionParameters::addAtomBondHighlightsProps);
 
     python::class_<RDKit::RGroupDecompositionHelper, boost::noncopyable>(
         "RGroupDecomposition", docString.c_str(),

@@ -20,6 +20,7 @@ namespace RDKit {
 void RGroupData::add(const ROMOL_SPTR &newMol,
                      const std::vector<int> &rlabel_attachments) {
   // some fragments can be added multiple times if they are cyclic
+  std::cerr << "1) RGroupData::add" << std::endl;
   if (std::any_of(mols.begin(), mols.end(), [&newMol](const auto &mol) {
     return newMol == mol;
   })) {
@@ -45,6 +46,13 @@ void RGroupData::add(const ROMOL_SPTR &newMol,
   std::copy(rlabel_attachments.begin(), rlabel_attachments.end(),
             std::inserter(attachments, attachments.end()));
 
+  std::cerr << "2) RGroupData::add" << std::endl;
+  if (newMol->hasProp(TARGET_ATOM_INDICES)) {
+    std::cerr << "1) " << TARGET_ATOM_INDICES << " " << newMol->getProp<std::string>(TARGET_ATOM_INDICES) << std::endl;
+  }
+  if (newMol->hasProp(TARGET_BOND_INDICES)) {
+    std::cerr << "1) " << TARGET_BOND_INDICES << " " << newMol->getProp<std::string>(TARGET_BOND_INDICES) << std::endl;
+  }
   mols.push_back(newMol);
   static const std::regex remove_isotopes_regex("\\[\\d*\\*\\]");
   // remove the isotope labels from the SMILES string to avoid
@@ -52,14 +60,23 @@ void RGroupData::add(const ROMOL_SPTR &newMol,
   // MCS alignment is not used (NoAlign flag)
   smilesVect.push_back(std::regex_replace(MolToSmiles(*newMol, true),
                                           remove_isotopes_regex, "*"));
-  if (!combinedMol.get()) {
-    combinedMol = boost::shared_ptr<RWMol>(new RWMol(*mols[0].get()));
+  if (!combinedMol) {
+    combinedMol = RWMOL_SPTR(new RWMol(*mols[0]));
+    if (combinedMol->hasProp(TARGET_ATOM_INDICES)) {
+      std::cerr << "2) " << TARGET_ATOM_INDICES << " " << combinedMol->getProp<std::string>(TARGET_ATOM_INDICES) << std::endl;
+    }
+    if (combinedMol->hasProp(TARGET_BOND_INDICES)) {
+      std::cerr << "2) " << TARGET_BOND_INDICES << " " << combinedMol->getProp<std::string>(TARGET_BOND_INDICES) << std::endl;
+    }
   } else {
-    ROMol *m = combineMols(*combinedMol.get(), *newMol.get());
+    combinedMol.reset(static_cast<RWMol *>(combineMols(*combinedMol, *newMol)));
+    if (combinedMol->hasProp(TARGET_ATOM_INDICES)) {
+      std::cerr << "3) " << TARGET_ATOM_INDICES << " " << combinedMol->getProp<std::string>(TARGET_ATOM_INDICES) << std::endl;
+    }
+    if (combinedMol->hasProp(TARGET_BOND_INDICES)) {
+      std::cerr << "3) " << TARGET_BOND_INDICES << " " << combinedMol->getProp<std::string>(TARGET_BOND_INDICES) << std::endl;
+    }
     single_fragment = false;
-    m->updateProps(*combinedMol.get());
-    combinedMol.reset(new RWMol(*m));
-    delete m;
   }
   smiles = getSmiles();
   combinedMol->setProp(common_properties::internalRgroupSmiles, smiles);
@@ -70,12 +87,10 @@ void RGroupData::add(const ROMOL_SPTR &newMol,
 std::map<int, int> RGroupData::getNumBondsToRlabels() const {
   std::map<int, int> rlabelsUsedCount;
 
-  for (ROMol::AtomIterator atIt = combinedMol->beginAtoms();
-       atIt != combinedMol->endAtoms(); ++atIt) {
-    Atom *atom = *atIt;
+  for (const auto atom : combinedMol->atoms()) {
     int rlabel;
     if (atom->getPropIfPresent<int>(RLABEL, rlabel)) {
-      rlabelsUsedCount[rlabel] += 1;
+      ++rlabelsUsedCount[rlabel];
     }
   }
   return rlabelsUsedCount;

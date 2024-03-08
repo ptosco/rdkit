@@ -62,9 +62,63 @@ const std::string CORE = "Core";
 const std::string RPREFIX = "R";
 const std::string _rgroupInputDummy = "_rgroupInputDummy";
 const std::string UNLABELED_CORE_ATTACHMENT = "unlabeledCoreAttachment";
-const std::string TARGET_ATOM_IDX = "__rgdTargetAtomIdx";
+const std::string TARGET_ATOM_INDICES = "rgdTargetAtomIndices";
+const std::string TARGET_BOND_INDICES = "rgdTargetBondIndices";
 
 namespace {
+static const std::string TARGET_ATOM_IDX = "__rgdTargetAtomIdx";
+void labelAtomIndices(const RWMol &mol) {
+  for (const auto targetAtom : mol.atoms()) {
+    targetAtom->setProp(TARGET_ATOM_IDX, targetAtom->getIdx());
+  }
+}
+
+void setTargetAtomBondIndices(const RWMol &mol, boost::dynamic_bitset<> &atomIndices, boost::dynamic_bitset<> &bondIndices) {
+  atomIndices.resize(mol.getNumAtoms());
+  bondIndices.resize(mol.getNumBonds());
+  for (const auto &atom : mol.atoms()) {
+    int targetAtomIdx;
+    if (atom->getPropIfPresent(TARGET_ATOM_IDX, targetAtomIdx) && !atomIndices.test(targetAtomIdx)) {
+      atom->clearProp(TARGET_ATOM_IDX);
+      atomIndices.set(targetAtomIdx);
+    }
+  }
+  for (const auto &bond : mol.bonds()) {
+    const auto beginAtomIdx = bond->getBeginAtomIdx();
+    const auto endAtomIdx = bond->getEndAtomIdx();
+    if (atomIndices.test(beginAtomIdx) && atomIndices.test(endAtomIdx)) {
+      const auto targetBond = mol.getBondBetweenAtoms(beginAtomIdx, endAtomIdx);
+      if (targetBond) {
+        int targetBondIdx = targetBond->getIdx();
+        if (!bondIndices.test(targetBondIdx)) {
+          bondIndices.set(targetBondIdx);
+        }
+      }
+    }
+  }
+}
+
+void setAtomBondHighlightProps(const RWMol &mol, const boost::dynamic_bitset<> &atomIndices, const boost::dynamic_bitset<> &bondIndices) {
+  std::vector<int> highlightAtoms;
+  highlightAtoms.reserve(atomIndices.count());
+  for (size_t i = 0; i < atomIndices.size(); ++i) {
+    if (atomIndices.test(i)) {
+      highlightAtoms.push_back(i);
+    }
+  }
+  std::vector<int> highlightBonds;
+  highlightBonds.reserve(bondIndices.count());
+  for (size_t i = 0; i < bondIndices.size(); ++i) {
+    if (bondIndices.test(i)) {
+      highlightBonds.push_back(i);
+    }
+  }
+  mol.setProp(TARGET_ATOM_INDICES, highlightAtoms);
+  std::cerr << "setAtomBondHighlightProps TARGET_ATOM_INDICES " << mol.getProp<std::string>(TARGET_ATOM_INDICES) << std::endl;
+  mol.setProp(TARGET_BOND_INDICES, highlightBonds);
+  std::cerr << "setAtomBondHighlightProps TARGET_BOND_INDICES " << mol.getProp<std::string>(TARGET_BOND_INDICES) << std::endl;
+}
+
 void ADD_MATCH(R_DECOMP &match, int rlabel) {
   if (match.find(rlabel) == match.end()) {
     match[rlabel] = boost::make_shared<RGroupData>();
@@ -285,6 +339,9 @@ int RGroupDecomposition::add(const ROMol &inmol) {
     BOOST_LOG(rdDebugLog) << "No core matches" << std::endl;
     return -1;
   }
+  if (data->params.addAtomBondHighlightsProps) {
+    labelAtomIndices(mol);
+  }
 
   if (tmatches.size() > 1) {
     if (data->params.matchingStrategy == NoSymmetrization) {
@@ -343,8 +400,13 @@ int RGroupDecomposition::add(const ROMol &inmol) {
       MOL_SPTR_VECT fragments = MolOps::getMolFrags(*tMol, false);
       std::set<int> coreAtomAnyMatched;
       for (size_t i = 0; i < fragments.size(); ++i) {
-        std::vector<int> rlabelsOnSideChain;
         const auto &newMol = fragments[i];
+        boost::dynamic_bitset<> atomIndices;
+        boost::dynamic_bitset<> bondIndices;
+        if (data->params.addAtomBondHighlightsProps) {
+          setTargetAtomBondIndices(*newMol, atomIndices, bondIndices);
+        }
+        std::vector<int> rlabelsOnSideChain;
         newMol->setProp<int>("core", core_idx);
         newMol->setProp<int>("idx", data->matches.size());
         newMol->setProp<int>("frag_idx", i);
@@ -360,15 +422,17 @@ int RGroupDecomposition::add(const ROMol &inmol) {
             // this is the index of the core atom that the R group
             // atom is attached to
             unsigned int coreAtomIndex = sideChainAtom->getIsotope();
-            int rlabel;
+            if (data->params.addAtomBondHighlightsProps && coreAtomIndex < atomIndices.size()) {
+              atomIndices.reset(coreAtomIndex);
+            }
             auto coreAtom = rcore->core->getAtomWithIdx(coreAtomIndex);
             coreAtomAnyMatched.insert(coreAtomIndex);
+            int rlabel;
             if (coreAtom->getPropIfPresent(RLABEL, rlabel)) {
               std::vector<int> rlabelsOnSideChainAtom;
               sideChainAtom->getPropIfPresent(SIDECHAIN_RLABELS, rlabelsOnSideChainAtom);
               rlabelsOnSideChainAtom.push_back(rlabel);
               sideChainAtom->setProp(SIDECHAIN_RLABELS, rlabelsOnSideChainAtom);
-
               data->labels.insert(rlabel);  // keep track of all labels used
               rlabelsOnSideChain.push_back(rlabel);
               if (const auto [bondIdx, end] = newMol->getAtomBonds(sideChainAtom);
@@ -388,6 +452,10 @@ int RGroupDecomposition::add(const ROMol &inmol) {
           }
         }
 
+        if (data->params.addAtomBondHighlightsProps) {
+          std::cerr << "RGroupDecomposition::add setAtomBondHighlightProps on frag " << i << ", rlabelsOnSideChain.empty() " << rlabelsOnSideChain.empty() << std::endl;
+          setAtomBondHighlightProps(*newMol, atomIndices, bondIndices);
+        }
         if (!rlabelsOnSideChain.empty()) {
 #ifdef VERBOSE
           std::string newCoreSmi = MolToSmiles(*newMol, true);
@@ -457,6 +525,12 @@ int RGroupDecomposition::add(const ROMol &inmol) {
                         "Data error in missing user rgroup count");
         const auto extractedCore =
             rcore->extractCoreFromMolMatch(mol, tmatche, params());
+        if (data->params.addAtomBondHighlightsProps) {
+          boost::dynamic_bitset<> atomIndices;
+          boost::dynamic_bitset<> bondIndices;
+          setTargetAtomBondIndices(*extractedCore, atomIndices, bondIndices);
+          setAtomBondHighlightProps(*extractedCore, atomIndices, bondIndices);
+        }
         potentialMatches.emplace_back(core_idx, numberMissingUserGroups, match,
                                       extractedCore);
       }
