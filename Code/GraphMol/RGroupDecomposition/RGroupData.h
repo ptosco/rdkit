@@ -43,6 +43,9 @@ struct RDKIT_RGROUPDECOMPOSITION_EXPORT RGroupData {
   std::map<int, int> getNumBondsToRlabels() const;
 
   std::string toString() const;
+  void setRGroupHighlightsAsJSON(const std::map<int, int> &rlabelMapping);
+  static std::string getRGroupLabel(int rlabel);
+  static const std::string &getCoreLabel();
 
  private:
   void computeIsHydrogen();
@@ -52,6 +55,10 @@ struct RDKIT_RGROUPDECOMPOSITION_EXPORT RGroupData {
   //! compute the canonical smiles for the attachments (bug: removes dupes since
   //! we are using a set...)
   std::string getSmiles() const;
+  void updateHighlightMaps(ROMOL_SPTR mol, const std::vector<int> &rlabel_attachments);
+  static std::string getHighlightsAsJSON(const std::map<int, int> &rlabelMapping, const std::map<int, std::vector<int>> &rlabelIndicesMap);
+  std::map<int, std::vector<int>> rlabelAtomIndicesMap;
+  std::map<int, std::vector<int>> rlabelBondIndicesMap;
 };
 }  // namespace RDKit
 
