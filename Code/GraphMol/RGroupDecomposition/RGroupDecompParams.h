@@ -94,11 +94,11 @@ struct RDKIT_RGROUPDECOMPOSITION_EXPORT RGroupDecompositionParameters {
   // extended query settings for core matching
   bool doTautomers = false;
   bool doEnumeration = false;
-  //! add highlight_atoms and highlight_bonds properties
-  //! with atom and bond indices referring to the target molecule
-  //! to rgroups and core molecules for SAR analysis
+  //! add _rgroupTargetAtoms and _rgroupTargetBonds properties
+  //! to rgroups and core as vectors of atom and bond indices
+  //! into the target molecule for SAR analysis
   //! (see https://greglandrum.github.io/rdkit-blog/posts/2021-08-07-rgd-and-highlighting.html)
-  bool addAtomBondHighlightsProps = false;
+  bool enableRGroupHighlights = false;
 
   double timeout = -1.0;  ///< timeout in seconds. <=0 indicates no timeout
 

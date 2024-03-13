@@ -17,50 +17,22 @@
 
 namespace RDKit {
 
-void RGroupData::updateHighlightMaps(ROMOL_SPTR mol, const std::vector<int> &rlabel_attachments) {
-  CHECK_INVARIANT(combinedMol, "combinedMol must not be null");
-  std::vector<int> atomIndices;
-  std::vector<int> bondIndices;
-  bool hasAtomIndices = mol->getPropIfPresent(common_properties::_rgroupTargetAtoms, atomIndices);
-  bool hasBondIndices = mol->getPropIfPresent(common_properties::_rgroupTargetBonds, bondIndices);
-  if (hasAtomIndices) {
-    std::transform(rlabel_attachments.begin(), rlabel_attachments.end(), std::inserter(rlabelAtomIndicesMap, rlabelAtomIndicesMap.end()), [&atomIndices](int rlabel) {
-      return std::make_pair(rlabel, atomIndices);
-    });
+void RGroupData::updateAtomBondHighlights(ROMOL_SPTR mol) {
+  CHECK_INVARIANT(mol && combinedMol, "mol and combinedMol must not be null");
+  std::vector<int> incomingAtomIndices;
+  std::vector<int> incomingBondIndices;
+  mol->getPropIfPresent(common_properties::_rgroupTargetAtoms, incomingAtomIndices);
+  mol->getPropIfPresent(common_properties::_rgroupTargetBonds, incomingBondIndices);
+  std::vector<int> existingAtomIndices;
+  std::vector<int> existingBondIndices;
+  combinedMol->getPropIfPresent(common_properties::_rgroupTargetAtoms, existingAtomIndices);
+  combinedMol->getPropIfPresent(common_properties::_rgroupTargetBonds, existingBondIndices);
+  if (!incomingAtomIndices.empty()) {
+    existingAtomIndices.insert(existingAtomIndices.end(), std::make_move_iterator(incomingAtomIndices.begin()) , std::make_move_iterator(incomingAtomIndices.end()));
   }
-  if (hasBondIndices) {
-    std::transform(rlabel_attachments.begin(), rlabel_attachments.end(), std::inserter(rlabelBondIndicesMap, rlabelBondIndicesMap.end()), [&bondIndices](int rlabel) {
-      return std::make_pair(rlabel, bondIndices);
-    });
+  if (!incomingBondIndices.empty()) {
+    existingBondIndices.insert(existingBondIndices.end(), std::make_move_iterator(existingBondIndices.begin()) , std::make_move_iterator(existingBondIndices.end()));
   }
-}
-
-void RGroupData::setRGroupHighlightsAsJSON(const std::map<int, int> &rlabelMapping) {
-  combinedMol->setProp(common_properties::_rgroupTargetAtoms, getHighlightsAsJSON(rlabelMapping, rlabelAtomIndicesMap));
-  combinedMol->setProp(common_properties::_rgroupTargetBonds, getHighlightsAsJSON(rlabelMapping, rlabelBondIndicesMap));
-}
-
-std::string RGroupData::getHighlightsAsJSON(const std::map<int, int> &rlabelMapping, const std::map<int, std::vector<int>> &rlabelIndicesMap) {
-  static const std::string QUOTE{"\""};
-  static const std::string QUOTE_COLON_OPEN_SQUARE_BRACKET{"\":["};
-  static const std::string CLOSED_SQUARE_BRACKET{"]"};
-  static const std::string COMMA{","};
-  static const std::string OPEN_CURLY_BRACKET{"{"};
-  static const std::string CLOSED_CURLY_BRACKET{"}"};
-  std::string res = OPEN_CURLY_BRACKET;
-  auto rlabelIndicesMapSize = rlabelIndicesMap.size();
-  for (const auto& [rlabel, indices] : rlabelIndicesMap) {
-    auto rlabelTmpToFinalPair = rlabelMapping.find(rlabel);
-    if (rlabelTmpToFinalPair == rlabelMapping.end()) {
-      continue;
-    }
-    res += QUOTE + getRGroupLabel(rlabelTmpToFinalPair->second) + QUOTE_COLON_OPEN_SQUARE_BRACKET;
-    for (auto indicesIt = indices.begin(); indicesIt != indices.end(); ++indicesIt) {
-      res += std::to_string(*indicesIt) + (indicesIt == indices.end() - 1 ? CLOSED_SQUARE_BRACKET : COMMA);
-    }
-    res += (--rlabelIndicesMapSize ? COMMA : CLOSED_CURLY_BRACKET);
-  }
-  return res;
 }
 
 std::string RGroupData::getRGroupLabel(int rlabel) {
@@ -71,6 +43,11 @@ std::string RGroupData::getRGroupLabel(int rlabel) {
 const std::string &RGroupData::getCoreLabel() {
   static const std::string CORE = "Core";
   return CORE;
+}
+
+const std::string &RGroupData::getMolLabel() {
+  static const std::string MOL = "Mol";
+  return MOL;
 }
 
 void RGroupData::add(const ROMOL_SPTR &newMol,
@@ -114,7 +91,7 @@ void RGroupData::add(const ROMOL_SPTR &newMol,
     combinedMol.reset(static_cast<RWMol *>(combineMols(*combinedMol, *newMol)));
     single_fragment = false;
   }
-  updateHighlightMaps(newMol, rlabel_attachments);
+  updateAtomBondHighlights(newMol);
   smiles = getSmiles();
   combinedMol->setProp(common_properties::internalRgroupSmiles, smiles);
   computeIsHydrogen();
@@ -151,7 +128,7 @@ void RGroupData::computeIsHydrogen() {  // is the rgroup all Hs
   });
 }
 
-bool RGroupData::isMolHydrogen(const ROMol &mol) const {
+bool RGroupData::isMolHydrogen(const ROMol &mol) {
   auto atoms = mol.atoms();
   return std::all_of(atoms.begin(), atoms.end(), [](const auto &atom) {
     return (atom->getAtomicNum() == 1 || (atom->getAtomicNum() == 0 && atom->hasProp(SIDECHAIN_RLABELS)));

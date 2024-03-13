@@ -53,17 +53,15 @@ using boost_adaptbx::python::streambuf;
 namespace RDKit {
 
 class RGroupDecompositionHelper {
-  RGroupDecomposition *decomp;
+  std::unique_ptr<RGroupDecomposition> decomp;
 
  public:
-  ~RGroupDecompositionHelper() { delete decomp; }
-
   RGroupDecompositionHelper(python::object cores,
                             const RGroupDecompositionParameters &params =
                                 RGroupDecompositionParameters()) {
     python::extract<ROMol> isROMol(cores);
     if (isROMol.check()) {
-      decomp = new RGroupDecomposition(isROMol(), params);
+      decomp.reset(new RGroupDecomposition(isROMol(), params));
     } else {
       MOL_SPTR_VECT coreMols;
       python::stl_input_iterator<ROMOL_SPTR> iter(cores), end;
@@ -74,7 +72,7 @@ class RGroupDecompositionHelper {
         coreMols.push_back(*iter);
         ++iter;
       }
-      decomp = new RGroupDecomposition(coreMols, params);
+      decomp.reset(new RGroupDecomposition(coreMols, params));
     }
   }
 
@@ -126,10 +124,11 @@ class RGroupDecompositionHelper {
     for (const auto &side_chains : groups) {
       python::dict dict;
       for (const auto &side_chain : side_chains) {
+        const auto &mol = side_chain.second;
         if (asSmiles) {
-          dict[side_chain.first] = MolToSmiles(*side_chain.second, true);
+          dict[side_chain.first] = MolToSmiles(*mol, true);
         } else {
-          dict[side_chain.first] = side_chain.second;
+          dict[side_chain.first] = mol;
         }
       }
       result.append(dict);
@@ -347,7 +346,7 @@ struct rgroupdecomp_wrapper {
         .def_readonly(
             "substructMatchParams",
             &RDKit::RGroupDecompositionParameters::substructmatchParams)
-        .def_readwrite("addAtomBondHighlightsProps", &RDKit::RGroupDecompositionParameters::addAtomBondHighlightsProps);
+        .def_readwrite("enableRGroupHighlights", &RDKit::RGroupDecompositionParameters::enableRGroupHighlights);
 
     python::class_<RDKit::RGroupDecompositionHelper, boost::noncopyable>(
         "RGroupDecomposition", docString.c_str(),
