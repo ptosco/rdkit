@@ -34,7 +34,7 @@ struct RGroupMatch {
   std::string toString() const {
     auto rGroupsString = std::accumulate(
         rgroups.cbegin(), rgroups.cend(), std::string(),
-        [](std::string s, const std::pair<int, RData>& rgroup) {
+        [](std::string s, const std::pair<int, RData> &rgroup) {
           return std::move(s) + "\n\t(" + std::to_string(rgroup.first) + ':' +
                  rgroup.second->toString() + ')';
         });
@@ -55,27 +55,32 @@ struct RGroupMatch {
     }
     int numMolAtoms = inputMolForHighlights->getNumAtoms();
     std::vector<int> storedAtomMapNums(numMolAtoms);
-    std::vector<std::pair<int, int>> oldBondEnds(inputMolForHighlights->getNumBonds(), std::make_pair(-1, -1));
+    std::vector<std::pair<int, int>> oldBondEnds(
+        inputMolForHighlights->getNumBonds(), std::make_pair(-1, -1));
     auto atoms = inputMolForHighlights->atoms();
-    std::transform(atoms.begin(), atoms.end(), storedAtomMapNums.begin(), [](auto atom) {
-      auto res = atom->getAtomMapNum();
-      atom->setAtomMapNum(0);
-      return res;
-    });
+    std::transform(atoms.begin(), atoms.end(), storedAtomMapNums.begin(),
+                   [](auto atom) {
+                     auto res = atom->getAtomMapNum();
+                     atom->setAtomMapNum(0);
+                     return res;
+                   });
     for (const auto &pair : rgroups) {
       auto &combinedMol = pair.second->combinedMol;
       std::vector<int> bondIndices;
-      if (combinedMol->getPropIfPresent(common_properties::_rgroupTargetBonds, bondIndices)) {
-        std::for_each(bondIndices.begin(), bondIndices.end(), [this, &oldBondEnds](const auto &bondIdx) {
-          const auto bond = inputMolForHighlights->getBondWithIdx(bondIdx);
-          CHECK_INVARIANT(bond, "bond must not be null");
-          const auto beginAtom = bond->getBeginAtom();
-          const auto endAtom = bond->getEndAtom();
-          oldBondEnds[bondIdx].first = beginAtom->getIdx();
-          oldBondEnds[bondIdx].second = endAtom->getIdx();
-          beginAtom->setAtomMapNum(beginAtom->getIdx() + 1);
-          endAtom->setAtomMapNum(endAtom->getIdx() + 1);
-        });
+      if (combinedMol->getPropIfPresent(common_properties::_rgroupTargetBonds,
+                                        bondIndices)) {
+        std::for_each(bondIndices.begin(), bondIndices.end(),
+                      [this, &oldBondEnds](const auto &bondIdx) {
+                        const auto bond =
+                            inputMolForHighlights->getBondWithIdx(bondIdx);
+                        CHECK_INVARIANT(bond, "bond must not be null");
+                        const auto beginAtom = bond->getBeginAtom();
+                        const auto endAtom = bond->getEndAtom();
+                        oldBondEnds[bondIdx].first = beginAtom->getIdx();
+                        oldBondEnds[bondIdx].second = endAtom->getIdx();
+                        beginAtom->setAtomMapNum(beginAtom->getIdx() + 1);
+                        endAtom->setAtomMapNum(endAtom->getIdx() + 1);
+                      });
       }
     }
     std::vector<int> oldToNewAtomIndices(numMolAtoms, -1);
@@ -93,32 +98,43 @@ struct RGroupMatch {
     for (const auto &pair : rgroups) {
       auto &combinedMol = pair.second->combinedMol;
       std::vector<int> atomIndices;
-      if (combinedMol->getPropIfPresent(common_properties::_rgroupTargetAtoms, atomIndices)) {
-        std::transform(atomIndices.begin(), atomIndices.end(), atomIndices.begin(), [&oldToNewAtomIndices](auto &atomIdx) {
-          auto newAtomIdx = oldToNewAtomIndices.at(atomIdx);
-          CHECK_INVARIANT(newAtomIdx != -1, "newAtomIdx must be >=0");
-          return newAtomIdx;
-        });
+      if (combinedMol->getPropIfPresent(common_properties::_rgroupTargetAtoms,
+                                        atomIndices)) {
+        std::transform(
+            atomIndices.begin(), atomIndices.end(), atomIndices.begin(),
+            [&oldToNewAtomIndices](auto &atomIdx) {
+              auto newAtomIdx = oldToNewAtomIndices.at(atomIdx);
+              CHECK_INVARIANT(newAtomIdx != -1, "newAtomIdx must be >=0");
+              return newAtomIdx;
+            });
       }
       combinedMol->setProp(common_properties::_rgroupTargetAtoms, atomIndices);
       std::vector<int> bondIndices;
-      if (combinedMol->getPropIfPresent(common_properties::_rgroupTargetBonds, bondIndices)) {
-        std::transform(bondIndices.begin(), bondIndices.end(), bondIndices.begin(), [this, &oldBondEnds, &oldToNewAtomIndices](auto &bondIdx) {
-          const auto &oldPair = oldBondEnds.at(bondIdx);
-          CHECK_INVARIANT(oldPair.first != -1 && oldPair.second != -1, "oldPair members must be >=0");
-          const auto newBeginAtomIdx = oldToNewAtomIndices.at(oldPair.first);
-          const auto newEndAtomIdx = oldToNewAtomIndices.at(oldPair.second);
-          CHECK_INVARIANT(newBeginAtomIdx != -1 && newEndAtomIdx != -1, "newBeginAtomIdx and newEndAtomIdx must be >=0");
-          const auto bond = inputMolForHighlights->getBondBetweenAtoms(newBeginAtomIdx, newEndAtomIdx);
-          CHECK_INVARIANT(bond, "bond must not be null");
-          return bond->getIdx();
-        });
+      if (combinedMol->getPropIfPresent(common_properties::_rgroupTargetBonds,
+                                        bondIndices)) {
+        std::transform(
+            bondIndices.begin(), bondIndices.end(), bondIndices.begin(),
+            [this, &oldBondEnds, &oldToNewAtomIndices](auto &bondIdx) {
+              const auto &oldPair = oldBondEnds.at(bondIdx);
+              CHECK_INVARIANT(oldPair.first != -1 && oldPair.second != -1,
+                              "oldPair members must be >=0");
+              const auto newBeginAtomIdx =
+                  oldToNewAtomIndices.at(oldPair.first);
+              const auto newEndAtomIdx = oldToNewAtomIndices.at(oldPair.second);
+              CHECK_INVARIANT(newBeginAtomIdx != -1 && newEndAtomIdx != -1,
+                              "newBeginAtomIdx and newEndAtomIdx must be >=0");
+              const auto bond = inputMolForHighlights->getBondBetweenAtoms(
+                  newBeginAtomIdx, newEndAtomIdx);
+              CHECK_INVARIANT(bond, "bond must not be null");
+              return bond->getIdx();
+            });
       }
       combinedMol->setProp(common_properties::_rgroupTargetBonds, bondIndices);
     }
     inputMolWasTrimmed = true;
     return inputMolForHighlights;
   }
+
  private:
   bool inputMolWasTrimmed = false;
   RWMOL_SPTR inputMolForHighlights;

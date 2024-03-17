@@ -25,10 +25,10 @@ class JSMolList;
 
 class JSMol {
  public:
-  JSMol() {};
+  JSMol(){};
   JSMol(const JSMol &) = delete;
-  JSMol& operator=(const JSMol &) = delete;
-  virtual ~JSMol() {};
+  JSMol &operator=(const JSMol &) = delete;
+  virtual ~JSMol(){};
   virtual RDKit::RWMol *get() const = 0;
   std::string get_smiles() const;
   std::string get_cxsmiles() const;
@@ -147,9 +147,7 @@ class JSMol {
   void straighten_depiction() { straighten_depiction(false); }
   std::pair<JSMolList *, std::string> get_frags(
       const std::string &details_json);
-  std::pair<JSMolList *, std::string> get_frags() {
-    return get_frags("{}");
-  }
+  std::pair<JSMolList *, std::string> get_frags() { return get_frags("{}"); }
   unsigned int get_num_atoms(bool heavyOnly) const;
   unsigned int get_num_atoms() const { return get_num_atoms(false); };
   unsigned int get_num_bonds() const;
@@ -170,7 +168,7 @@ class JSMolUnique : public JSMol {
   JSMolUnique(const JSMolUnique &other) {
     d_mol.reset(new RDKit::RWMol(*other.get()));
   }
-  JSMolUnique& operator=(const JSMolUnique &other) {
+  JSMolUnique &operator=(const JSMolUnique &other) {
     d_mol.reset(new RDKit::RWMol(*other.get()));
     return *this;
   }
@@ -178,10 +176,9 @@ class JSMolUnique : public JSMol {
     checkNotNull();
     return d_mol.get();
   }
+
  private:
-  void checkNotNull() const {
-    CHECK_INVARIANT(d_mol, "d_mol cannot be null");
-  }
+  void checkNotNull() const { CHECK_INVARIANT(d_mol, "d_mol cannot be null"); }
   std::unique_ptr<RDKit::RWMol> d_mol;
 };
 
@@ -189,10 +186,8 @@ class JSMolShared : public JSMol {
  public:
   JSMolShared() = delete;
   JSMolShared(const RDKit::ROMOL_SPTR &mol) : d_mol(mol) { checkNotNull(); }
-  JSMolShared(const JSMolShared &other) {
-    d_mol = other.d_mol;
-  }
-  JSMolShared& operator=(const JSMolShared &other) {
+  JSMolShared(const JSMolShared &other) { d_mol = other.d_mol; }
+  JSMolShared &operator=(const JSMolShared &other) {
     d_mol = other.d_mol;
     return *this;
   }
@@ -200,10 +195,9 @@ class JSMolShared : public JSMol {
     checkNotNull();
     return static_cast<RDKit::RWMol *>(d_mol.get());
   }
+
  private:
-  void checkNotNull() const {
-    CHECK_INVARIANT(d_mol, "d_mol cannot be null");
-  }
+  void checkNotNull() const { CHECK_INVARIANT(d_mol, "d_mol cannot be null"); }
   RDKit::ROMOL_SPTR d_mol;
 };
 
@@ -249,9 +243,9 @@ class JSReaction {
  public:
   JSReaction() : d_rxn(new RDKit::ChemicalReaction()) {}
   JSReaction(RDKit::ChemicalReaction *rxn) : d_rxn(rxn) { assert(d_rxn); }
-  [
-      [deprecated("please check the get_rxn return value for non-nullness "
-                  "instead")]] bool
+  [[deprecated(
+      "please check the get_rxn return value for non-nullness "
+      "instead")]] bool
   is_valid() const;
 
   std::string get_svg(int width, int height) const;
@@ -330,24 +324,29 @@ void disable_logging();
 JSLog *set_log_tee(const std::string &log_name);
 JSLog *set_log_capture(const std::string &log_name);
 #ifdef RDK_BUILD_MINIMAL_LIB_MCS
-std::string get_mcs_as_json(const JSMolList &mols, const std::string &details_json);
-std::string get_mcs_as_smarts(const JSMolList &mols, const std::string &details_json);
+std::string get_mcs_as_json(const JSMolList &mols,
+                            const std::string &details_json);
+std::string get_mcs_as_smarts(const JSMolList &mols,
+                              const std::string &details_json);
 JSMol *get_mcs_as_mol(const JSMolList &mols, const std::string &details_json);
 #endif
 
 #ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
 class JSRGroupDecomposition {
-public:
+ public:
   JSRGroupDecomposition(const JSMol &core, const std::string &details_json);
-  JSRGroupDecomposition(const JSMol &core) : JSRGroupDecomposition(core, "") {};
-  JSRGroupDecomposition(const JSMolList &cores, const std::string &details_json);
-  JSRGroupDecomposition(const JSMolList &cores) : JSRGroupDecomposition(cores, "") {};
+  JSRGroupDecomposition(const JSMol &core) : JSRGroupDecomposition(core, ""){};
+  JSRGroupDecomposition(const JSMolList &cores,
+                        const std::string &details_json);
+  JSRGroupDecomposition(const JSMolList &cores)
+      : JSRGroupDecomposition(cores, ""){};
   int add(const JSMol &mol);
   bool process();
   std::map<std::string, std::unique_ptr<JSMolList>> getRGroupsAsColumns() const;
-  std::vector<std::map<std::string, std::unique_ptr<JSMol>>> getRGroupsAsRows() const;
+  std::vector<std::map<std::string, std::unique_ptr<JSMol>>> getRGroupsAsRows()
+      const;
 
-private:
+ private:
   std::unique_ptr<RDKit::RGroupDecomposition> d_decomp;
   std::vector<unsigned int> d_unmatched;
 };

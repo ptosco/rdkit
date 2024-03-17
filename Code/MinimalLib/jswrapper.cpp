@@ -344,20 +344,25 @@ emscripten::val get_mmpa_frags_helper(const JSMol &self, unsigned int minCuts,
   return obj;
 }
 #endif
-  // cols is RGroupColumns, which maps R group names (including Core) to vectors of R groups (or cores)
-  // rows is RGroupRows, which is a vector of maps, each mapping a single R group name (including Core) to a single R group (or core)
+// cols is RGroupColumns, which maps R group names (including Core) to vectors
+// of R groups (or cores) rows is RGroupRows, which is a vector of maps, each
+// mapping a single R group name (including Core) to a single R group (or core)
 #ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
-JSRGroupDecomposition *get_rgd_helper(const emscripten::val &singleOrMultipleCores, const std::string &details_json) {
+JSRGroupDecomposition *get_rgd_helper(
+    const emscripten::val &singleOrMultipleCores,
+    const std::string &details_json) {
   static const auto JSMOL = emscripten::val::module_property("Mol");
   static const auto JSMOLLIST = emscripten::val::module_property("MolList");
   JSRGroupDecomposition *res = nullptr;
-  if (singleOrMultipleCores.instanceof(JSMOL)) {
-    const auto jsMolPtr = singleOrMultipleCores.as<JSMol *>(emscripten::allow_raw_pointers());
+  if (singleOrMultipleCores.instanceof (JSMOL)) {
+    const auto jsMolPtr =
+        singleOrMultipleCores.as<JSMol *>(emscripten::allow_raw_pointers());
     if (jsMolPtr) {
       res = new JSRGroupDecomposition(*jsMolPtr, details_json);
     }
-  } else if (singleOrMultipleCores.instanceof(JSMOLLIST)) {
-    const auto jsMolListPtr = singleOrMultipleCores.as<JSMolList *>(emscripten::allow_raw_pointers());
+  } else if (singleOrMultipleCores.instanceof (JSMOLLIST)) {
+    const auto jsMolListPtr =
+        singleOrMultipleCores.as<JSMolList *>(emscripten::allow_raw_pointers());
     if (jsMolListPtr) {
       res = new JSRGroupDecomposition(*jsMolListPtr, details_json);
     }
@@ -365,7 +370,8 @@ JSRGroupDecomposition *get_rgd_helper(const emscripten::val &singleOrMultipleCor
   return res;
 }
 
-JSRGroupDecomposition *get_rgd_no_details_helper(const emscripten::val &singleOrMultipleCores) {
+JSRGroupDecomposition *get_rgd_no_details_helper(
+    const emscripten::val &singleOrMultipleCores) {
   return get_rgd_helper(singleOrMultipleCores, "");
 }
 
@@ -374,7 +380,8 @@ emscripten::val get_rgroups_as_cols_helper(const JSRGroupDecomposition &self) {
   auto obj = emscripten::val::object();
 
   for (auto &rlabelJSMolListPair : cols) {
-    obj.set(std::move(rlabelJSMolListPair.first), rlabelJSMolListPair.second.release());
+    obj.set(std::move(rlabelJSMolListPair.first),
+            rlabelJSMolListPair.second.release());
   }
 
   return obj;
@@ -387,7 +394,8 @@ emscripten::val get_rgroups_as_rows_helper(const JSRGroupDecomposition &self) {
   for (auto &row : rows) {
     auto obj = emscripten::val::object();
     for (auto &rlabelJSMolPair : row) {
-      obj.set(std::move(rlabelJSMolPair.first), rlabelJSMolPair.second.release());
+      obj.set(std::move(rlabelJSMolPair.first),
+              rlabelJSMolPair.second.release());
     }
     arr.call<void>("push", std::move(obj));
   }
@@ -432,65 +440,56 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("draw_to_canvas", &draw_to_canvas)
       .function("draw_to_canvas_with_highlights",
                 &draw_to_canvas_with_highlights)
-      .function("generate_aligned_coords",
-                select_overload<std::string(JSMol &, const JSMol &,
-                                            const val &)>(
-                    generate_aligned_coords_helper))
-      .function("get_morgan_fp_as_uint8array",
-                select_overload<val(const JSMol &)>(
-                    get_morgan_fp_as_uint8array))
+      .function(
+          "generate_aligned_coords",
+          select_overload<std::string(JSMol &, const JSMol &, const val &)>(
+              generate_aligned_coords_helper))
       .function(
           "get_morgan_fp_as_uint8array",
-          select_overload<val(const JSMol &, const std::string &)>(
-              get_morgan_fp_as_uint8array))
+          select_overload<val(const JSMol &)>(get_morgan_fp_as_uint8array))
+      .function("get_morgan_fp_as_uint8array",
+                select_overload<val(const JSMol &, const std::string &)>(
+                    get_morgan_fp_as_uint8array))
+      .function("get_pattern_fp",
+                select_overload<std::string(const JSMol &, const val &)>(
+                    get_pattern_fp_helper))
       .function(
-          "get_pattern_fp",
-          select_overload<std::string(const JSMol &, const val &)>(
-              get_pattern_fp_helper))
+          "get_pattern_fp_as_uint8array",
+          select_overload<val(const JSMol &)>(get_pattern_fp_as_uint8array))
       .function("get_pattern_fp_as_uint8array",
-                select_overload<val(const JSMol &)>(
-                    get_pattern_fp_as_uint8array))
-      .function("get_pattern_fp_as_uint8array",
-                select_overload<val(const JSMol &,
-                                                const val &)>(
+                select_overload<val(const JSMol &, const val &)>(
                     get_pattern_fp_as_uint8array_helper))
       .function("get_topological_torsion_fp_as_uint8array",
                 select_overload<val(const JSMol &)>(
                     get_topological_torsion_fp_as_uint8array))
-      .function(
-          "get_topological_torsion_fp_as_uint8array",
-          select_overload<val(const JSMol &, const std::string &)>(
-              get_topological_torsion_fp_as_uint8array))
+      .function("get_topological_torsion_fp_as_uint8array",
+                select_overload<val(const JSMol &, const std::string &)>(
+                    get_topological_torsion_fp_as_uint8array))
       .function("get_rdkit_fp_as_uint8array",
-                select_overload<val(const JSMol &)>(
+                select_overload<val(const JSMol &)>(get_rdkit_fp_as_uint8array))
+      .function("get_rdkit_fp_as_uint8array",
+                select_overload<val(const JSMol &, const std::string &)>(
                     get_rdkit_fp_as_uint8array))
       .function(
-          "get_rdkit_fp_as_uint8array",
-          select_overload<val(const JSMol &, const std::string &)>(
-              get_rdkit_fp_as_uint8array))
-      .function("get_atom_pair_fp_as_uint8array",
-                select_overload<val(const JSMol &)>(
-                    get_atom_pair_fp_as_uint8array))
-      .function(
           "get_atom_pair_fp_as_uint8array",
-          select_overload<val(const JSMol &, const std::string &)>(
-              get_atom_pair_fp_as_uint8array))
+          select_overload<val(const JSMol &)>(get_atom_pair_fp_as_uint8array))
+      .function("get_atom_pair_fp_as_uint8array",
+                select_overload<val(const JSMol &, const std::string &)>(
+                    get_atom_pair_fp_as_uint8array))
       .function("get_maccs_fp_as_uint8array", &get_maccs_fp_as_uint8array)
-      .function("get_frags",
-                select_overload<val(JSMol &, const std::string &)>(
-                    get_frags_helper),
-                allow_raw_pointers())
-      .function("get_frags",
-                select_overload<val(JSMol &)>(get_frags_helper),
+      .function(
+          "get_frags",
+          select_overload<val(JSMol &, const std::string &)>(get_frags_helper),
+          allow_raw_pointers())
+      .function("get_frags", select_overload<val(JSMol &)>(get_frags_helper),
                 allow_raw_pointers())
 #ifdef RDK_BUILD_AVALON_SUPPORT
-      .function("get_avalon_fp_as_uint8array",
-                select_overload<val(const JSMol &)>(
-                    get_avalon_fp_as_uint8array))
       .function(
           "get_avalon_fp_as_uint8array",
-          select_overload<val(const JSMol &, const std::string &)>(
-              get_avalon_fp_as_uint8array))
+          select_overload<val(const JSMol &)>(get_avalon_fp_as_uint8array))
+      .function("get_avalon_fp_as_uint8array",
+                select_overload<val(const JSMol &, const std::string &)>(
+                    get_avalon_fp_as_uint8array))
 #endif
 #endif
       .function("get_substruct_match", &JSMol::get_substruct_match)
@@ -587,12 +586,12 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("get_num_atoms",
                 select_overload<unsigned int() const>(&JSMol::get_num_atoms))
       .function("get_num_bonds", &JSMol::get_num_bonds)
-      .function("copy", select_overload<JSMol*(const JSMol &)>(get_mol_copy), allow_raw_pointers())
+      .function("copy", select_overload<JSMol *(const JSMol &)>(get_mol_copy),
+                allow_raw_pointers())
 #ifdef RDK_BUILD_MINIMAL_LIB_MMPA
       .function("get_mmpa_frags",
-                select_overload<val(const JSMol &, unsigned int,
-                                                unsigned int, unsigned int)>(
-                    get_mmpa_frags_helper))
+                select_overload<val(const JSMol &, unsigned int, unsigned int,
+                                    unsigned int)>(get_mmpa_frags_helper))
 #endif
       ;
 
@@ -638,20 +637,18 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
                                     const val &)>(
                     add_trusted_smiles_and_pattern_fp_helper))
       .function("get_pattern_fp_as_uint8array",
-                select_overload<val(const JSSubstructLibrary &,
-                                                unsigned int)>(
+                select_overload<val(const JSSubstructLibrary &, unsigned int)>(
                     get_pattern_fp_as_uint8array_from_sslib))
+      .function(
+          "get_matches_as_uint32array",
+          select_overload<val(const JSSubstructLibrary &, const JSMol &, bool,
+                              int, int)>(get_matches_as_uint32array))
+      .function(
+          "get_matches_as_uint32array",
+          select_overload<val(const JSSubstructLibrary &, const JSMol &, int)>(
+              get_matches_as_uint32array))
       .function("get_matches_as_uint32array",
-                select_overload<val(const JSSubstructLibrary &,
-                                                const JSMol &, bool, int, int)>(
-                    get_matches_as_uint32array))
-      .function("get_matches_as_uint32array",
-                select_overload<val(const JSSubstructLibrary &,
-                                                const JSMol &, int)>(
-                    get_matches_as_uint32array))
-      .function("get_matches_as_uint32array",
-                select_overload<val(const JSSubstructLibrary &,
-                                                const JSMol &)>(
+                select_overload<val(const JSSubstructLibrary &, const JSMol &)>(
                     get_matches_as_uint32array))
 #endif
       .function("get_mol", &JSSubstructLibrary::get_mol, allow_raw_pointers())
@@ -713,11 +710,14 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
   class_<JSRGroupDecomposition>("RGroupDecomposition")
       .function("add", &JSRGroupDecomposition::add)
       .function("process", &JSRGroupDecomposition::process)
-      .function("get_rgroups_as_columns", select_overload<val(const JSRGroupDecomposition &)>(
-        get_rgroups_as_cols_helper))
-      .function("get_rgroups_as_rows", select_overload<val(const JSRGroupDecomposition &)>(
-        get_rgroups_as_rows_helper));
-  // cannot use a constructor; see https://github.com/emscripten-core/emscripten/issues/11274
+      .function("get_rgroups_as_columns",
+                select_overload<val(const JSRGroupDecomposition &)>(
+                    get_rgroups_as_cols_helper))
+      .function("get_rgroups_as_rows",
+                select_overload<val(const JSRGroupDecomposition &)>(
+                    get_rgroups_as_rows_helper));
+  // cannot use a constructor; see
+  // https://github.com/emscripten-core/emscripten/issues/11274
   function("get_rgd", &get_rgd_helper, allow_raw_pointers());
   function("get_rgd", &get_rgd_no_details_helper, allow_raw_pointers());
 #endif

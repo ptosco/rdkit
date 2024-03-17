@@ -346,7 +346,9 @@ struct rgroupdecomp_wrapper {
         .def_readonly(
             "substructMatchParams",
             &RDKit::RGroupDecompositionParameters::substructmatchParams)
-        .def_readwrite("enableRGroupHighlights", &RDKit::RGroupDecompositionParameters::enableRGroupHighlights);
+        .def_readwrite(
+            "includeTargetMolInResults",
+            &RDKit::RGroupDecompositionParameters::includeTargetMolInResults);
 
     python::class_<RDKit::RGroupDecompositionHelper, boost::noncopyable>(
         "RGroupDecomposition", docString.c_str(),
