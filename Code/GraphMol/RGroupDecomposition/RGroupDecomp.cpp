@@ -722,6 +722,9 @@ RGroupColumns RGroupDecomposition::getRGroupsAsColumns() const {
 
   RGroupColumns groups;
   std::unordered_set<std::string> rGroupWithRealMol{RGroupData::getCoreLabel()};
+  if (data->params.includeTargetMolInResults) {
+    rGroupWithRealMol.insert(RGroupData::getMolLabel());
+  }
 
   auto usedLabelMap = UsedLabelMap(data->finalRlabelMapping);
 

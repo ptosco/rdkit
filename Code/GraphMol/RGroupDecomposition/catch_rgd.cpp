@@ -1048,6 +1048,7 @@ TEST_CASE("includeTargetMolInResults") {
         allBondIndices.insert(bondIndices);
       }
     }
+    REQUIRE(targetMol);
     auto flattenedAtomIndices = std::accumulate(allAtomIndices.begin(), allAtomIndices.end(),
       std::vector<int>{}, [](std::vector<int> &acc, const std::vector<int> &v) {
         acc.insert(acc.end(), std::make_move_iterator(v.begin()), std::make_move_iterator(v.end()));
@@ -1082,6 +1083,16 @@ TEST_CASE("includeTargetMolInResults") {
   }
   SECTION("columns") {
     auto cols = rgd.getRGroupsAsColumns();
+    RGroupRows rows;
+    rows.reserve(mols.size());
+    for (size_t i = 0; i < mols.size(); ++i) {
+      RGroupRow row;
+      for (const auto &pair : cols) {
+        CHECK(pair.second.size() == mols.size());
+        row.emplace(pair.first, pair.second.at(i));
+      }
+      rows.push_back(std::move(row));
+    }
     CHECK(rows.size() == mols.size());
     for (const auto &row : rows) {
       checkRow(row);
