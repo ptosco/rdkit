@@ -96,9 +96,9 @@ std::string JSMol::get_svg_with_highlights(const std::string &details) const {
   return MinimalLib::mol_to_svg(*get(), w, h, details);
 }
 
-std::string JSMol::get_inchi() const {
+std::string JSMol::get_inchi(const std::string &options) const {
   ExtraInchiReturnValues rv;
-  return MolToInchi(*get(), rv);
+  return MolToInchi(*get(), rv, !options.empty() ? options.c_str() : nullptr);
 }
 std::string JSMol::get_molblock(const std::string &details) const {
   return MinimalLib::molblock_helper(*get(), details.c_str(), false);
