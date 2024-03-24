@@ -934,6 +934,7 @@ M  END
     for row in rows:
       checkRow(row)
 
+
 if __name__ == '__main__':
   rdBase.DisableLog("rdApp.debug")
   unittest.main()
