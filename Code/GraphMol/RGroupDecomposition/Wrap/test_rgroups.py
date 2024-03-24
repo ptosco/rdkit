@@ -842,6 +842,14 @@ M  END
     RelabelMappedDummies(core, inputLabels=RGroupLabelling.MDLRGroup, outputLabels=RGroupLabelling.Isotope)
     self.assertEqual(Chem.MolToCXSmiles(core, p), "c1cc([2*])c([1*])cn1")
 
+  def testRgroupMolZip(self):
+    core = Chem.MolFromSmiles("CO")
+    mols = [Chem.MolFromSmiles("C1NNO1")]
+    rgroups, unmatched = RGroupDecompose(core, mols)
+    for rgroup in rgroups:
+      self.assertEqual(Chem.MolToSmiles(Chem.molzip(rgroup)),
+                       Chem.CanonSmiles("C1NNO1"))
+
   def testIncludeTargetMolInResults(self):
     core = Chem.MolFromSmiles("c1cc(-c2c([*:1])nn3nc([*:2])ccc23)nc(N(c2ccc([*:4])c([*:3])c2))n1")
     self.assertIsNotNone(core)
@@ -925,7 +933,6 @@ M  END
     self.assertEqual(len(rows), len(mols))
     for row in rows:
       checkRow(row)
-
 
 if __name__ == '__main__':
   rdBase.DisableLog("rdApp.debug")
