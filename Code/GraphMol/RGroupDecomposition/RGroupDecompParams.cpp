@@ -149,6 +149,8 @@ void updateRGroupDecompositionParametersFromJSON(
                      params.allowMultipleRGroupsOnUnlabelled);
     params.doTautomers = pt.get<bool>("doTautomers", params.doTautomers);
     params.doEnumeration = pt.get<bool>("doEnumeration", params.doEnumeration);
+    params.includeTargetMolInResults = pt.get<bool>(
+        "includeTargetMolInResults", params.includeTargetMolInResults);
     params.timeout = pt.get<double>("timeout", params.timeout);
   }
 }

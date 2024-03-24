@@ -133,7 +133,7 @@ std::string RGroupData::toString() const {
 
 void RGroupData::computeIsHydrogen() {  // is the rgroup all Hs
   is_hydrogen = std::all_of(mols.begin(), mols.end(), [this](const auto &mol) {
-    return isMolHydrogen(*mol);
+    return this->isMolHydrogen(*mol);
   });
 }
 

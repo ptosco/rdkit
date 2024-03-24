@@ -10,7 +10,6 @@
 #ifndef RGROUP_MATCH_DATA
 #define RGROUP_MATCH_DATA
 #include "RGroupData.h"
-#include <GraphMol/SmilesParse/SmilesWrite.h>
 
 namespace RDKit {
 typedef boost::shared_ptr<RGroupData> RData;

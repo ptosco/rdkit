@@ -63,16 +63,31 @@ std::string draw_to_canvas_with_highlights(JSMol &self, emscripten::val canvas,
   }
   d2d->setOffset(molDrawingDetails.offsetx, molDrawingDetails.offsety);
 
-  MolDraw2DUtils::prepareAndDrawMolecule(
-      *d2d, *self.get(), molDrawingDetails.legend, &molDrawingDetails.atomIds,
-      &molDrawingDetails.bondIds,
-      molDrawingDetails.atomMap.empty() ? nullptr : &molDrawingDetails.atomMap,
-      molDrawingDetails.bondMap.empty() ? nullptr : &molDrawingDetails.bondMap,
-      molDrawingDetails.radiiMap.empty() ? nullptr
-                                         : &molDrawingDetails.radiiMap,
-      -1, molDrawingDetails.kekulize, molDrawingDetails.addChiralHs,
-      molDrawingDetails.wedgeBonds, molDrawingDetails.forceCoords,
-      molDrawingDetails.wavyBonds);
+  if (molDrawingDetails.atomMultiMap.empty() &&
+      molDrawingDetails.bondMultiMap.empty()) {
+    MolDraw2DUtils::prepareAndDrawMolecule(
+        *d2d, *self.get(), molDrawingDetails.legend, &molDrawingDetails.atomIds,
+        &molDrawingDetails.bondIds,
+        molDrawingDetails.atomMap.empty() ? nullptr
+                                          : &molDrawingDetails.atomMap,
+        molDrawingDetails.bondMap.empty() ? nullptr
+                                          : &molDrawingDetails.bondMap,
+        molDrawingDetails.radiiMap.empty() ? nullptr
+                                           : &molDrawingDetails.radiiMap,
+        -1, molDrawingDetails.kekulize, molDrawingDetails.addChiralHs,
+        molDrawingDetails.wedgeBonds, molDrawingDetails.forceCoords,
+        molDrawingDetails.wavyBonds);
+  } else {
+    RWMol drawMol(*self.get());
+    MolDraw2DUtils::prepareMolForDrawing(
+        drawMol, molDrawingDetails.kekulize, molDrawingDetails.addChiralHs,
+        molDrawingDetails.wedgeBonds, molDrawingDetails.forceCoords,
+        molDrawingDetails.wavyBonds);
+    d2d->drawMoleculeWithHighlights(
+        drawMol, molDrawingDetails.legend, molDrawingDetails.atomMultiMap,
+        molDrawingDetails.bondMultiMap, molDrawingDetails.radiiMap,
+        molDrawingDetails.lineWidthMultiplierMap);
+  }
   return "";
 }
 
@@ -427,8 +442,11 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
                 select_overload<std::string(const std::string &) const>(
                     &JSMol::get_v3Kmolblock))
       .function("get_as_uint8array", &get_as_uint8array)
-      .function("get_inchi", select_overload<std::string(const std::string&) const>(&JSMol::get_inchi))
-      .function("get_inchi", select_overload<std::string() const>(&JSMol::get_inchi))
+      .function("get_inchi",
+                select_overload<std::string(const std::string &) const>(
+                    &JSMol::get_inchi))
+      .function("get_inchi",
+                select_overload<std::string() const>(&JSMol::get_inchi))
       .function("get_json", &JSMol::get_json)
       .function("get_svg",
                 select_overload<std::string() const>(&JSMol::get_svg))
@@ -717,7 +735,7 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("get_rgroups_as_rows",
                 select_overload<val(const JSRGroupDecomposition &)>(
                     get_rgroups_as_rows_helper));
-  // cannot use a constructor; see
+  // We use a factory function rather than a class constructor; see
   // https://github.com/emscripten-core/emscripten/issues/11274
   function("get_rgd", &get_rgd_helper, allow_raw_pointers());
   function("get_rgd", &get_rgd_no_details_helper, allow_raw_pointers());
