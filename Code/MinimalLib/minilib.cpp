@@ -83,48 +83,48 @@ std::string mappingToJsonArray(const ROMol &mol) {
 }
 }  // end of anonymous namespace
 
-std::string JSMol::get_smiles() const { return MolToSmiles(*get()); }
-std::string JSMol::get_cxsmiles() const { return MolToCXSmiles(*get()); }
-std::string JSMol::get_smarts() const { return MolToSmarts(*get()); }
-std::string JSMol::get_cxsmarts() const { return MolToCXSmarts(*get()); }
-std::string JSMol::get_svg(int w, int h) const {
-  return MinimalLib::mol_to_svg(*get(), w, h);
+std::string JSMolBase::get_smiles() const { return MolToSmiles(get()); }
+std::string JSMolBase::get_cxsmiles() const { return MolToCXSmiles(get()); }
+std::string JSMolBase::get_smarts() const { return MolToSmarts(get()); }
+std::string JSMolBase::get_cxsmarts() const { return MolToCXSmarts(get()); }
+std::string JSMolBase::get_svg(int w, int h) const {
+  return MinimalLib::mol_to_svg(get(), w, h);
 }
-std::string JSMol::get_svg_with_highlights(const std::string &details) const {
+std::string JSMolBase::get_svg_with_highlights(const std::string &details) const {
   int w = d_defaultWidth;
   int h = d_defaultHeight;
-  return MinimalLib::mol_to_svg(*get(), w, h, details);
+  return MinimalLib::mol_to_svg(get(), w, h, details);
 }
 
-std::string JSMol::get_inchi(const std::string &options) const {
+std::string JSMolBase::get_inchi(const std::string &options) const {
   ExtraInchiReturnValues rv;
-  return MolToInchi(*get(), rv, !options.empty() ? options.c_str() : nullptr);
+  return MolToInchi(get(), rv, !options.empty() ? options.c_str() : nullptr);
 }
-std::string JSMol::get_molblock(const std::string &details) const {
-  return MinimalLib::molblock_helper(*get(), details.c_str(), false);
+std::string JSMolBase::get_molblock(const std::string &details) const {
+  return MinimalLib::molblock_helper(get(), details.c_str(), false);
 }
-std::string JSMol::get_v3Kmolblock(const std::string &details) const {
-  return MinimalLib::molblock_helper(*get(), details.c_str(), true);
+std::string JSMolBase::get_v3Kmolblock(const std::string &details) const {
+  return MinimalLib::molblock_helper(get(), details.c_str(), true);
 }
-std::string JSMol::get_json() const {
-  return MolInterchange::MolToJSONData(*get());
+std::string JSMolBase::get_json() const {
+  return MolInterchange::MolToJSONData(get());
 }
 
-std::string JSMol::get_pickle() const {
+std::string JSMolBase::get_pickle() const {
   std::string pickle;
-  MolPickler::pickleMol(*get(), pickle,
+  MolPickler::pickleMol(get(), pickle,
                         PicklerOps::AllProps ^ PicklerOps::ComputedProps);
   return pickle;
 }
 
-std::string JSMol::get_substruct_match(const JSMol &q) const {
+std::string JSMolBase::get_substruct_match(const JSMolBase &q) const {
   std::string res = "{}";
 
   MatchVectType match;
-  if (SubstructMatch(*get(), *(q.get()), match)) {
+  if (SubstructMatch(get(), q.get(), match)) {
     rj::Document doc;
     doc.SetObject();
-    MinimalLib::get_sss_json(*get(), *(q.get()), match, doc, doc);
+    MinimalLib::get_sss_json(get(), q.get(), match, doc, doc);
     rj::StringBuffer buffer;
     rj::Writer<rj::StringBuffer> writer(buffer);
     doc.Accept(writer);
@@ -134,17 +134,17 @@ std::string JSMol::get_substruct_match(const JSMol &q) const {
   return res;
 }
 
-std::string JSMol::get_substruct_matches(const JSMol &q) const {
+std::string JSMolBase::get_substruct_matches(const JSMolBase &q) const {
   std::string res = "{}";
 
-  auto matches = SubstructMatch(*get(), (*q.get()));
+  auto matches = SubstructMatch(get(), q.get());
   if (!matches.empty()) {
     rj::Document doc;
     doc.SetArray();
 
     for (const auto &match : matches) {
       rj::Value rjMatch(rj::kObjectType);
-      MinimalLib::get_sss_json(*get(), *(q.get()), match, rjMatch, doc);
+      MinimalLib::get_sss_json(get(), q.get(), match, rjMatch, doc);
       doc.PushBack(rjMatch, doc.GetAllocator());
     }
 
@@ -157,117 +157,117 @@ std::string JSMol::get_substruct_matches(const JSMol &q) const {
   return res;
 }
 
-std::string JSMol::get_descriptors() const {
-  return MinimalLib::get_descriptors(*get());
+std::string JSMolBase::get_descriptors() const {
+  return MinimalLib::get_descriptors(get());
 }
 
-std::string JSMol::get_morgan_fp(const std::string &details) const {
-  auto fp = MinimalLib::morgan_fp_as_bitvect(*get(), details.c_str());
+std::string JSMolBase::get_morgan_fp(const std::string &details) const {
+  auto fp = MinimalLib::morgan_fp_as_bitvect(get(), details.c_str());
   std::string res = BitVectToText(*fp);
   return res;
 }
 
-std::string JSMol::get_morgan_fp_as_binary_text(
+std::string JSMolBase::get_morgan_fp_as_binary_text(
     const std::string &details) const {
-  auto fp = MinimalLib::morgan_fp_as_bitvect(*get(), details.c_str());
+  auto fp = MinimalLib::morgan_fp_as_bitvect(get(), details.c_str());
   std::string res = BitVectToBinaryText(*fp);
   return res;
 }
 
-std::string JSMol::get_pattern_fp(const std::string &details) const {
-  auto fp = MinimalLib::pattern_fp_as_bitvect(*get(), details.c_str());
+std::string JSMolBase::get_pattern_fp(const std::string &details) const {
+  auto fp = MinimalLib::pattern_fp_as_bitvect(get(), details.c_str());
   std::string res = BitVectToText(*fp);
   return res;
 }
 
-std::string JSMol::get_pattern_fp_as_binary_text(
+std::string JSMolBase::get_pattern_fp_as_binary_text(
     const std::string &details) const {
-  auto fp = MinimalLib::pattern_fp_as_bitvect(*get(), details.c_str());
+  auto fp = MinimalLib::pattern_fp_as_bitvect(get(), details.c_str());
   std::string res = BitVectToBinaryText(*fp);
   return res;
 }
 
-std::string JSMol::get_topological_torsion_fp(
+std::string JSMolBase::get_topological_torsion_fp(
     const std::string &details) const {
   auto fp =
-      MinimalLib::topological_torsion_fp_as_bitvect(*get(), details.c_str());
+      MinimalLib::topological_torsion_fp_as_bitvect(get(), details.c_str());
   std::string res = BitVectToText(*fp);
   return res;
 }
 
-std::string JSMol::get_topological_torsion_fp_as_binary_text(
+std::string JSMolBase::get_topological_torsion_fp_as_binary_text(
     const std::string &details) const {
   auto fp =
-      MinimalLib::topological_torsion_fp_as_bitvect(*get(), details.c_str());
+      MinimalLib::topological_torsion_fp_as_bitvect(get(), details.c_str());
   std::string res = BitVectToBinaryText(*fp);
   return res;
 }
 
-std::string JSMol::get_rdkit_fp(const std::string &details) const {
-  auto fp = MinimalLib::rdkit_fp_as_bitvect(*get(), details.c_str());
+std::string JSMolBase::get_rdkit_fp(const std::string &details) const {
+  auto fp = MinimalLib::rdkit_fp_as_bitvect(get(), details.c_str());
   std::string res = BitVectToText(*fp);
   return res;
 }
 
-std::string JSMol::get_rdkit_fp_as_binary_text(
+std::string JSMolBase::get_rdkit_fp_as_binary_text(
     const std::string &details) const {
-  auto fp = MinimalLib::rdkit_fp_as_bitvect(*get(), details.c_str());
+  auto fp = MinimalLib::rdkit_fp_as_bitvect(get(), details.c_str());
   std::string res = BitVectToBinaryText(*fp);
   return res;
 }
 
-std::string JSMol::get_atom_pair_fp(const std::string &details) const {
-  auto fp = MinimalLib::atom_pair_fp_as_bitvect(*get(), details.c_str());
+std::string JSMolBase::get_atom_pair_fp(const std::string &details) const {
+  auto fp = MinimalLib::atom_pair_fp_as_bitvect(get(), details.c_str());
   std::string res = BitVectToText(*fp);
   return res;
 }
 
-std::string JSMol::get_atom_pair_fp_as_binary_text(
+std::string JSMolBase::get_atom_pair_fp_as_binary_text(
     const std::string &details) const {
-  auto fp = MinimalLib::atom_pair_fp_as_bitvect(*get(), details.c_str());
+  auto fp = MinimalLib::atom_pair_fp_as_bitvect(get(), details.c_str());
   std::string res = BitVectToBinaryText(*fp);
   return res;
 }
 
-std::string JSMol::get_maccs_fp() const {
-  auto fp = MinimalLib::maccs_fp_as_bitvect(*get());
+std::string JSMolBase::get_maccs_fp() const {
+  auto fp = MinimalLib::maccs_fp_as_bitvect(get());
   std::string res = BitVectToText(*fp);
   return res;
 }
 
-std::string JSMol::get_maccs_fp_as_binary_text() const {
-  auto fp = MinimalLib::maccs_fp_as_bitvect(*get());
+std::string JSMolBase::get_maccs_fp_as_binary_text() const {
+  auto fp = MinimalLib::maccs_fp_as_bitvect(get());
   std::string res = BitVectToBinaryText(*fp);
   return res;
 }
 
 #ifdef RDK_BUILD_AVALON_SUPPORT
 std::string get_avalon_fp(const std::string &details) const {
-  auto fp = MinimalLib::avalon_fp_as_bitvect(*get(), details.c_str());
+  auto fp = MinimalLib::avalon_fp_as_bitvect(get(), details.c_str());
   std::string res = BitVectToText(*fp);
   return res;
 }
 
 std::string get_avalon_fp_as_binary_text(const std::string &details) const {
-  auto fp = MinimalLib::avalon_fp_as_bitvect(*get(), details.c_str());
+  auto fp = MinimalLib::avalon_fp_as_bitvect(get(), details.c_str());
   std::string res = BitVectToBinaryText(*fp);
   return res;
 }
 #endif
 
-std::string JSMol::get_stereo_tags() const {
+std::string JSMolBase::get_stereo_tags() const {
   rj::Document doc;
   doc.SetObject();
 
   bool cleanIt = true;
   bool force = true;
   bool flagPossibleStereocenters = true;
-  MolOps::assignStereochemistry(*get(), cleanIt, force,
+  MolOps::assignStereochemistry(get(), cleanIt, force,
                                 flagPossibleStereocenters);
-  CIPLabeler::assignCIPLabels(*get());
+  CIPLabeler::assignCIPLabels(get());
 
   rj::Value rjAtoms(rj::kArrayType);
-  for (const auto atom : get()->atoms()) {
+  for (const auto atom : get().atoms()) {
     std::string cip;
     if (!atom->getPropIfPresent(common_properties::_CIPCode, cip)) {
       if (atom->hasProp(common_properties::_ChiralityPossible)) {
@@ -287,7 +287,7 @@ std::string JSMol::get_stereo_tags() const {
   doc.AddMember("CIP_atoms", rjAtoms, doc.GetAllocator());
 
   rj::Value rjBonds(rj::kArrayType);
-  for (const auto bond : get()->bonds()) {
+  for (const auto bond : get().bonds()) {
     std::string cip;
     if (bond->getPropIfPresent(common_properties::_CIPCode, cip)) {
       cip = "(" + cip + ")";
@@ -309,13 +309,13 @@ std::string JSMol::get_stereo_tags() const {
   return buffer.GetString();
 }
 
-void JSMol::convert_to_aromatic_form() {
-  get()->updatePropertyCache();
-  MolOps::setAromaticity(*get());
+void JSMolBase::convert_to_aromatic_form() {
+  get().updatePropertyCache();
+  MolOps::setAromaticity(get());
 }
 
-std::string JSMol::get_aromatic_form() const {
-  RWMol molCopy(*get());
+std::string JSMolBase::get_aromatic_form() const {
+  RWMol molCopy(get());
   molCopy.updatePropertyCache();
   MolOps::setAromaticity(molCopy);
 
@@ -325,10 +325,10 @@ std::string JSMol::get_aromatic_form() const {
   return MolToMolBlock(molCopy, includeStereo, confId, kekulize);
 }
 
-void JSMol::convert_to_kekule_form() { MolOps::Kekulize(*get()); }
+void JSMolBase::convert_to_kekule_form() { MolOps::Kekulize(get()); }
 
-std::string JSMol::get_kekule_form() const {
-  RWMol molCopy(*get());
+std::string JSMolBase::get_kekule_form() const {
+  RWMol molCopy(get());
   MolOps::Kekulize(molCopy);
 
   bool includeStereo = true;
@@ -337,12 +337,12 @@ std::string JSMol::get_kekule_form() const {
   return MolToMolBlock(molCopy, includeStereo, confId, kekulize);
 }
 
-bool JSMol::set_new_coords(bool useCoordGen) {
+bool JSMolBase::set_new_coords(bool useCoordGen) {
 #ifdef RDK_BUILD_COORDGEN_SUPPORT
   bool oprefer = RDDepict::preferCoordGen;
   RDDepict::preferCoordGen = useCoordGen;
 #endif
-  RDDepict::compute2DCoords(*get());
+  RDDepict::compute2DCoords(get());
 #ifdef RDK_BUILD_COORDGEN_SUPPORT
   RDDepict::preferCoordGen = oprefer;
 #endif
@@ -350,8 +350,8 @@ bool JSMol::set_new_coords(bool useCoordGen) {
   return true;
 }
 
-std::string JSMol::get_new_coords(bool useCoordGen) const {
-  RWMol molCopy(*get());
+std::string JSMolBase::get_new_coords(bool useCoordGen) const {
+  RWMol molCopy(get());
 
 #ifdef RDK_BUILD_COORDGEN_SUPPORT
   bool oprefer = RDDepict::preferCoordGen;
@@ -365,40 +365,40 @@ std::string JSMol::get_new_coords(bool useCoordGen) const {
   return MolToMolBlock(molCopy);
 }
 
-bool JSMol::has_prop(const std::string &key) const {
-  return get()->hasProp(key);
+bool JSMolBase::has_prop(const std::string &key) const {
+  return get().hasProp(key);
 }
 
-std::vector<std::string> JSMol::get_prop_list(bool includePrivate,
+std::vector<std::string> JSMolBase::get_prop_list(bool includePrivate,
                                               bool includeComputed) const {
-  return get()->getPropList(includePrivate, includeComputed);
+  return get().getPropList(includePrivate, includeComputed);
 }
 
-bool JSMol::set_prop(const std::string &key, const std::string &val,
+bool JSMolBase::set_prop(const std::string &key, const std::string &val,
                      bool computed) {
-  get()->setProp(key, val, computed);
+  get().setProp(key, val, computed);
   return true;
 }
 
-std::string JSMol::get_prop(const std::string &key) const {
-  if (!get()->hasProp(key)) {
+std::string JSMolBase::get_prop(const std::string &key) const {
+  if (!get().hasProp(key)) {
     return "";
   }
   std::string val;
-  get()->getProp(key, val);
+  get().getProp(key, val);
   return val;
 }
 
-bool JSMol::clear_prop(const std::string &key) {
-  bool res = get()->hasProp(key);
+bool JSMolBase::clear_prop(const std::string &key) {
+  bool res = get().hasProp(key);
   if (res) {
-    get()->clearProp(key);
+    get().clearProp(key);
   }
   return res;
 }
 
-std::string JSMol::remove_hs() const {
-  RWMol molCopy(*get());
+std::string JSMolBase::remove_hs() const {
+  RWMol molCopy(get());
   MolOps::removeAllHs(molCopy);
 
   bool includeStereo = true;
@@ -407,14 +407,14 @@ std::string JSMol::remove_hs() const {
   return MolToMolBlock(molCopy, includeStereo, confId, kekulize);
 }
 
-bool JSMol::remove_hs_in_place() {
-  MolOps::removeAllHs(*get());
-  MolOps::assignStereochemistry(*get(), true, true);
+bool JSMolBase::remove_hs_in_place() {
+  MolOps::removeAllHs(get());
+  MolOps::assignStereochemistry(get(), true, true);
   return true;
 }
 
-std::string JSMol::add_hs() const {
-  RWMol molCopy(*get());
+std::string JSMolBase::add_hs() const {
+  RWMol molCopy(get());
   MolOps::addHs(molCopy);
 
   bool includeStereo = true;
@@ -423,25 +423,25 @@ std::string JSMol::add_hs() const {
   return MolToMolBlock(molCopy, includeStereo, confId, kekulize);
 }
 
-bool JSMol::add_hs_in_place() {
-  bool addCoords = (get()->getNumConformers() > 0);
-  MolOps::addHs(*get(), false, addCoords);
-  MolOps::assignStereochemistry(*get(), true, true);
+bool JSMolBase::add_hs_in_place() {
+  bool addCoords = (get().getNumConformers() > 0);
+  MolOps::addHs(get(), false, addCoords);
+  MolOps::assignStereochemistry(get(), true, true);
   return true;
 }
 
-std::string JSMol::condense_abbreviations(double maxCoverage, bool useLinkers) {
+std::string JSMolBase::condense_abbreviations(double maxCoverage, bool useLinkers) {
   if (!useLinkers) {
     Abbreviations::condenseMolAbbreviations(
-        *get(), Abbreviations::Utils::getDefaultAbbreviations(), maxCoverage);
+        get(), Abbreviations::Utils::getDefaultAbbreviations(), maxCoverage);
   } else {
     Abbreviations::condenseMolAbbreviations(
-        *get(), Abbreviations::Utils::getDefaultLinkers(), maxCoverage);
+        get(), Abbreviations::Utils::getDefaultLinkers(), maxCoverage);
   }
-  return mappingToJsonArray(*get());
+  return mappingToJsonArray(get());
 }
 
-std::string JSMol::condense_abbreviations_from_defs(
+std::string JSMolBase::condense_abbreviations_from_defs(
     const std::string &definitions, double maxCoverage, bool areLinkers) {
   static std::string lastDefs = "";
   static std::vector<Abbreviations::AbbreviationDefinition> abbrevs;
@@ -458,62 +458,62 @@ std::string JSMol::condense_abbreviations_from_defs(
       return "cannot parse abbreviations";
     }
   }
-  Abbreviations::condenseMolAbbreviations(*get(), abbrevs, maxCoverage);
-  return mappingToJsonArray(*get());
+  Abbreviations::condenseMolAbbreviations(get(), abbrevs, maxCoverage);
+  return mappingToJsonArray(get());
 }
 
-std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
+std::string JSMolBase::generate_aligned_coords(const JSMolBase &templateMol,
                                            const std::string &details) {
-  if (!templateMol.get()->getNumConformers()) {
+  if (!templateMol.get().getNumConformers()) {
     return "";
   }
-  return MinimalLib::generate_aligned_coords(*get(), *templateMol.get(),
+  return MinimalLib::generate_aligned_coords(get(), templateMol.get(),
                                              details.c_str());
 }
 
-int JSMol::has_coords() const {
-  if (!get()->getNumConformers()) {
+int JSMolBase::has_coords() const {
+  if (!get().getNumConformers()) {
     return 0;
   }
-  return (get()->getConformer().is3D() ? 3 : 2);
+  return (get().getConformer().is3D() ? 3 : 2);
 }
 
-double JSMol::normalize_depiction(int canonicalize, double scaleFactor) {
-  if (!get()->getNumConformers()) {
+double JSMolBase::normalize_depiction(int canonicalize, double scaleFactor) {
+  if (!get().getNumConformers()) {
     return -1.;
   }
-  return RDDepict::normalizeDepiction(*get(), -1, canonicalize, scaleFactor);
+  return RDDepict::normalizeDepiction(get(), -1, canonicalize, scaleFactor);
 }
 
-void JSMol::straighten_depiction(bool minimizeRotation) {
-  if (!get()->getNumConformers()) {
+void JSMolBase::straighten_depiction(bool minimizeRotation) {
+  if (!get().getNumConformers()) {
     return;
   }
-  RDDepict::straightenDepiction(*get(), -1, minimizeRotation);
+  RDDepict::straightenDepiction(get(), -1, minimizeRotation);
 }
 
-bool JSMol::is_valid() const { return true; }
+bool JSMolBase::is_valid() const { return true; }
 
-std::pair<JSMolList *, std::string> JSMol::get_frags(
-    const std::string &details_json) {
+std::pair<JSMolList *, std::string> JSMolBase::get_frags(
+    const std::string &details_json) const {
   std::vector<int> frags;
   std::vector<std::vector<int>> fragsMolAtomMapping;
   bool sanitizeFrags = true;
   bool copyConformers = true;
   MinimalLib::get_mol_frags_details(details_json, sanitizeFrags,
                                     copyConformers);
-  auto molFrags = MolOps::getMolFrags(*get(), sanitizeFrags, &frags,
+  auto molFrags = MolOps::getMolFrags(get(), sanitizeFrags, &frags,
                                       &fragsMolAtomMapping, copyConformers);
   return std::make_pair(
       new JSMolList(molFrags),
       MinimalLib::get_mol_frags_mappings(frags, fragsMolAtomMapping));
 }
 
-unsigned int JSMol::get_num_atoms(bool heavyOnly) const {
-  return heavyOnly ? get()->getNumHeavyAtoms() : get()->getNumAtoms();
+unsigned int JSMolBase::get_num_atoms(bool heavyOnly) const {
+  return heavyOnly ? get().getNumHeavyAtoms() : get().getNumAtoms();
 }
 
-unsigned int JSMol::get_num_bonds() const { return get()->getNumBonds(); }
+unsigned int JSMolBase::get_num_bonds() const { return get().getNumBonds(); }
 
 #ifdef RDK_BUILD_MINIMAL_LIB_MMPA
 namespace {
@@ -539,12 +539,12 @@ bool mmpaFragmentMol(const ROMol &mol, std::vector<RDKit::ROMOL_SPTR> &cores,
 }
 }  // end of anonymous namespace
 
-std::pair<JSMolList *, JSMolList *> JSMol::get_mmpa_frags(
+std::pair<JSMolList *, JSMolList *> JSMolBase::get_mmpa_frags(
     unsigned int minCuts, unsigned int maxCuts,
     unsigned int maxCutBonds) const {
   std::vector<RDKit::ROMOL_SPTR> cores;
   std::vector<RDKit::ROMOL_SPTR> sidechains;
-  if (!mmpaFragmentMol(*get(), cores, sidechains, minCuts, maxCuts,
+  if (!mmpaFragmentMol(get(), cores, sidechains, minCuts, maxCuts,
                        maxCutBonds)) {
     return std::make_pair(nullptr, nullptr);
   }
@@ -570,16 +570,16 @@ std::string JSReaction::get_svg_with_highlights(
 bool JSReaction::is_valid() const { return true; }
 #endif
 
-JSMol *JSMolList::next() {
-  JSMol *res = nullptr;
+JSMolBase *JSMolList::next() {
+  JSMolBase *res = nullptr;
   if (d_idx < d_mols.size()) {
     res = at(d_idx++);
   }
   return res;
 }
 
-JSMol *JSMolList::at(size_t idx) const {
-  JSMol *res = nullptr;
+JSMolBase *JSMolList::at(size_t idx) const {
+  JSMolBase *res = nullptr;
   if (idx < d_mols.size()) {
     const auto &molSptr = d_mols.at(idx);
     if (molSptr) {
@@ -589,8 +589,8 @@ JSMol *JSMolList::at(size_t idx) const {
   return res;
 }
 
-JSMol *JSMolList::pop(size_t idx) {
-  JSMol *res = nullptr;
+JSMolBase *JSMolList::pop(size_t idx) {
+  JSMolBase *res = nullptr;
   if (idx < d_mols.size()) {
     res = at(idx);
     d_mols.erase(d_mols.begin() + idx);
@@ -601,18 +601,15 @@ JSMol *JSMolList::pop(size_t idx) {
   return res;
 }
 
-size_t JSMolList::append(const JSMol &mol) {
-  d_mols.emplace_back(new ROMol(*mol.get()));
+size_t JSMolList::append(const JSMolBase &mol) {
+  d_mols.emplace_back(new ROMol(mol.get()));
   return d_mols.size();
 }
 
-size_t JSMolList::insert(size_t idx, const JSMol &mol) {
-  size_t res = 0;
-  if (idx < d_mols.size()) {
-    d_mols.emplace(d_mols.begin() + idx, new ROMol(*mol.get()));
-    res = d_mols.size();
-  }
-  return res;
+size_t JSMolList::insert(size_t idx, const JSMolBase &mol) {
+  idx = std::min(idx, d_mols.size());
+  d_mols.emplace(d_mols.begin() + idx, new ROMol(mol.get()));
+  return d_mols.size();
 }
 
 #ifdef RDK_BUILD_MINIMAL_LIB_SUBSTRUCTLIBRARY
@@ -687,8 +684,8 @@ inline int JSSubstructLibrary::add_mol_helper(const ROMol &mol) {
   return add_trusted_smiles(smi);
 }
 
-int JSSubstructLibrary::add_mol(const JSMol &m) {
-  return add_mol_helper(*m.get());
+int JSSubstructLibrary::add_mol(const JSMolBase &m) {
+  return add_mol_helper(m.get());
 }
 
 int JSSubstructLibrary::add_smiles(const std::string &smi) {
@@ -699,17 +696,17 @@ int JSSubstructLibrary::add_smiles(const std::string &smi) {
   return add_mol_helper(*mol);
 }
 
-JSMol *JSSubstructLibrary::get_mol(unsigned int i) {
+JSMolBase *JSSubstructLibrary::get_mol(unsigned int i) {
   return new JSMolShared(d_sslib->getMol(i));
 }
 
-std::string JSSubstructLibrary::get_matches(const JSMol &q, bool useChirality,
+std::string JSSubstructLibrary::get_matches(const JSMolBase &q, bool useChirality,
                                             int numThreads,
                                             int maxResults) const {
   if (!d_sslib->size()) {
     return "[]";
   }
-  auto indices = d_sslib->getMatches(*q.get(), true, useChirality, false,
+  auto indices = d_sslib->getMatches(q.get(), true, useChirality, false,
                                      numThreads, maxResults);
   rj::Document doc;
   doc.SetArray();
@@ -724,10 +721,10 @@ std::string JSSubstructLibrary::get_matches(const JSMol &q, bool useChirality,
   return res;
 }
 
-unsigned int JSSubstructLibrary::count_matches(const JSMol &q,
+unsigned int JSSubstructLibrary::count_matches(const JSMolBase &q,
                                                bool useChirality,
                                                int numThreads) const {
-  return d_sslib->size() ? d_sslib->countMatches(*q.get(), true, useChirality,
+  return d_sslib->size() ? d_sslib->countMatches(q.get(), true, useChirality,
                                                  false, numThreads)
                          : 0;
 }
@@ -737,16 +734,16 @@ std::string get_inchikey_for_inchi(const std::string &input) {
   return InchiToInchiKey(input);
 }
 
-JSMol *get_mol_copy(const JSMol &other) {
-  return new JSMolUnique(new RWMol(*other.get()));
+JSMolBase *get_mol_copy(const JSMolBase &other) {
+  return new JSMol(new RWMol(other.get()));
 }
 
-JSMol *get_mol(const std::string &input, const std::string &details_json) {
+JSMolBase *get_mol(const std::string &input, const std::string &details_json) {
   auto mol = MinimalLib::mol_from_input(input, details_json);
-  return mol ? new JSMolUnique(mol) : nullptr;
+  return mol ? new JSMol(mol) : nullptr;
 }
 
-JSMol *get_mol_from_pickle(const std::string &pkl) {
+JSMolBase *get_mol_from_pickle(const std::string &pkl) {
   RWMol *mol = nullptr;
   if (!pkl.empty()) {
     mol = new RWMol();
@@ -757,12 +754,12 @@ JSMol *get_mol_from_pickle(const std::string &pkl) {
       mol = nullptr;
     }
   }
-  return mol ? new JSMolUnique(mol) : nullptr;
+  return mol ? new JSMol(mol) : nullptr;
 }
 
-JSMol *get_qmol(const std::string &input) {
+JSMolBase *get_qmol(const std::string &input) {
   auto mol = MinimalLib::qmol_from_input(input);
-  return mol ? new JSMolUnique(mol) : nullptr;
+  return mol ? new JSMol(mol) : nullptr;
 }
 
 #ifdef RDK_BUILD_MINIMAL_LIB_RXN
@@ -844,7 +841,7 @@ std::string get_mcs_as_smarts(const JSMolList &molList,
   return res.SmartsString;
 }
 
-JSMol *get_mcs_as_mol(const JSMolList &molList,
+JSMolBase *get_mcs_as_mol(const JSMolList &molList,
                       const std::string &details_json) {
   auto res = getMcsResult(molList, details_json);
   return new JSMolShared(res.QueryMol);
@@ -880,11 +877,11 @@ void enable_logging() { RDKit::MinimalLib::LogHandle::enableLogging(); }
 void disable_logging() { RDKit::MinimalLib::LogHandle::disableLogging(); }
 
 #ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
-JSRGroupDecomposition::JSRGroupDecomposition(const JSMol &core,
+JSRGroupDecomposition::JSRGroupDecomposition(const JSMolBase &core,
                                              const std::string &details_json) {
   RGroupDecompositionParameters params;
   updateRGroupDecompositionParametersFromJSON(params, details_json);
-  d_decomp.reset(new RGroupDecomposition(*core.get(), params));
+  d_decomp.reset(new RGroupDecomposition(core.get(), params));
 }
 
 JSRGroupDecomposition::JSRGroupDecomposition(const JSMolList &cores,
@@ -894,8 +891,8 @@ JSRGroupDecomposition::JSRGroupDecomposition(const JSMolList &cores,
   d_decomp.reset(new RGroupDecomposition(cores.mols(), params));
 }
 
-int JSRGroupDecomposition::add(const JSMol &mol) {
-  return d_decomp->add(*mol.get());
+int JSRGroupDecomposition::add(const JSMolBase &mol) {
+  return d_decomp->add(mol.get());
 }
 
 bool JSRGroupDecomposition::process() { return d_decomp->process(); }
@@ -914,15 +911,15 @@ JSRGroupDecomposition::getRGroupsAsColumns() const {
   return res;
 }
 
-std::vector<std::map<std::string, std::unique_ptr<JSMol>>>
+std::vector<std::map<std::string, std::unique_ptr<JSMolBase>>>
 JSRGroupDecomposition::getRGroupsAsRows() const {
   auto rows = d_decomp->getRGroupsAsRows();
-  std::vector<std::map<std::string, std::unique_ptr<JSMol>>> res;
+  std::vector<std::map<std::string, std::unique_ptr<JSMolBase>>> res;
   res.reserve(rows.size());
   std::transform(
       rows.begin(), rows.end(), std::back_inserter(res),
       [](const auto &originalMap) {
-        std::map<std::string, std::unique_ptr<JSMol>> transformedMap;
+        std::map<std::string, std::unique_ptr<JSMolBase>> transformedMap;
         std::transform(
             originalMap.begin(), originalMap.end(),
             std::inserter(transformedMap, transformedMap.begin()),
@@ -931,7 +928,7 @@ JSRGroupDecomposition::getRGroupsAsRows() const {
                               "ROMOL_SPTR must not be null");
               return std::make_pair(
                   std::move(keyValuePair.first),
-                  std::unique_ptr<JSMol>(new JSMolShared(keyValuePair.second)));
+                  std::unique_ptr<JSMolBase>(new JSMolShared(keyValuePair.second)));
             });
         return transformedMap;
       });
