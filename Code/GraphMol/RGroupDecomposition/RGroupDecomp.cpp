@@ -542,7 +542,7 @@ int RGroupDecomposition::add(const ROMol &inmol) {
         potentialMatches.emplace_back(core_idx, numberMissingUserGroups, match,
                                       extractedCore);
         if (data->params.includeTargetMolInResults) {
-          potentialMatches.back().setInputMoleculeForHighlights(mol);
+          potentialMatches.back().setTargetMoleculeForHighlights(mol);
         }
       }
     }
@@ -695,7 +695,7 @@ RGroupRows RGroupDecomposition::getRGroupsAsRows() const {
     RGroupRow &out_rgroups = groups.back();
     if (data->params.includeTargetMolInResults) {
       out_rgroups.emplace(RGroupData::getMolLabel(),
-                          it->getInputMoleculeForHighlights(
+                          it->getTargetMoleculeForHighlights(
                               data->params.removeHydrogensPostMatch));
     }
 
@@ -734,7 +734,7 @@ RGroupColumns RGroupDecomposition::getRGroupsAsColumns() const {
     const R_DECOMP &in_rgroups = it->rgroups;
     if (data->params.includeTargetMolInResults) {
       groups[RGroupData::getMolLabel()].push_back(
-          it->getInputMoleculeForHighlights(
+          it->getTargetMoleculeForHighlights(
               data->params.removeHydrogensPostMatch));
     }
 

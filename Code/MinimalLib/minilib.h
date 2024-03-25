@@ -25,7 +25,7 @@ class JSMolList;
 
 class JSMol {
  public:
-  JSMol(){};
+  JSMol() = default;
   JSMol(const JSMol &) = delete;
   JSMol &operator=(const JSMol &) = delete;
   virtual ~JSMol(){};

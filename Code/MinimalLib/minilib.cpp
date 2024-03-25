@@ -464,7 +464,6 @@ std::string JSMol::condense_abbreviations_from_defs(
 
 std::string JSMol::generate_aligned_coords(const JSMol &templateMol,
                                            const std::string &details) {
-  assert(get() && templateMol.get());
   if (!templateMol.get()->getNumConformers()) {
     return "";
   }

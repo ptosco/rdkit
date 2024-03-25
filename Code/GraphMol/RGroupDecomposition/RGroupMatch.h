@@ -43,20 +43,34 @@ struct RGroupMatch {
     return ss.str();
   }
 
-  void setInputMoleculeForHighlights(const RWMOL_SPTR &inputMol) {
-    inputMolForHighlights = inputMol;
-    inputMolWasTrimmed = false;
+  //! Set the target molecule to be used for highlighting R groups
+  //! \param targetMol the target molecule
+  void setTargetMoleculeForHighlights(const RWMOL_SPTR &targetMol) {
+    targetMolForHighlights = targetMol;
+    targetMolWasTrimmed = false;
   }
 
-  RWMOL_SPTR getInputMoleculeForHighlights(bool trimHs) {
-    if (!inputMolForHighlights || !trimHs || inputMolWasTrimmed) {
-      return inputMolForHighlights;
+  //! Get the target molecule to be used for highlighting R groups
+  //! \param trimHs whether explicit hydrogens should be removed,
+  //! except for those corresponding to R groups (if any)
+  //! \return the target molecule (can be null if it was never set)
+  RWMOL_SPTR getTargetMoleculeForHighlights(bool trimHs) {
+    if (!targetMolForHighlights || !trimHs || targetMolWasTrimmed) {
+      return targetMolForHighlights;
     }
-    int numMolAtoms = inputMolForHighlights->getNumAtoms();
+    // if trimHs is true and this has not been done before, we need
+    // to remove explicit Hs, except for those corresponding to R groups
+    // (if any). Removal of hydrogens will change atom and bond indices,
+    // therefore common_properties::_rgroupTargetAtoms and
+    // common_properties::_rgroupTargetBonds need to be updated
+    int numMolAtoms = targetMolForHighlights->getNumAtoms();
     std::vector<int> storedAtomMapNums(numMolAtoms);
     std::vector<std::pair<int, int>> oldBondEnds(
-        inputMolForHighlights->getNumBonds(), std::make_pair(-1, -1));
-    auto atoms = inputMolForHighlights->atoms();
+        targetMolForHighlights->getNumBonds(), std::make_pair(-1, -1));
+    auto atoms = targetMolForHighlights->atoms();
+    // we use atom map numbers to track original atom indices
+    // ahead of removing Hs, so we store existing values to be able
+    // to restore them afterwards
     std::transform(atoms.begin(), atoms.end(), storedAtomMapNums.begin(),
                    [](auto atom) {
                      auto res = atom->getAtomMapNum();
@@ -71,7 +85,7 @@ struct RGroupMatch {
         std::for_each(bondIndices.begin(), bondIndices.end(),
                       [this, &oldBondEnds](const auto &bondIdx) {
                         const auto bond =
-                            inputMolForHighlights->getBondWithIdx(bondIdx);
+                            targetMolForHighlights->getBondWithIdx(bondIdx);
                         CHECK_INVARIANT(bond, "bond must not be null");
                         const auto beginAtom = bond->getBeginAtom();
                         const auto endAtom = bond->getEndAtom();
@@ -82,11 +96,12 @@ struct RGroupMatch {
                       });
       }
     }
+    // remove Hs except those involved in R groups
     std::vector<int> oldToNewAtomIndices(numMolAtoms, -1);
     MolOps::RemoveHsParameters rhps;
     rhps.removeMapped = false;
-    MolOps::removeHs(*inputMolForHighlights, rhps);
-    for (auto atom : inputMolForHighlights->atoms()) {
+    MolOps::removeHs(*targetMolForHighlights, rhps);
+    for (auto atom : targetMolForHighlights->atoms()) {
       auto atomMapNum = atom->getAtomMapNum();
       if (atomMapNum) {
         --atomMapNum;
@@ -94,6 +109,7 @@ struct RGroupMatch {
         atom->setAtomMapNum(storedAtomMapNums.at(atomMapNum));
       }
     }
+    // update atom and bond indices after removing Hs
     for (const auto &pair : rgroups) {
       auto &combinedMol = pair.second->combinedMol;
       std::vector<int> atomIndices;
@@ -122,7 +138,7 @@ struct RGroupMatch {
               const auto newEndAtomIdx = oldToNewAtomIndices.at(oldPair.second);
               CHECK_INVARIANT(newBeginAtomIdx != -1 && newEndAtomIdx != -1,
                               "newBeginAtomIdx and newEndAtomIdx must be >=0");
-              const auto bond = inputMolForHighlights->getBondBetweenAtoms(
+              const auto bond = targetMolForHighlights->getBondBetweenAtoms(
                   newBeginAtomIdx, newEndAtomIdx);
               CHECK_INVARIANT(bond, "bond must not be null");
               return bond->getIdx();
@@ -130,13 +146,13 @@ struct RGroupMatch {
       }
       combinedMol->setProp(common_properties::_rgroupTargetBonds, bondIndices);
     }
-    inputMolWasTrimmed = true;
-    return inputMolForHighlights;
+    targetMolWasTrimmed = true;
+    return targetMolForHighlights;
   }
 
  private:
-  bool inputMolWasTrimmed = false;
-  RWMOL_SPTR inputMolForHighlights;
+  bool targetMolWasTrimmed = false;
+  RWMOL_SPTR targetMolForHighlights;
 };
 
 }  // namespace RDKit

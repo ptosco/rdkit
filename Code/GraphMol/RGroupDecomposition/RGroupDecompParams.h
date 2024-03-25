@@ -89,8 +89,7 @@ struct RDKIT_RGROUPDECOMPOSITION_EXPORT RGroupDecompositionParameters {
   //! coincide with R groups in the core) into RGD results,
   //! and set _rgroupTargetAtoms and _rgroupTargetBonds properties
   //! on R groups and core as vectors of target atom and bond indices
-  //! to enable highlighting for  SAR analysis
-  //! (see
+  //! to enable highlighting for SAR analysis (see
   //! https://greglandrum.github.io/rdkit-blog/posts/2021-08-07-rgd-and-highlighting.html)
   bool includeTargetMolInResults = false;
 
