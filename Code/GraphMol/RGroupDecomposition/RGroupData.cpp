@@ -17,8 +17,16 @@
 
 namespace RDKit {
 
-void RGroupData::updateAtomBondHighlights(ROMOL_SPTR mol) {
-  CHECK_INVARIANT(mol && combinedMol, "mol and combinedMol must not be null");
+void RGroupData::mergeIntoCombinedMol(const ROMOL_SPTR &mol) {
+  CHECK_INVARIANT(mol, "mol must not be null");
+  if (!combinedMol) {
+    combinedMol = RWMOL_SPTR(new RWMol(*mol));
+  } else {
+    combinedMol.reset(static_cast<RWMol *>(combineMols(*combinedMol, *mol)));
+    single_fragment = false;
+  }
+  smiles = getSmiles();
+  combinedMol->setProp(common_properties::internalRgroupSmiles, smiles);
   std::vector<int> incomingAtomIndices;
   std::vector<int> incomingBondIndices;
   mol->getPropIfPresent(common_properties::_rgroupTargetAtoms,
@@ -94,15 +102,7 @@ void RGroupData::add(const ROMOL_SPTR &newMol,
   // MCS alignment is not used (NoAlign flag)
   smilesVect.push_back(std::regex_replace(MolToSmiles(*newMol, true),
                                           remove_isotopes_regex, "*"));
-  if (!combinedMol) {
-    combinedMol = RWMOL_SPTR(new RWMol(*newMol));
-  } else {
-    combinedMol.reset(static_cast<RWMol *>(combineMols(*combinedMol, *newMol)));
-    single_fragment = false;
-  }
-  updateAtomBondHighlights(newMol);
-  smiles = getSmiles();
-  combinedMol->setProp(common_properties::internalRgroupSmiles, smiles);
+  mergeIntoCombinedMol(newMol);
   computeIsHydrogen();
   is_linker = single_fragment && attachments.size() > 1;
 }

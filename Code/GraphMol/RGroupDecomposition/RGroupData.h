@@ -54,7 +54,8 @@ struct RDKIT_RGROUPDECOMPOSITION_EXPORT RGroupData {
   //! compute the canonical smiles for the attachments (bug: removes dupes since
   //! we are using a set...)
   std::string getSmiles() const;
-  void updateAtomBondHighlights(ROMOL_SPTR mol);
+  //! merge mol into combinedMol, including atom and bond highlights if present
+  void mergeIntoCombinedMol(const ROMOL_SPTR &mol);
   std::map<int, std::vector<int>> rlabelAtomIndicesMap;
   std::map<int, std::vector<int>> rlabelBondIndicesMap;
 };

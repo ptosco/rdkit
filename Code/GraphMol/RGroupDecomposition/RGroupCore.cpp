@@ -167,7 +167,7 @@ RWMOL_SPTR RCore::extractCoreFromMolMatch(
           newBonds.push_back(connectingBond);
 
           // Check to see if we are breaking a stereo bond definition, by
-          // removing one of the stereo atoms If so, set to the new atom
+          // removing one of the stereo atoms. If so, set to the new atom
           for (auto bond : extractedCore->atomBonds(targetAtom)) {
             if (bond->getIdx() == connectingBond->getIdx()) {
               continue;
