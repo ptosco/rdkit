@@ -18,6 +18,8 @@
 </head>
 <script src="./RDKit_minimal.js"></script>
 <script>
+  const urlParams = new URLSearchParams(document.location.search);
+  const useSvg = (urlParams.get('output') || '').toLowerCase() === 'svg';
   const NAME = '_Name';
   const useCoordGen = true;
   const generateStructureDiv = (row, core, {
@@ -72,15 +74,24 @@
         useCoordGen,
         allowRGroups: true,
     }));
-    const svg = mol.get_svg_with_highlights(JSON.stringify({
+    const details = {
       width,
       height,
       highlightAtomMultipleColors,
       highlightBondMultipleColors,
       highlightAtomRadii,
       highlightLineWidthMultipliers,
-    }));
-    div.innerHTML = svg;
+    };
+    if (useSvg) {
+      const svg = mol.get_svg_with_highlights(JSON.stringify(details));
+      div.innerHTML = svg;
+    } else {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      mol.draw_to_canvas_with_highlights(canvas, JSON.stringify(details));
+      div.appendChild(canvas);
+    }
     const legendtext = mol.has_prop(NAME) ? mol.get_prop(NAME) : '';
     const legend = document.createTextNode(legendtext);
     div.appendChild(legend);
@@ -99,10 +110,10 @@
         tr = document.createElement('tr');
         tbody.appendChild(tr);
       }
-      td = document.createElement('td');
+      const td = document.createElement('td');
       td.style = 'text-align: center;';
       tr.appendChild(td);
-      div = generateStructureDiv(row, core, opts);
+      const div = generateStructureDiv(row, core, opts);
       td.appendChild(div);
     });
     return table;
@@ -110,7 +121,6 @@
 
   const displayRgdTable = (RDKitModule) => {
     console.log('version: ' + RDKitModule.version());
-    let core;
     const smiArray = [
       ['Cc1ccc2c(c3ccnc(Nc4cccc(c4)C(F)(F)F)n3)c(nn2n1)c5ccc(F)cc5', 'CHEMBL182493'],
       ['Cc1ccc2c(c3ccnc(Nc4ccc(F)c(F)c4)n3)c(nn2n1)c5ccc(F)cc5', 'CHEMBL182326'],
@@ -130,6 +140,7 @@
       ['Cc1ccc2c(c3ccnc(Nc4ccc5OCCOc5c4)n3)c(nn2n1)c6cccc(c6)C(F)(F)F', 'CHEMBL189617'],
     ];
     const LABELS = ['R1', 'R2', 'R3', 'R4'];
+    let core;
     let mols;
     let rgd;
     try {
