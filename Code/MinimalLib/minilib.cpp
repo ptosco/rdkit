@@ -84,9 +84,33 @@ std::string mappingToJsonArray(const ROMol &mol) {
 }  // end of anonymous namespace
 
 std::string JSMolBase::get_smiles() const { return MolToSmiles(get()); }
+std::string JSMolBase::get_smiles(const std::string &details) const {
+  SmilesWriteParams params;
+  updateSmilesWriteParamsFromJSON(params, details);
+  return MolToSmiles(get(), params);
+}
 std::string JSMolBase::get_cxsmiles() const { return MolToCXSmiles(get()); }
+std::string JSMolBase::get_cxsmiles(const std::string &details) const {
+  SmilesWriteParams params;
+  updateSmilesWriteParamsFromJSON(params, details);
+  SmilesWrite::CXSmilesFields cxSmilesFields =
+      SmilesWrite::CXSmilesFields::CX_ALL;
+  RestoreBondDirOption restoreBondDirs = RestoreBondDirOptionClear;
+  updateCXSmilesFieldsFromJSON(cxSmilesFields, restoreBondDirs, details);
+  return MolToCXSmiles(get(), params, cxSmilesFields, restoreBondDirs);
+}
 std::string JSMolBase::get_smarts() const { return MolToSmarts(get()); }
+std::string JSMolBase::get_smarts(const std::string &details) const {
+  SmilesWriteParams params;
+  updateSmilesWriteParamsFromJSON(params, details);
+  return MolToSmarts(get(), params.doIsomericSmiles, params.rootedAtAtom);
+}
 std::string JSMolBase::get_cxsmarts() const { return MolToCXSmarts(get()); }
+std::string JSMolBase::get_cxsmarts(const std::string &details) const {
+  SmilesWriteParams params;
+  updateSmilesWriteParamsFromJSON(params, details);
+  return MolToCXSmarts(get(), params.doIsomericSmiles);
+}
 std::string JSMolBase::get_svg(int w, int h) const {
   return MinimalLib::mol_to_svg(get(), w, h);
 }
