@@ -11,7 +11,8 @@ GitHub)
 
 ## Backwards incompatible changes
 - The SMARTS for the unbranched alkanes in the fragment descriptors has been corrected. This descriptor will now frequently return different results.
-
+- The SimilarityMap functions GetSimilarityMapFromWeights(), GetSimilarityMapForFingerprint(), and GetSimilarityMapForModel() all now require an rdMolDraw2D drawing object to be passed in.
+- A bug fix in v2 of the tautomer and protomer hashes can lead to different results for these hashes. One less bond is now included in the tautomeric zone for systems like enamines/imines, so the v2 tautomer hash of the molecules CN=CC and CNC=C is now [C]:[C]:[N]-[CH3]_4_0 instead of [C]:[C]:[N]:[C]_7_0
 
 ## New Features and Enhancements:
 
@@ -20,6 +21,7 @@ GitHub)
 ## Cleanup work:
  
 ## Code removed in this release:
+- The legacy Python code for drawing molecules was removed in this release. This includes the following modules in rdkit.Chem.Draw: aggCanvas, cairoCanvas, canvasbase, MolDrawing, mplCanvas, qtCanvas, spingCanvas; the functions Draw.MolToImageFile(), Draw.MolToMPL(), and Draw.MolToQPixmap(); the "canvas" argument to the function Draw.MolToImage(); and calling Draw.MolToFile() with imageTypes other than PNG or SVG, 
 
 ## Deprecated code (to be removed in a future release):
 

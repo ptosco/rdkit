@@ -477,8 +477,16 @@ std::optional<Atom::ChiralType> atomChiralTypeFromBondDirPseudo3D(
   auto centerLoc = conf->getAtomPos(atom->getIdx());
   centerLoc.z = 0.0;
   auto refPt = conf->getAtomPos(bondAtom->getIdx());
+
+  // Github #7305: in some odd cases, we get conformers with
+  // weird scalings. In these, we need to scale the 3d offset
+  // or it might be irrelevant or dominate over the coordinates.
+  auto refLength = (centerLoc - refPt).length();
   refPt.z =
       bondDir == Bond::BondDir::BEGINWEDGE ? pseudo3DOffset : -pseudo3DOffset;
+  if (refLength) {
+    refPt.z *= refLength;
+  }
 
   //----------------------------------------------------------
   //
@@ -512,9 +520,14 @@ std::optional<Atom::ChiralType> atomChiralTypeFromBondDirPseudo3D(
       if (nbrBond->getBeginAtomIdx() == atom->getIdx() &&
           (nbrBond->getBondDir() == Bond::BondDir::BEGINWEDGE ||
            nbrBond->getBondDir() == Bond::BondDir::BEGINDASH)) {
+        // scale the 3d offset based on the reference bond here too
         tmpPt.z = nbrBond->getBondDir() == Bond::BondDir::BEGINWEDGE
                       ? pseudo3DOffset
                       : -pseudo3DOffset;
+        if (refLength) {
+          tmpPt.z *= refLength;
+        }
+
       } else {
         tmpPt.z = 0;
       }
@@ -1599,9 +1612,13 @@ std::pair<bool, bool> isAtomPotentialChiralCenter(
           // three-coordinate N additional requirements:
           //   in a ring of size 3  (from InChI)
           // OR
-          /// is a bridgehead atom (RDKit extension)
-          if (mol.getRingInfo()->isAtomInRingOfSize(atom->getIdx(), 3) ||
-              queryIsAtomBridgehead(atom)) {
+          //   is a bridgehead atom (RDKit extension)
+          // Also: cannot be SP2 hybridized or have a conjugated bond
+          //   (this was Github #7434)
+          if (atom->getHybridization() == Atom::HybridizationType::SP3 &&
+              !MolOps::atomHasConjugatedBond(atom) &&
+              (mol.getRingInfo()->isAtomInRingOfSize(atom->getIdx(), 3) ||
+               queryIsAtomBridgehead(atom))) {
             legalCenter = true;
           }
         } else if (atom->getAtomicNum() == 15 || atom->getAtomicNum() == 33) {
@@ -3720,4 +3737,42 @@ void removeStereochemistry(ROMol &mol) {
 }
 
 }  // namespace MolOps
+
+namespace Chirality {
+
+void simplifyEnhancedStereo(ROMol &mol, bool removeAffectedStereoGroups) {
+  auto sgs = mol.getStereoGroups();
+  if (sgs.size() == 1) {
+    boost::dynamic_bitset<> chiralAts(mol.getNumAtoms());
+    for (const auto atom : mol.atoms()) {
+      if (atom->getChiralTag() > Atom::ChiralType::CHI_UNSPECIFIED &&
+          atom->getChiralTag() < Atom::ChiralType::CHI_OTHER) {
+        chiralAts.set(atom->getIdx(), 1);
+      }
+    }
+    for (const auto atm : sgs[0].getAtoms()) {
+      chiralAts.set(atm->getIdx(), 0);
+    }
+    if (chiralAts.none()) {
+      // all specified chiral centers are accounted for by this StereoGroup.
+      if (sgs[0].getGroupType() == StereoGroupType::STEREO_OR ||
+          sgs[0].getGroupType() == StereoGroupType::STEREO_AND) {
+        if (removeAffectedStereoGroups) {
+          std::vector<StereoGroup> empty;
+          mol.setStereoGroups(std::move(empty));
+        }
+        std::string label = sgs[0].getGroupType() == StereoGroupType::STEREO_OR
+                                ? "OR enantiomer"
+                                : "AND enantiomer";
+        mol.setProp(common_properties::molNote, label);
+        // clear the chiral codes on the atoms in the group
+        for (const auto atm : sgs[0].getAtoms()) {
+          mol.getAtomWithIdx(atm->getIdx())
+              ->clearProp(common_properties::_CIPCode);
+        }
+      }
+    }
+  }
+}
+}  // namespace Chirality
 }  // namespace RDKit
