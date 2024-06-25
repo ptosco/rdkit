@@ -2286,7 +2286,7 @@ TEST_CASE("getBondTypeAsDouble()") {
         {Bond::BondType::FIVEANDAHALF, 5.5},
         {Bond::BondType::AROMATIC, 1.5},
         {Bond::BondType::DATIVEONE, 1.0},
-        {Bond::BondType::DATIVE, 1.0},
+        {Bond::BondType::DATIVE, 2.0},
         {Bond::BondType::HYDROGEN, 0}
 
     };
@@ -2305,7 +2305,7 @@ TEST_CASE("getBondTypeAsDouble()") {
         {Bond::BondType::ONEANDAHALF, 3},   {Bond::BondType::TWOANDAHALF, 5},
         {Bond::BondType::THREEANDAHALF, 7}, {Bond::BondType::FOURANDAHALF, 9},
         {Bond::BondType::FIVEANDAHALF, 11}, {Bond::BondType::AROMATIC, 3},
-        {Bond::BondType::DATIVEONE, 2},     {Bond::BondType::DATIVE, 2},
+        {Bond::BondType::DATIVEONE, 2},     {Bond::BondType::DATIVE, 4},
         {Bond::BondType::HYDROGEN, 0}
 
     };
@@ -2322,7 +2322,7 @@ TEST_CASE("getValenceContrib()") {
   REQUIRE(m);
   CHECK(m->getBondWithIdx(1)->getValenceContrib(m->getAtomWithIdx(0)) == 0);
   CHECK(m->getBondWithIdx(1)->getValenceContrib(m->getAtomWithIdx(1)) == 0);
-  CHECK(m->getBondWithIdx(1)->getValenceContrib(m->getAtomWithIdx(2)) == 1);
+  CHECK(m->getBondWithIdx(1)->getValenceContrib(m->getAtomWithIdx(2)) == 0);
 }
 
 TEST_CASE("conformer details") {
@@ -3537,7 +3537,7 @@ $$$$
   SECTION("replace with a dative bond") {
     m->replaceBond(1, new Bond(Bond::BondType::DATIVE));
     m->updatePropertyCache(strict_valences);
-    CHECK(begin_atom->getNumExplicitHs() == 1);
+    CHECK(begin_atom->getNumExplicitHs() == 0);
     CHECK(begin_atom->getTotalValence() == 4);
     CHECK(end_atom->getNumExplicitHs() == 0);
     CHECK(end_atom->getTotalValence() == 4);
@@ -4111,6 +4111,57 @@ TEST_CASE("Hybridization of dative bonded atoms") {
     for (unsigned int i = 0; i < m->getNumAtoms(); ++i) {
       CHECK(m->getAtomWithIdx(i)->getHybridization() == ref_hybridizations[i]);
     }
+  }
+}
+
+TEST_CASE("Dative bonds to metals should not give rise to radicals") {
+  for (const auto &metal : {"Li", "Na", "K", "Mg", "Be", "Ca", "Zn"}) {
+    std::stringstream smi;
+    smi << "[" << metal << "]";
+    std::unique_ptr<RWMol> metalMol(SmilesToMol(smi.str()));
+    REQUIRE(metalMol);
+    auto defaultValence = PeriodicTable::getTable()->getDefaultValence(
+        metalMol->getAtomWithIdx(0)->getAtomicNum());
+    std::string valenceFiller;
+    if (defaultValence > 0) {
+      for (unsigned int i = 0; i < defaultValence - 1; ++i) {
+        valenceFiller += "(Cl)";
+      }
+    }
+    for (unsigned int i = 0; i < 10; ++i) {
+      std::string diethylether;
+      for (unsigned int j = 0; j < i; ++j) {
+        diethylether += "(<-O(CC)CC)";
+      }
+      std::stringstream grignardSmi;
+      grignardSmi << "[" << metal << "]" << diethylether << valenceFiller
+                  << "C";
+      std::unique_ptr<RWMol> grignardMol(
+          SmilesToMol(grignardSmi.str(), 0, false));
+      REQUIRE(grignardMol);
+      unsigned int failedOp;
+      MolOps::sanitizeMol(*grignardMol, failedOp,
+                          MolOps::SANITIZE_FINDRADICALS);
+      CHECK(grignardMol->getAtomWithIdx(0)->getNumRadicalElectrons() == 0);
+    }
+  }
+}
+
+TEST_CASE(
+    "Nitro group and N-oxide should bear neither a radical nor a hydrogen") {
+  for (const auto &smi : {
+           "CN(=O)->O",
+           "CN(=O)->[O]",
+           "c1ccccn1->O",
+           "c1ccccn1->[O]",
+           "CN(C)(C)->O",
+           "CN(C)(C)->[O]",
+       }) {
+    std::unique_ptr<RWMol> m(SmilesToMol(smi));
+    REQUIRE(m);
+    auto oxygen = m->getAtomWithIdx(m->getNumAtoms() - 1);
+    CHECK(oxygen->getNumRadicalElectrons() == 0);
+    CHECK(oxygen->getTotalNumHs() == 0);
   }
 }
 

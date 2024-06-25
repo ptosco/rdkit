@@ -2367,8 +2367,11 @@ TEST_CASE("Github #5683: SMARTS bond ordering should be the same as SMILES") {
 }
 
 TEST_CASE("SMARTS for molecule with zero order bond should match itself") {
-  auto m = "CN(<-[Li+])C"_smiles;
-  m->getBondBetweenAtoms(1, 2)->setBondType(Bond::BondType::ZERO);
+  auto m = "CN(->[Li+])C"_smiles;
+  REQUIRE(m);
+  auto bond = m->getBondBetweenAtoms(1, 2);
+  CHECK(bond);
+  bond->setBondType(Bond::BondType::ZERO);
   const auto sma = MolToSmarts(*m);
   std::unique_ptr<ROMol> q{SmartsToMol(sma)};
   SubstructMatchParameters ps;

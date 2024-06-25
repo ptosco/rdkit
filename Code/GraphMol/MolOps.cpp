@@ -398,13 +398,18 @@ void assignRadicals(RWMol &mol) {
     int nOuter =
         PeriodicTable::getTable()->getNouterElecs(atom->getAtomicNum());
     if (valens.size() != 1 || valens[0] != -1) {
-      double accum = 0.0;
-      RWMol::OEDGE_ITER beg, end;
-      boost::tie(beg, end) = mol.getAtomBonds(atom);
-      while (beg != end) {
-        accum += mol[*beg]->getValenceContrib(atom);
-        ++beg;
-      }
+      auto atomBonds = mol.atomBonds(atom);
+      double accum =
+          std::accumulate(atomBonds.begin(), atomBonds.end(), 0.0,
+                          [atom, &valens](double acc, const auto &bond) {
+                            // if (!((bond->getBondType() == Bond::DATIVEONE ||
+                            // bond->getBondType() == Bond::DATIVE)
+                            //   && bond->getEndAtom() == atom &&
+                            //   (valens.empty() || valens.back() == -1))) {
+                            acc += bond->getValenceContrib(atom);
+                            //}
+                            return acc;
+                          });
       accum += atom->getNumExplicitHs();
       int totalValence = static_cast<int>(accum + 0.1);
       int baseCount = 8;
@@ -1250,7 +1255,7 @@ void expandAttachmentPoints(RWMol &mol, bool addAsQueries, bool addCoords) {
       if (tgtVals.empty()) {
         BOOST_LOG(rdWarningLog)
             << "Invalid value for molAttachPoint: " << value << " on atom "
-            << atom->getIdx() << ". Not expanding this atttachment point."
+            << atom->getIdx() << ". Not expanding this attachment point."
             << std::endl;
         continue;
       }

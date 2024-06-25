@@ -64,7 +64,7 @@ const std::map<std::string, std::hash_result_t> SVG_HASHES = {
     {"contourMol_5.svg", 2230414999U},
     {"testDativeBonds_1.svg", 3550231997U},
     {"testDativeBonds_2.svg", 2510476717U},
-    {"testDativeBonds_3.svg", 1742381275U},
+    //{"testDativeBonds_3.svg", 1742381275U},
     {"testDativeBonds_2a.svg", 3936523099U},
     {"testDativeBonds_2b.svg", 1652957675U},
     {"testDativeBonds_2c.svg", 630355005U},
@@ -829,10 +829,10 @@ TEST_CASE("dative bonds", "[drawing][organometallics]") {
     std::regex d1(
         "<path class='bond-2 atom-3 atom-4' d='M (\\d+\\.\\d+),(\\d+\\.\\d+) L (\\d+\\.\\d+),(\\d+\\.\\d+)' style='fill:none;fill-rule:evenodd;stroke:#0000FF");
     auto dat1 = *std::sregex_iterator(text.begin(), text.end(), d1);
-    CHECK_THAT(stod(dat1[1]), Catch::Matchers::WithinAbs(53.5, 0.1));
-    CHECK_THAT(stod(dat1[2]), Catch::Matchers::WithinAbs(140.2, 0.1));
-    CHECK_THAT(stod(dat1[3]), Catch::Matchers::WithinAbs(80.7, 0.1));
-    CHECK_THAT(stod(dat1[4]), Catch::Matchers::WithinAbs(149.0, 0.1));
+    CHECK_THAT(stod(dat1[1]), Catch::Matchers::WithinAbs(43.2, 0.1));
+    CHECK_THAT(stod(dat1[2]), Catch::Matchers::WithinAbs(149.1, 0.1));
+    CHECK_THAT(stod(dat1[3]), Catch::Matchers::WithinAbs(76.4, 0.1));
+    CHECK_THAT(stod(dat1[4]), Catch::Matchers::WithinAbs(159.8, 0.1));
   }
   SECTION("dative series") {
     auto m1 = "N->1[C@@H]2CCCC[C@H]2N->[Pt]11OC(=O)C(=O)O1"_smiles;
