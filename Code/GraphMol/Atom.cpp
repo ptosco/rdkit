@@ -339,7 +339,13 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
   // approximately
   double accum = 0;
   for (const auto bnd : atom.getOwningMol().atomBonds(&atom)) {
-    accum += bnd->getValenceContrib(&atom);
+    //auto numElec = bnd->getNumValenceElectronsPerAtom();
+    auto numElec = bnd->getValenceContrib(&atom);
+    std::cerr << "1) calculateExplicitValence contrib from bond between self (" << atom.getIdx() << ") "
+      << " and other (" << bnd->getOtherAtom(&atom)->getIdx() << "), numElec " << numElec << std::endl;
+    if (atom.getIdx() == bnd->getEndAtomIdx()) {
+      accum += fabs(numElec);
+    }
   }
   accum += atom.getNumExplicitHs();
 
@@ -402,19 +408,23 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
   accum += 0.1;
 
   auto res = static_cast<int>(std::round(accum));
-
   if (strict || checkIt) {
     int maxValence = valens.back();
     int offset = 0;
     // we have to include a special case here for negatively charged P, S, As,
     // and Se, which all support "hypervalent" forms, but which can be
     // isoelectronic to Cl/Ar or Br/Kr, which do not support hypervalent forms.
+    std::cerr << "2) calculateExplicitValence effectiveAtomicNum " << effectiveAtomicNum << ", maxValence " << maxValence << ", offset " << offset << std::endl;
     if (canBeHypervalent(atom, effectiveAtomicNum)) {
       maxValence = ovalens.back();
       offset -= atom.getFormalCharge();
+      std::cerr << "3) calculateExplicitValence effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
+        << maxValence << ", offset " << offset << ", ovalens.back() " << ovalens.back() << std::endl;
     }
     // maxValence == -1 signifies that we'll take anything at the high end
     if (maxValence > 0 && ovalens.back() > 0 && (res + offset) > maxValence) {
+      std::cerr << "4) calculateExplicitValence effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
+        << maxValence << ", offset " << offset << ", ovalens.back() " << ovalens.back() << std::endl;
       // the explicit valence is greater than any
       // allowed valence for the atoms
 

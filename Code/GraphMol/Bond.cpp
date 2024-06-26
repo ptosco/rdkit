@@ -172,8 +172,8 @@ double Bond::getBondTypeAsDouble() const {
       res = 1.0;
       break;  // FIX: this should probably be different
     case DATIVE:
-      res = 2.0;
-      break;
+      res = 1.0;
+      break;  // FIX: again probably wrong
     case HYDROGEN:
       res = 0.0;
       break;
@@ -183,22 +183,32 @@ double Bond::getBondTypeAsDouble() const {
   return res;
 }
 
+double Bond::getNumValenceElectronsPerAtom() const {
+  double res;
+  switch (getBondType()) {
+    case DATIVEONE:
+      res = -1.0;
+      break;
+    case DATIVE:
+      res = -2.0;
+      break;
+    default:
+      res = getBondTypeAsDouble();
+  }
+  return res;
+}
+
 double Bond::getValenceContrib(const Atom *atom) const {
-  double res = 0.0;
   if (atom != getBeginAtom() && atom != getEndAtom()) {
-    return res;
+    return 0.0;
   }
-  if (getBondType() == DATIVE || getBondType() == DATIVEONE) {
-    if (atom->getIdx() != getEndAtomIdx()) {
-      return res;
-    }
-    const auto &valens =
-        PeriodicTable::getTable()->getValenceList(atom->getAtomicNum());
-    if (!valens.empty() && valens.back() == -1) {
-      return res;
-    }
+  double res;
+  if ((getBondType() == DATIVE || getBondType() == DATIVEONE) &&
+      atom->getIdx() != getEndAtomIdx()) {
+    res = 0.0;
+  } else {
+    res = getBondTypeAsDouble();
   }
-  res = getBondTypeAsDouble();
 
   return res;
 }
@@ -304,10 +314,10 @@ uint8_t getTwiceBondType(const Bond &b) {
       return 3;
       break;
     case Bond::DATIVEONE:
-      return 2;
+      return 1;
       break;  // FIX: this should probably be different
     case Bond::DATIVE:
-      return 4;
+      return 1;
       break;  // FIX: again probably wrong
     case Bond::HYDROGEN:
       return 0;

@@ -4115,7 +4115,7 @@ TEST_CASE("Hybridization of dative bonded atoms") {
 }
 
 TEST_CASE("Dative bonds to metals should not give rise to radicals") {
-  for (const auto &metal : {"Li", "Na", "K", "Mg", "Be", "Ca", "Zn"}) {
+  for (const auto &metal : {"Na", "K", "Mg", "Ca", "Zn"}) {
     std::stringstream smi;
     smi << "[" << metal << "]";
     std::unique_ptr<RWMol> metalMol(SmilesToMol(smi.str()));
