@@ -402,12 +402,10 @@ void assignRadicals(RWMol &mol) {
       double accum =
           std::accumulate(atomBonds.begin(), atomBonds.end(), 0.0,
                           [atom, &valens](double acc, const auto &bond) {
-                            // if (!((bond->getBondType() == Bond::DATIVEONE ||
-                            // bond->getBondType() == Bond::DATIVE)
-                            //   && bond->getEndAtom() == atom &&
-                            //   (valens.empty() || valens.back() == -1))) {
-                            acc += bond->getValenceContrib(atom);
-                            //}
+                            double numElec = bond->getNumValenceElectronsPerAtom(atom);
+                            if (numElec > 0.0 || valens.back() != -1) {
+                              acc += fabs(numElec);
+                            }
                             return acc;
                           });
       accum += atom->getNumExplicitHs();
@@ -422,8 +420,6 @@ void assignRadicals(RWMol &mol) {
       if (numRadicals < 0) {
         numRadicals = 0;
         // can the atom be "hypervalent"?  (was github #447)
-        const INT_VECT &valens =
-            PeriodicTable::getTable()->getValenceList(atom->getAtomicNum());
         if (valens.size() > 1) {
           for (auto val : valens) {
             if (val - totalValence + chg >= 0) {

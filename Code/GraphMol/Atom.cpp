@@ -337,15 +337,20 @@ bool canBeHypervalent(const Atom &atom, unsigned int effectiveAtomicNum) {
 int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
   // FIX: contributions of bonds to valence are being done at best
   // approximately
-  double accum = 0;
+  double accum = 0.0;
+  double numDonatedElectrons = 0.0;
   for (const auto bnd : atom.getOwningMol().atomBonds(&atom)) {
-    //auto numElec = bnd->getNumValenceElectronsPerAtom();
-    auto numElec = bnd->getValenceContrib(&atom);
-    std::cerr << "1) calculateExplicitValence contrib from bond between self (" << atom.getIdx() << ") "
-      << " and other (" << bnd->getOtherAtom(&atom)->getIdx() << "), numElec " << numElec << std::endl;
-    if (atom.getIdx() == bnd->getEndAtomIdx()) {
+    auto numElec = bnd->getNumValenceElectronsPerAtom(&atom);
+    //auto numElec = bnd->getValenceContrib(&atom);
+    /*
+    if (numElec < 0.0) {
+      numDonatedElectrons += fabs(numElec);
+    } else {
+    */
       accum += fabs(numElec);
-    }
+    //}
+    //std::cerr << "1) calculateExplicitValence atom " << atom.getIdx() << ", contrib from bond between self (" << atom.getIdx() << ") "
+    //  << " and other (" << bnd->getOtherAtom(&atom)->getIdx() << "), numElec " << bnd->getNumValenceElectronsPerAtom(&atom) << ", numElecEff " << numElec << std::endl;
   }
   accum += atom.getNumExplicitHs();
 
@@ -355,10 +360,11 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
   // with that. otherwise we will use the effective valence
   unsigned int effectiveAtomicNum = atom.getAtomicNum();
   if (ovalens.size() > 1 || ovalens[0] != -1) {
-    effectiveAtomicNum = getEffectiveAtomicNum(atom, checkIt);
+    effectiveAtomicNum = getEffectiveAtomicNum(atom, checkIt) + numDonatedElectrons;
   }
   unsigned int dv =
       PeriodicTable::getTable()->getDefaultValence(effectiveAtomicNum);
+  std::cerr << "1) calculateExplicitValence atom " << atom.getIdx() << ", accum " << accum << ", effectiveAtomicNum " << effectiveAtomicNum << ", dv " << dv << std::endl;
   const auto &valens =
       PeriodicTable::getTable()->getValenceList(effectiveAtomicNum);
   if (accum > dv && isAromaticAtom(atom)) {
@@ -414,16 +420,16 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
     // we have to include a special case here for negatively charged P, S, As,
     // and Se, which all support "hypervalent" forms, but which can be
     // isoelectronic to Cl/Ar or Br/Kr, which do not support hypervalent forms.
-    std::cerr << "2) calculateExplicitValence effectiveAtomicNum " << effectiveAtomicNum << ", maxValence " << maxValence << ", offset " << offset << std::endl;
+    std::cerr << "2) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence " << maxValence << ", offset " << offset << ", res " << res << std::endl;
     if (canBeHypervalent(atom, effectiveAtomicNum)) {
       maxValence = ovalens.back();
       offset -= atom.getFormalCharge();
-      std::cerr << "3) calculateExplicitValence effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
+      std::cerr << "3) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
         << maxValence << ", offset " << offset << ", ovalens.back() " << ovalens.back() << std::endl;
     }
     // maxValence == -1 signifies that we'll take anything at the high end
     if (maxValence > 0 && ovalens.back() > 0 && (res + offset) > maxValence) {
-      std::cerr << "4) calculateExplicitValence effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
+      std::cerr << "4) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
         << maxValence << ", offset " << offset << ", ovalens.back() " << ovalens.back() << std::endl;
       // the explicit valence is greater than any
       // allowed valence for the atoms
@@ -434,7 +440,7 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
         errout << "Explicit valence for atom # " << atom.getIdx() << " "
                << PeriodicTable::getTable()->getElementSymbol(
                       atom.getAtomicNum())
-               << ", " << res << ", is greater than permitted";
+               << ", " << res + offset << ", is greater than permitted";
         std::string msg = errout.str();
         BOOST_LOG(rdErrorLog) << msg << std::endl;
         throw AtomValenceException(msg, atom.getIdx());
@@ -443,6 +449,7 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
       }
     }
   }
+  std::cerr << "5) calculateExplicitValence atom " << atom.getIdx() << ", res " << res << std::endl;
   return res;
 }
 

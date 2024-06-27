@@ -183,8 +183,11 @@ double Bond::getBondTypeAsDouble() const {
   return res;
 }
 
-double Bond::getNumValenceElectronsPerAtom() const {
-  double res;
+double Bond::getNumValenceElectronsPerAtom(const Atom *atom) const {
+  double res = 0.0;
+  if (atom != getBeginAtom() && atom != getEndAtom()) {
+    return res;
+  }
   switch (getBondType()) {
     case DATIVEONE:
       res = -1.0;
@@ -194,6 +197,9 @@ double Bond::getNumValenceElectronsPerAtom() const {
       break;
     default:
       res = getBondTypeAsDouble();
+  }
+  if (res < 0 && atom->getIdx() != getEndAtomIdx()) {
+    res = 0.0;
   }
   return res;
 }
@@ -314,10 +320,10 @@ uint8_t getTwiceBondType(const Bond &b) {
       return 3;
       break;
     case Bond::DATIVEONE:
-      return 1;
+      return 2;
       break;  // FIX: this should probably be different
     case Bond::DATIVE:
-      return 1;
+      return 2;
       break;  // FIX: again probably wrong
     case Bond::HYDROGEN:
       return 0;

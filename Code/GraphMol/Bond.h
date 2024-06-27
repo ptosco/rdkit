@@ -162,10 +162,10 @@ class RDKIT_GRAPHMOL_EXPORT Bond : public RDProps {
   //!   (e.g. SINGLE->1.0, AROMATIC->1.5, etc.)
   double getBondTypeAsDouble() const;
   //! \brief returns the number of valence electrons
-  //!   engaged by atoms at each end. If negative,
+  //!   engaged in the bond by the atom. If negative,
   //!   this is a dative bond, and electrons are donated
   //!   by the begin atom to the end atom
-  double getNumValenceElectronsPerAtom() const;
+  double getNumValenceElectronsPerAtom(const Atom *atom) const;
 
   //! returns our contribution to the explicit valence of an Atom
   /*!
