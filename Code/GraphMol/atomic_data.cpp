@@ -49,7 +49,7 @@ const double electronMass =
 //  list of allowed valences, -1 for anything
 const std::string periodicTableAtomData =
     R"DAT(0	*	0	0	0	0	0	0	0	0	-1
-1	H		1	0.31	0.33	1.2	1.008	1	1	1.007825032	1
+1	H	1	0.31	0.33	1.2	1.008	1	1	1.007825032	1
 2	He	1	0.28	0.7	1.4	4.003	2	4	4.002603254	0
 3	Li	2	1.28	1.23	2.2	6.941	1	7	7.01600455	1
 4	Be	2	0.96	0.9	1.9	9.012	2	9	9.0121822	2
