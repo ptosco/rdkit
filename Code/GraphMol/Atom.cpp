@@ -342,12 +342,10 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
   for (const auto bnd : atom.getOwningMol().atomBonds(&atom)) {
     auto numElec = bnd->getNumValenceElectronsPerAtom(&atom);
     //auto numElec = bnd->getValenceContrib(&atom);
-    /*
     if (numElec < 0.0) {
       numDonatedElectrons += fabs(numElec);
-    } else {
-    */
-      accum += fabs(numElec);
+    }// else {
+    accum += fabs(numElec);
     //}
     //std::cerr << "1) calculateExplicitValence atom " << atom.getIdx() << ", contrib from bond between self (" << atom.getIdx() << ") "
     //  << " and other (" << bnd->getOtherAtom(&atom)->getIdx() << "), numElec " << bnd->getNumValenceElectronsPerAtom(&atom) << ", numElecEff " << numElec << std::endl;
@@ -360,7 +358,7 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
   // with that. otherwise we will use the effective valence
   unsigned int effectiveAtomicNum = atom.getAtomicNum();
   if (ovalens.size() > 1 || ovalens[0] != -1) {
-    effectiveAtomicNum = getEffectiveAtomicNum(atom, checkIt) + numDonatedElectrons;
+    effectiveAtomicNum = getEffectiveAtomicNum(atom, checkIt);
   }
   unsigned int dv =
       PeriodicTable::getTable()->getDefaultValence(effectiveAtomicNum);
@@ -421,7 +419,8 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
     // and Se, which all support "hypervalent" forms, but which can be
     // isoelectronic to Cl/Ar or Br/Kr, which do not support hypervalent forms.
     std::cerr << "2) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence " << maxValence << ", offset " << offset << ", res " << res << std::endl;
-    if (canBeHypervalent(atom, effectiveAtomicNum)) {
+    //if (canBeHypervalent(atom, effectiveAtomicNum)) {
+    if (1) {
       maxValence = ovalens.back();
       offset -= atom.getFormalCharge();
       std::cerr << "3) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
