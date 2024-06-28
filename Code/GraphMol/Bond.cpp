@@ -198,9 +198,6 @@ double Bond::getNumValenceElectronsPerAtom(const Atom *atom) const {
     default:
       res = getBondTypeAsDouble();
   }
-  if (res < 0 && atom->getIdx() != getEndAtomIdx()) {
-    res = -res;
-  }
   return res;
 }
 

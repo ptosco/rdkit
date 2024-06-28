@@ -211,6 +211,7 @@ void Atom::initFromOther(const Atom &other) {
   d_hybrid = other.d_hybrid;
   d_implicitValence = other.d_implicitValence;
   d_explicitValence = other.d_explicitValence;
+  d_numDonatedElectrons = other.d_numDonatedElectrons;
   if (other.dp_monomerInfo) {
     dp_monomerInfo = other.dp_monomerInfo->copy();
   } else {
@@ -243,6 +244,7 @@ void Atom::initAtom() {
 
   d_implicitValence = -1;
   d_explicitValence = -1;
+  d_numDonatedElectrons = 0;
 }
 
 Atom::~Atom() { delete dp_monomerInfo; }
@@ -325,6 +327,13 @@ unsigned int Atom::getTotalValence() const {
   return getExplicitValence() + getImplicitValence();
 }
 
+int Atom::getNumDonatedElectrons() const {
+  PRECONDITION(
+      d_explicitValence > -1,
+      "getNumDonatedElectrons() called without call to calcExplicitValence()");
+  return d_numDonatedElectrons;
+}
+
 namespace {
 
 bool canBeHypervalent(const Atom &atom, unsigned int effectiveAtomicNum) {
@@ -334,21 +343,30 @@ bool canBeHypervalent(const Atom &atom, unsigned int effectiveAtomicNum) {
           (atom.getAtomicNum() == 33 || atom.getAtomicNum() == 34));
 }
 
-int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
+int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt, int8_t *numDonatedElectrons = nullptr) {
   // FIX: contributions of bonds to valence are being done at best
   // approximately
   double accum = 0.0;
-  double numDonatedElectrons = 0.0;
+  int numDonatedElectronsLocal = 0;
   for (const auto bnd : atom.getOwningMol().atomBonds(&atom)) {
     auto numElec = bnd->getNumValenceElectronsPerAtom(&atom);
     //auto numElec = bnd->getValenceContrib(&atom);
     if (numElec < 0.0) {
-      numDonatedElectrons += fabs(numElec);
-    }// else {
-    accum += fabs(numElec);
-    //}
-    //std::cerr << "1) calculateExplicitValence atom " << atom.getIdx() << ", contrib from bond between self (" << atom.getIdx() << ") "
-    //  << " and other (" << bnd->getOtherAtom(&atom)->getIdx() << "), numElec " << bnd->getNumValenceElectronsPerAtom(&atom) << ", numElecEff " << numElec << std::endl;
+      if (atom.getIdx() == bnd->getEndAtomIdx()) {
+        numDonatedElectronsLocal += static_cast<int>(numElec);
+      } else {
+        numDonatedElectronsLocal += static_cast<int>(-numElec);
+      }
+    } else {
+      accum += numElec;
+    }
+#ifdef VALENCE_DEBUG
+    std::cerr << "1) calculateExplicitValence atom " << atom.getIdx() << ", contrib from bond between self (" << atom.getIdx() << ") "
+      << " and other (" << bnd->getOtherAtom(&atom)->getIdx() << "), numElec " << bnd->getNumValenceElectronsPerAtom(&atom) << ", numElecEff " << numElec << std::endl;
+#endif
+  }
+  if (numDonatedElectrons) {
+    *numDonatedElectrons = numDonatedElectronsLocal;
   }
   accum += atom.getNumExplicitHs();
 
@@ -362,7 +380,9 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
   }
   unsigned int dv =
       PeriodicTable::getTable()->getDefaultValence(effectiveAtomicNum);
-  std::cerr << "1) calculateExplicitValence atom " << atom.getIdx() << ", accum " << accum << ", effectiveAtomicNum " << effectiveAtomicNum << ", dv " << dv << std::endl;
+#ifdef VALENCE_DEBUG
+  std::cerr << "1) calculateExplicitValence atom " << atom.getIdx() << ", accum " << accum << ", effectiveAtomicNum " << effectiveAtomicNum << ", dv " << dv << ", numDonatedElectronsLocal " << numDonatedElectronsLocal << std::endl;
+#endif
   const auto &valens =
       PeriodicTable::getTable()->getValenceList(effectiveAtomicNum);
   if (accum > dv && isAromaticAtom(atom)) {
@@ -418,18 +438,26 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
     // we have to include a special case here for negatively charged P, S, As,
     // and Se, which all support "hypervalent" forms, but which can be
     // isoelectronic to Cl/Ar or Br/Kr, which do not support hypervalent forms.
+#ifdef VALENCE_DEBUG
     std::cerr << "2) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence " << maxValence << ", offset " << offset << ", res " << res << std::endl;
-    //if (canBeHypervalent(atom, effectiveAtomicNum)) {
-    if (1) {
+#endif
+    if (canBeHypervalent(atom, effectiveAtomicNum)) {
       maxValence = ovalens.back();
       offset -= atom.getFormalCharge();
+#ifdef VALENCE_DEBUG
       std::cerr << "3) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
         << maxValence << ", offset " << offset << ", ovalens.back() " << ovalens.back() << std::endl;
+#endif
     }
     // maxValence == -1 signifies that we'll take anything at the high end
-    if (maxValence > 0 && ovalens.back() > 0 && (res + offset) > maxValence) {
+    auto row = PeriodicTable::getTable()->getRow(effectiveAtomicNum);
+    if ((maxValence > 0 && ovalens.back() > 0 && (res + offset) > maxValence)
+      || (numDonatedElectronsLocal > 0 && numDonatedElectronsLocal + res > PeriodicTable::getTable()->getNouterElecs(effectiveAtomicNum))
+      || (numDonatedElectronsLocal <= 0 && -numDonatedElectronsLocal + res * 2 > 2 * row * row)) {
+#ifdef VALENCE_DEBUG
       std::cerr << "4) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
-        << maxValence << ", offset " << offset << ", ovalens.back() " << ovalens.back() << std::endl;
+        << maxValence << ", offset " << offset << ", numDonatedElectronsLocal " << numDonatedElectronsLocal << ", ovalens.back() " << ovalens.back() << std::endl;
+#endif
       // the explicit valence is greater than any
       // allowed valence for the atoms
 
@@ -448,7 +476,9 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
       }
     }
   }
+#ifdef VALENCE_DEBUG
   std::cerr << "5) calculateExplicitValence atom " << atom.getIdx() << ", res " << res << std::endl;
+#endif
   return res;
 }
 
@@ -458,10 +488,16 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
   if (atom.getNoImplicit()) {
     return 0;
   }
+  int8_t numDonatedElectrons;
   auto explicitValence = atom.getExplicitValence();
   if (explicitValence == -1) {
-    explicitValence = calculateExplicitValence(atom, strict, checkIt);
+    explicitValence = calculateExplicitValence(atom, strict, checkIt, &numDonatedElectrons);
+  } else {
+    numDonatedElectrons = atom.getNumDonatedElectrons();
   }
+#ifdef VALENCE_DEBUG
+  std::cerr << "1) calculateImplicitValence numDonatedElectrons " << static_cast<int>(numDonatedElectrons) << std::endl;
+#endif
   // special cases
   auto atomicNum = atom.getAtomicNum();
   if (atomicNum == 0) {
@@ -475,7 +511,7 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
 
   auto formalCharge = atom.getFormalCharge();
   auto numRadicalElectrons = atom.getNumRadicalElectrons();
-  if (explicitValence == 0 && numRadicalElectrons == 0 && atomicNum == 1) {
+  if (explicitValence == 0 && numDonatedElectrons == 0 && numRadicalElectrons == 0 && atomicNum == 1) {
     if (formalCharge == 1 || formalCharge == -1) {
       return 0;
     } else if (formalCharge == 0) {
@@ -498,6 +534,11 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
 
   int explicitPlusRadV =
       atom.getExplicitValence() + atom.getNumRadicalElectrons();
+  // if we are recipient of electrons, we do not need to fill
+  // those valences with hydrogens
+  if (numDonatedElectrons < 0) {
+    explicitPlusRadV -= numDonatedElectrons;
+  }
 
   const auto &ovalens =
       PeriodicTable::getTable()->getValenceList(atom.getAtomicNum());
@@ -621,7 +662,7 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
 
 int Atom::calcExplicitValence(bool strict) {
   bool checkIt = false;
-  d_explicitValence = calculateExplicitValence(*this, strict, checkIt);
+  d_explicitValence = calculateExplicitValence(*this, strict, checkIt, &d_numDonatedElectrons);
   return d_explicitValence;
 }
 
