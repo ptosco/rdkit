@@ -450,29 +450,31 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt, int8_t
 #endif
     }
     // maxValence == -1 signifies that we'll take anything at the high end
-    auto row = PeriodicTable::getTable()->getRow(effectiveAtomicNum);
-    if ((maxValence > 0 && ovalens.back() > 0 && (res + offset) > maxValence)
-      || (numDonatedElectronsLocal > 0 && numDonatedElectronsLocal + res > PeriodicTable::getTable()->getNouterElecs(effectiveAtomicNum))
-      || (numDonatedElectronsLocal <= 0 && -numDonatedElectronsLocal + res * 2 > 2 * row * row)) {
+    if (maxValence > 0 && ovalens.back() > 0) {
+      auto row = PeriodicTable::getTable()->getRow(effectiveAtomicNum);
+      if((res + offset) > maxValence
+        || (numDonatedElectronsLocal > 0 && numDonatedElectronsLocal + res > PeriodicTable::getTable()->getNouterElecs(effectiveAtomicNum))
+        || (numDonatedElectronsLocal <= 0 && -numDonatedElectronsLocal + res * 2 > 2 * row * row)) {
 #ifdef VALENCE_DEBUG
-      std::cerr << "4) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
-        << maxValence << ", offset " << offset << ", numDonatedElectronsLocal " << numDonatedElectronsLocal << ", ovalens.back() " << ovalens.back() << std::endl;
+        std::cerr << "4) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
+          << maxValence << ", offset " << offset << ", numDonatedElectronsLocal " << numDonatedElectronsLocal << ", ovalens.back() " << ovalens.back() << std::endl;
 #endif
-      // the explicit valence is greater than any
-      // allowed valence for the atoms
+        // the explicit valence is greater than any
+        // allowed valence for the atoms
 
-      if (strict) {
-        // raise an error
-        std::ostringstream errout;
-        errout << "Explicit valence for atom # " << atom.getIdx() << " "
-               << PeriodicTable::getTable()->getElementSymbol(
-                      atom.getAtomicNum())
-               << ", " << res + offset << ", is greater than permitted";
-        std::string msg = errout.str();
-        BOOST_LOG(rdErrorLog) << msg << std::endl;
-        throw AtomValenceException(msg, atom.getIdx());
-      } else {
-        return -1;
+        if (strict) {
+          // raise an error
+          std::ostringstream errout;
+          errout << "Explicit valence for atom # " << atom.getIdx() << " "
+                << PeriodicTable::getTable()->getElementSymbol(
+                        atom.getAtomicNum())
+                << ", " << res + offset << ", is greater than permitted";
+          std::string msg = errout.str();
+          BOOST_LOG(rdErrorLog) << msg << std::endl;
+          throw AtomValenceException(msg, atom.getIdx());
+        } else {
+          return -1;
+        }
       }
     }
   }
