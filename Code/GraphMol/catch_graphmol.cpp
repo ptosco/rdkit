@@ -2286,7 +2286,7 @@ TEST_CASE("getBondTypeAsDouble()") {
         {Bond::BondType::FIVEANDAHALF, 5.5},
         {Bond::BondType::AROMATIC, 1.5},
         {Bond::BondType::DATIVEONE, 1.0},
-        {Bond::BondType::DATIVE, 2.0},
+        {Bond::BondType::DATIVE, 1.0},
         {Bond::BondType::HYDROGEN, 0}
 
     };
@@ -2305,7 +2305,7 @@ TEST_CASE("getBondTypeAsDouble()") {
         {Bond::BondType::ONEANDAHALF, 3},   {Bond::BondType::TWOANDAHALF, 5},
         {Bond::BondType::THREEANDAHALF, 7}, {Bond::BondType::FOURANDAHALF, 9},
         {Bond::BondType::FIVEANDAHALF, 11}, {Bond::BondType::AROMATIC, 3},
-        {Bond::BondType::DATIVEONE, 2},     {Bond::BondType::DATIVE, 4},
+        {Bond::BondType::DATIVEONE, 2},     {Bond::BondType::DATIVE, 2},
         {Bond::BondType::HYDROGEN, 0}
 
     };
@@ -2322,7 +2322,7 @@ TEST_CASE("getValenceContrib()") {
   REQUIRE(m);
   CHECK(m->getBondWithIdx(1)->getValenceContrib(m->getAtomWithIdx(0)) == 0);
   CHECK(m->getBondWithIdx(1)->getValenceContrib(m->getAtomWithIdx(1)) == 0);
-  CHECK(m->getBondWithIdx(1)->getValenceContrib(m->getAtomWithIdx(2)) == 0);
+  CHECK(m->getBondWithIdx(1)->getValenceContrib(m->getAtomWithIdx(2)) == 1);
 }
 
 TEST_CASE("conformer details") {
@@ -3537,7 +3537,7 @@ $$$$
   SECTION("replace with a dative bond") {
     m->replaceBond(1, new Bond(Bond::BondType::DATIVE));
     m->updatePropertyCache(strict_valences);
-    CHECK(begin_atom->getNumExplicitHs() == 0);
+    CHECK(begin_atom->getNumExplicitHs() == 1);
     CHECK(begin_atom->getTotalValence() == 4);
     CHECK(end_atom->getNumExplicitHs() == 0);
     CHECK(end_atom->getTotalValence() == 4);
@@ -4163,6 +4163,36 @@ TEST_CASE(
     CHECK(oxygen->getNumRadicalElectrons() == 0);
     CHECK(oxygen->getTotalNumHs() == 0);
   }
+}
+
+TEST_CASE(
+    "Trimethylamine should not be allowed to form multiple dative bonds") {
+  auto smi = "N(C)(C)(C)(->O)->O";
+  std::unique_ptr<RWMol> m;
+  REQUIRE_THROWS_AS(m.reset(SmilesToMol(smi)), MolSanitizeException);
+  REQUIRE_NOTHROW(m.reset(SmilesToMol(smi, 0, false)));
+  bool expectedException = false;
+  try {
+    m->updatePropertyCache(true);
+  } catch (const AtomValenceException &e) {
+    expectedException = (std::string(e.what()).find("The number of electrons donated by atom # 0 N, 4, is greater than permitted") != std::string::npos);
+  }
+  CHECK(expectedException);
+}
+
+TEST_CASE(
+    "Oxygen should not be allowed to receive multiple dative bonds") {
+  auto smi = "N(C)(C)(C)->O<-N(C)(C)C";
+  std::unique_ptr<RWMol> m;
+  REQUIRE_THROWS_AS(m.reset(SmilesToMol(smi)), MolSanitizeException);
+  REQUIRE_NOTHROW(m.reset(SmilesToMol(smi, 0, false)));
+  bool expectedException = false;
+  try {
+    m->updatePropertyCache(true);
+  } catch (const AtomValenceException &e) {
+    expectedException = (std::string(e.what()).find("The number of electrons received by atom # 4 O, 4, is greater than permitted") != std::string::npos);
+  }
+  CHECK(expectedException);
 }
 
 TEST_CASE(

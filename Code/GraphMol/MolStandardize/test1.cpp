@@ -1524,6 +1524,15 @@ void testOrganometallics() {
     bool takeOwnership = true;
     SDMolSupplier mol_supplier(full_file, takeOwnership);
     std::unique_ptr<ROMol> m(mol_supplier.next());
+    if (!m) {
+      std::cerr << "*** FAILED to generate " << full_file << std::endl;
+    }
+  }
+  for (auto &test_file : test_files) {
+    std::string full_file = test_dir + "/" + test_file.first;
+    bool takeOwnership = true;
+    SDMolSupplier mol_supplier(full_file, takeOwnership);
+    std::unique_ptr<ROMol> m(mol_supplier.next());
     TEST_ASSERT(m);
     std::unique_ptr<ROMol> dm(MolStandardize::disconnectOrganometallics(*m));
     if (MolToSmiles(*dm) != test_file.second) {

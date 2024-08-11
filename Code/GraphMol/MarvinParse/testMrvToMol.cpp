@@ -326,6 +326,9 @@ class MrvTests {
                 ".NEW.sdf",
             outMolStr);
 
+        if (GetExpectedValue(expectedMrvName) != outMolStr) {
+          std::cerr << "expectedMrvName " << expectedMrvName << ", expected\n" << GetExpectedValue(expectedMrvName) << "\nfound\n" << outMolStr << std::endl;
+        }
         TEST_ASSERT(GetExpectedValue(expectedMrvName) == outMolStr);
       }
 

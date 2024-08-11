@@ -21,6 +21,8 @@
 #include <RDGeneral/types.h>
 #include <RDGeneral/Dict.h>
 
+//#define VALENCE_DEBUG 1
+
 namespace RDKit {
 
 bool isAromaticAtom(const Atom &atom) {
@@ -353,8 +355,13 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt, int8_t
     //auto numElec = bnd->getValenceContrib(&atom);
     if (numElec < 0.0) {
       if (atom.getIdx() == bnd->getEndAtomIdx()) {
+        // atom is receiving electrons
         numDonatedElectronsLocal += static_cast<int>(numElec);
-      } else {
+        //accum -= numElec;
+      } else if (PeriodicTable::getTable()->getValenceList(bnd->getEndAtom()->getAtomicNum()).back() != -1) {
+        // organometallic complexes like ferrocene may feature dative bonds
+        // from atoms which actually bear no lone pairs, so we should not be
+        // count the donated electrons when the receiving atom is a metal
         numDonatedElectronsLocal += static_cast<int>(-numElec);
       }
     } else {
@@ -362,7 +369,7 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt, int8_t
     }
 #ifdef VALENCE_DEBUG
     std::cerr << "1) calculateExplicitValence atom " << atom.getIdx() << ", contrib from bond between self (" << atom.getIdx() << ") "
-      << " and other (" << bnd->getOtherAtom(&atom)->getIdx() << "), numElec " << bnd->getNumValenceElectronsPerAtom(&atom) << ", numElecEff " << numElec << std::endl;
+      << " and other (" << bnd->getOtherAtom(&atom)->getIdx() << "), getNumValenceElectronsPerAtom " << bnd->getNumValenceElectronsPerAtom(&atom) << ", numElec " << numElec << std::endl;
 #endif
   }
   if (numDonatedElectrons) {
@@ -432,8 +439,8 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt, int8_t
   accum += 0.1;
 
   auto res = static_cast<int>(std::round(accum));
+  int maxValence = valens.back();
   if (strict || checkIt) {
-    int maxValence = valens.back();
     int offset = 0;
     // we have to include a special case here for negatively charged P, S, As,
     // and Se, which all support "hypervalent" forms, but which can be
@@ -451,10 +458,21 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt, int8_t
     }
     // maxValence == -1 signifies that we'll take anything at the high end
     if (maxValence > 0 && ovalens.back() > 0) {
-      auto row = PeriodicTable::getTable()->getRow(effectiveAtomicNum);
-      if((res + offset) > maxValence
-        || (numDonatedElectronsLocal > 0 && numDonatedElectronsLocal + res > PeriodicTable::getTable()->getNouterElecs(effectiveAtomicNum))
-        || (numDonatedElectronsLocal <= 0 && -numDonatedElectronsLocal + res * 2 > 2 * row * row)) {
+      bool valenceExceeded = (res + offset > maxValence);
+      bool tooManyElectronsDonated = false;
+      bool tooManyElectronsReceived = false;
+      if (!valenceExceeded) {
+        int nOuterElecs = PeriodicTable::getTable()->getNouterElecs(effectiveAtomicNum);
+        tooManyElectronsDonated = (numDonatedElectronsLocal > 0 && numDonatedElectronsLocal + res > nOuterElecs);
+        if (!tooManyElectronsDonated) {
+          int row = PeriodicTable::getTable()->getRow(effectiveAtomicNum);
+          int maxElecAllowance = 2 * row * row;
+          tooManyElectronsReceived = (numDonatedElectronsLocal <= 0 && -numDonatedElectronsLocal + nOuterElecs + res > maxElecAllowance);
+        }
+
+      }
+
+      if (valenceExceeded || tooManyElectronsDonated || tooManyElectronsReceived) {
 #ifdef VALENCE_DEBUG
         std::cerr << "4) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
           << maxValence << ", offset " << offset << ", numDonatedElectronsLocal " << numDonatedElectronsLocal << ", ovalens.back() " << ovalens.back() << std::endl;
@@ -465,10 +483,20 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt, int8_t
         if (strict) {
           // raise an error
           std::ostringstream errout;
-          errout << "Explicit valence for atom # " << atom.getIdx() << " "
-                << PeriodicTable::getTable()->getElementSymbol(
-                        atom.getAtomicNum())
-                << ", " << res + offset << ", is greater than permitted";
+          auto symbol = PeriodicTable::getTable()->getElementSymbol(atom.getAtomicNum());
+          if (valenceExceeded) {
+            errout << "Explicit valence for atom # " << atom.getIdx() << " "
+                  << symbol
+                  << ", " << res << ", is greater than permitted";
+          } else if (tooManyElectronsDonated) {
+            errout << "The number of electrons donated by atom # " << atom.getIdx() << " "
+                  << symbol
+                  << ", " << numDonatedElectronsLocal << ", is greater than permitted";
+          } else if (tooManyElectronsReceived) {
+            errout << "The number of electrons received by atom # " << atom.getIdx() << " "
+                  << symbol
+                  << ", " << -numDonatedElectronsLocal << ", is greater than permitted";
+          }
           std::string msg = errout.str();
           BOOST_LOG(rdErrorLog) << msg << std::endl;
           throw AtomValenceException(msg, atom.getIdx());
@@ -476,6 +504,13 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt, int8_t
           return -1;
         }
       }
+    }
+  }
+  if (numDonatedElectronsLocal) {
+    auto resOrig = res;
+    res += abs(numDonatedElectronsLocal);
+    if (maxValence > 0 && resOrig <= maxValence && res > maxValence) {
+      res = maxValence;
     }
   }
 #ifdef VALENCE_DEBUG
@@ -497,6 +532,7 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
   } else {
     numDonatedElectrons = atom.getNumDonatedElectrons();
   }
+  numDonatedElectrons = 0;
 #ifdef VALENCE_DEBUG
   std::cerr << "1) calculateImplicitValence numDonatedElectrons " << static_cast<int>(numDonatedElectrons) << std::endl;
 #endif

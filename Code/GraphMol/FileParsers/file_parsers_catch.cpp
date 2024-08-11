@@ -3714,7 +3714,7 @@ TEST_CASE("Handle MRV_COORDINATE_BOND_TYPE data Substance Groups") {
   SECTION(
       "Convert SDF V2000 MRV_COORDINATE_BOND_TYPE data Substance Groups "
       "into coordinate bonds") {
-    auto m = R"CTAB(
+    auto mb = R"CTAB(
   Mrv2111 06302118332D
 
   9  9  0  0  0  0            999 V2000
@@ -3750,7 +3750,11 @@ M  SDT   3 MRV_COORDINATE_BOND_TYPE
 M  SDD   3     0.0000    0.0000    DR    ALL  0       0
 M  SED   3 9
 M  END
-)CTAB"_ctab;
+)CTAB";
+    std::unique_ptr<RWMol> m;
+    REQUIRE_THROWS_AS(m.reset(MolBlockToMol(mb)), MolSanitizeException);
+    REQUIRE(!m);
+    m.reset(MolBlockToMol(mb, false));
     REQUIRE(m);
 
     std::vector<std::pair<unsigned, unsigned>> coordinate_bonds{
@@ -3772,7 +3776,7 @@ M  END
     // Same input as previous test, just shuffled the bonds and changed
     // the indexes in the SGroups
 
-    auto m1 = R"CTAB(
+    auto mb1 = R"CTAB(
   Mrv2111 06302118332D
 
   9  9  0  0  0  0            999 V2000
@@ -3808,7 +3812,12 @@ M  SDT   3 MRV_COORDINATE_BOND_TYPE
 M  SDD   3     0.0000    0.0000    DR    ALL  0       0
 M  SED   3 3
 M  END
-)CTAB"_ctab;
+)CTAB";
+    std::unique_ptr<RWMol> m1;
+    REQUIRE_THROWS_AS(m1.reset(MolBlockToMol(mb1)), MolSanitizeException);
+    REQUIRE(!m1);
+    m1.reset(MolBlockToMol(mb1, false));
+    REQUIRE(m1);
 
     // Same input, but changing the type of 2 of the bonds, and giving
     // a random value to the other SGroup to check that we fail
@@ -3849,6 +3858,7 @@ M  SDD   3     0.0000    0.0000    DR    ALL  0       0
 M  SED   3 100
 M  END
 )CTAB"_ctab;
+    REQUIRE(m2);
 
     std::vector<std::pair<unsigned, unsigned>> coordinate_bonds{
         {5, 6}, {3, 7}, {1, 8}};
