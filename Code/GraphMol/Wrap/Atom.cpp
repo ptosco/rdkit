@@ -200,6 +200,9 @@ struct atom_wrapper {
              "Returns the total valence (explicit + implicit) of the atom.\n\n")
         .def("HasValenceViolation", &Atom::hasValenceViolation,
              "Returns whether the atom has a valence violation or not.\n\n")
+        .def("GetNumDonatedElectrons", &Atom::getNumDonatedElectrons,
+             python::args("self"),
+             "Returns the number of electrons donated by this atom.\n")
 
         .def("GetFormalCharge", &Atom::getFormalCharge, python::args("self"))
         .def("SetFormalCharge", &Atom::setFormalCharge,

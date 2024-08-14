@@ -457,7 +457,7 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt, int8_t
 #endif
     }
     // maxValence == -1 signifies that we'll take anything at the high end
-    if (maxValence > 0 && ovalens.back() > 0) {
+    if (maxValence >= 0 && ovalens.back() >= 0) {
       bool valenceExceeded = (res + offset > maxValence);
       bool tooManyElectronsDonated = false;
       bool tooManyElectronsReceived = false;
@@ -506,13 +506,6 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt, int8_t
       }
     }
   }
-  if (numDonatedElectronsLocal) {
-    auto resOrig = res;
-    res += abs(numDonatedElectronsLocal);
-    if (maxValence > 0 && resOrig <= maxValence && res > maxValence) {
-      res = maxValence;
-    }
-  }
 #ifdef VALENCE_DEBUG
   std::cerr << "5) calculateExplicitValence atom " << atom.getIdx() << ", res " << res << std::endl;
 #endif
@@ -532,7 +525,7 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
   } else {
     numDonatedElectrons = atom.getNumDonatedElectrons();
   }
-  numDonatedElectrons = 0;
+  //numDonatedElectrons = 0;
 #ifdef VALENCE_DEBUG
   std::cerr << "1) calculateImplicitValence numDonatedElectrons " << static_cast<int>(numDonatedElectrons) << std::endl;
 #endif
@@ -572,11 +565,6 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
 
   int explicitPlusRadV =
       atom.getExplicitValence() + atom.getNumRadicalElectrons();
-  // if we are recipient of electrons, we do not need to fill
-  // those valences with hydrogens
-  if (numDonatedElectrons < 0) {
-    explicitPlusRadV -= numDonatedElectrons;
-  }
 
   const auto &ovalens =
       PeriodicTable::getTable()->getValenceList(atom.getAtomicNum());
@@ -627,6 +615,7 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
 
   int res = 0;
   // if we have an aromatic case treat it differently
+  int nOuterElecs = PeriodicTable::getTable()->getNouterElecs(effectiveAtomicNum);
   if (isAromaticAtom(atom)) {
     if (explicitPlusRadV <= dv) {
       res = dv - explicitPlusRadV;
@@ -667,8 +656,17 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
     res = -1;
     for (auto vi = valens.begin(); vi != valens.end() && *vi >= 0; ++vi) {
       int tot = *vi;
+      if (numDonatedElectrons > 0) {
+        int nAvailOuterElecs = nOuterElecs - numDonatedElectrons;
+        tot = std::min(nAvailOuterElecs, tot);
+      }
       if (explicitPlusRadV <= tot) {
-        res = tot - explicitPlusRadV;
+        // if we are recipient of electrons, we do not need to fill
+        // those valences with hydrogens
+        if (numDonatedElectrons < 0 && !isEarlyAtom(effectiveAtomicNum)) {
+          explicitPlusRadV -= numDonatedElectrons;
+        }
+        res = std::max(0, tot - explicitPlusRadV);
         break;
       }
     }
