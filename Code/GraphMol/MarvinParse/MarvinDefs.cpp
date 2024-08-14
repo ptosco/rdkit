@@ -13,13 +13,14 @@
 
 namespace RDKit {
 
-std::string getDoubleAsText(double val) {
-  if (fabs(val) < 0.00001) {
+std::string getDoubleAsText(double val, unsigned int precision = 6) {
+  // this is left here for backwards compatibility
+  if (precision == 6 && fabs(val) < 0.00001) {
     return "0.00000";
   }
 
   std::ostringstream valstr;
-  valstr << val;
+  valstr << std::setprecision(precision) << val;
   return valstr.str();
 }
 
@@ -41,7 +42,7 @@ ptree MarvinMolBase::toPtree() const {
   }
   if (this->hasAtomBondBlocks()) {
     for (auto atom : atoms) {
-      out.add_child("atomArray.atom", atom->toPtree());
+      out.add_child("atomArray.atom", atom->toPtree(this->coordinatePrecision));
     }
 
     for (auto bond : bonds) {
@@ -74,7 +75,6 @@ bool getCleanNumber(std::string strToParse, T &outVal) {
 }
 
 void MarvinMolBase::parseAtomsAndBonds(ptree &molTree) {
-  if (this->hasAtomBondBlocks()) {
     boost::property_tree::ptree atomArray = molTree.get_child("atomArray");
 
     // there are two types of atom arrays:
@@ -230,12 +230,8 @@ void MarvinMolBase::parseAtomsAndBonds(ptree &molTree) {
         mrvAtom->sgroupRef =
             v.second.get<std::string>("<xmlattr>.sgroupRef", "");
 
-        // if (role == "SuperatomSgroup") {
         mrvAtom->sgroupAttachmentPoint =
             v.second.get<std::string>("<xmlattr>.sgroupAttachmentPoint", "");
-
-        // atom->setProp(common_properties::molAttachPoint, ival);
-        //}
       }
     } else  // single line form of atoms
     {
@@ -451,7 +447,6 @@ void MarvinMolBase::parseAtomsAndBonds(ptree &molTree) {
           mrvAtom->sgroupRef = "";
         }
 
-        // if (role == "SuperatomSgroup" && sgroupAttachmentPoint != "" &&
         if (sgroupAttachmentPoint != "" && sgroupAttachmentPoints.size() > i &&
             sgroupAttachmentPoints[i] != "0") {
           mrvAtom->sgroupAttachmentPoint = sgroupAttachmentPoints[i];
@@ -489,10 +484,10 @@ void MarvinMolBase::parseAtomsAndBonds(ptree &molTree) {
         if (atomRefs2s.size() != 2 ||
             !boost::algorithm::contains(
                 this->atoms, std::vector<std::string>{mrvBond->atomRefs2[0]},
-                MarvinMol::atomRefInAtoms) ||
+              atomRefInAtoms) ||
             !boost::algorithm::contains(
                 this->atoms, std::vector<std::string>{mrvBond->atomRefs2[1]},
-                MarvinMol::atomRefInAtoms)) {
+              atomRefInAtoms)) {
           throw FileParseException(
               "atomRefs2 must contain two atom refs that must appear in the atoms array in MRV file");
         }
@@ -541,15 +536,13 @@ void MarvinMolBase::parseAtomsAndBonds(ptree &molTree) {
         mrvBond->bondStereo.value = v.second.get<std::string>("bondStereo", "");
         if (mrvBond->bondStereo.value != "") {
           bondStereoDeclCount++;
-          if (boost::algorithm::to_lower_copy(mrvBond->bondStereo.value) ==
-                  "w" ||
+        if (boost::algorithm::to_lower_copy(mrvBond->bondStereo.value) == "w" ||
+            boost::algorithm::to_lower_copy(mrvBond->bondStereo.value) == "h") {
+          // do nothing  - this is OK
+        } else if (boost::algorithm::to_lower_copy(mrvBond->bondStereo.value) ==
+                       "c" ||
               boost::algorithm::to_lower_copy(mrvBond->bondStereo.value) ==
-                  "h") {
-            // do nothing  - this is OK
-          } else if (boost::algorithm::to_lower_copy(
-                         mrvBond->bondStereo.value) == "c" ||
-                     boost::algorithm::to_lower_copy(
-                         mrvBond->bondStereo.value) == "t") {
+                       "t") {
             mrvBond->bondStereo.value = "";  // cis and trans are ignored
           } else {
             throw FileParseException(
@@ -610,7 +603,6 @@ void MarvinMolBase::parseAtomsAndBonds(ptree &molTree) {
       }
     }
   }
-}
 
 ptree MarvinArrow::toPtree() const {
   ptree out;
@@ -878,21 +870,21 @@ std::string MarvinAtom::toString() const {
   return out.str();
 }
 
-ptree MarvinAtom::toPtree() const {
+ptree MarvinAtom::toPtree(unsigned int coordinatePrecision) const {
   ptree out;
 
   out.put("<xmlattr>.id", id);
   out.put("<xmlattr>.elementType", elementType);
 
   if (x2 != DBL_MAX && y2 != DBL_MAX) {
-    out.put("<xmlattr>.x2", getDoubleAsText(x2));
-    out.put("<xmlattr>.y2", getDoubleAsText(y2));
+    out.put("<xmlattr>.x2", getDoubleAsText(x2, coordinatePrecision));
+    out.put("<xmlattr>.y2", getDoubleAsText(y2, coordinatePrecision));
   }
 
   if (x3 != DBL_MAX && y3 != DBL_MAX && z3 != DBL_MAX) {
-    out.put("<xmlattr>.x3", getDoubleAsText(x3));
-    out.put("<xmlattr>.y3", getDoubleAsText(y3));
-    out.put("<xmlattr>.z3", getDoubleAsText(z3));
+    out.put("<xmlattr>.x3", getDoubleAsText(x3, coordinatePrecision));
+    out.put("<xmlattr>.y3", getDoubleAsText(y3, coordinatePrecision));
+    out.put("<xmlattr>.z3", getDoubleAsText(z3, coordinatePrecision));
   }
 
   if (formalCharge != 0) {
@@ -1089,11 +1081,13 @@ int MarvinMolBase::getAtomIndex(std::string id) const {
 }
 
 void MarvinMolBase::pushOwnedAtom(MarvinAtom *atom) {
+  PRECONDITION(atom, "bad atom");
   PRECONDITION(this->parent, "only sgroups should call the base class version");
   this->parent->pushOwnedAtom(atom);
 }
 
 void MarvinMolBase::pushOwnedBond(MarvinBond *bond) {
+  PRECONDITION(bond, "bad bond");
   PRECONDITION(this->parent, "only sgroups should call the base class version");
   this->parent->pushOwnedBond(std::move(bond));
 }
@@ -1218,6 +1212,10 @@ void MarvinMolBase::removeCoords() {
     atom->x2 = DBL_MAX;
     atom->y2 = DBL_MAX;
   }
+}
+
+void MarvinMolBase::setPrecision(unsigned int precision) {
+  this->coordinatePrecision = precision;
 }
 
 int MarvinMolBase::getExplicitValence(const MarvinAtom &marvinAtom) const {

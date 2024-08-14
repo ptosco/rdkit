@@ -19,16 +19,12 @@
 #include <iomanip>
 #include <cstdio>
 
-#include <GraphMol/SubstanceGroup.h>
-#include <RDGeneral/Ranking.h>
 #include <RDGeneral/LocaleSwitcher.h>
-#include <RDGeneral/Invariant.h>
-
-#include <RDGeneral/BadFileException.h>
 #include <GraphMol/SmilesParse/SmilesWrite.h>
-#include <GraphMol/SmilesParse/SmartsWrite.h>
 #include <GraphMol/Depictor/RDDepictor.h>
 #include <GraphMol/GenericGroups/GenericGroups.h>
+#include <GraphMol/Chirality.h>
+#include <GraphMol/Atropisomers.h>
 
 #include <GraphMol/FileParsers/FileParsers.h>
 #include <GraphMol/FileParsers/MolSGroupWriting.h>
@@ -347,108 +343,6 @@ class MarvinCMLWriter {
   }
 
  private:
-  bool checkNeighborsForNoBondDir(const Bond *bond, const Atom *atom) {
-    // this checks the neighbors of a double bond to see if they have a wedge
-    // that is NOT accociated with a chiral center
-
-    PRECONDITION(bond, "no bond");
-    PRECONDITION(atom, "no atom");
-    std::vector<int> nbrRanks;
-    for (auto bondIt :
-         boost::make_iterator_range(bond->getOwningMol().getAtomBonds(atom))) {
-      const auto nbrBond = bond->getOwningMol()[bondIt];
-      if (nbrBond->getBondType() == Bond::SINGLE) {
-        if (nbrBond->getBondDir() == Bond::ENDUPRIGHT ||
-            nbrBond->getBondDir() == Bond::ENDDOWNRIGHT) {
-          return false;
-        } else {
-          const auto otherAtom = nbrBond->getOtherAtom(atom);
-          int rank;
-          if (otherAtom->getPropIfPresent(common_properties::_CIPRank, rank)) {
-            if (std::find(nbrRanks.begin(), nbrRanks.end(), rank) !=
-                nbrRanks.end()) {
-              return false;
-            } else {
-              nbrRanks.push_back(rank);
-            }
-          }
-        }
-      }
-    }
-    return true;
-  }
-
-  void GetMarvinBondStereoInfo(const Bond *bond, const INT_MAP_INT &wedgeBonds,
-                               const Conformer *conf, Bond::BondDir &dir,
-                               bool &reverse) {
-    PRECONDITION(bond, "");
-    reverse = false;
-    dir = Bond::NONE;
-    if (bond->getBondType() == Bond::SINGLE) {
-      // single bond stereo chemistry
-      dir = DetermineBondWedgeState(bond, wedgeBonds, conf);
-
-      // if this bond needs to be wedged it is possible that this
-      // wedging was determined by a chiral atom at the end of the
-      // bond (instead of at the beginning). In this case we need to
-      // reverse the begin and end atoms for the bond when we write
-      // the mol file
-
-      if ((dir == Bond::BEGINDASH) ||
-          (dir == Bond::BEGINWEDGE || dir == Bond::UNKNOWN)) {
-        auto wbi = wedgeBonds.find(bond->getIdx());
-        if (wbi != wedgeBonds.end() &&
-            static_cast<unsigned int>(wbi->second) != bond->getBeginAtomIdx()) {
-          reverse = true;
-        }
-      } else {
-        dir = Bond::NONE;  // other types are ignored
-      }
-    } else if (bond->getBondType() == Bond::DOUBLE) {
-      // double bond stereochemistry -
-      // if the bond isn't specified, then it should go in the mrv block
-      // as "any", this was sf.net issue 2963522. for mol files
-      // two caveats to this:
-      // 1) if it's a ring bond, we'll only put the "any"
-      //    in the mol block if the user specifically asked for it.
-      //    Constantly seeing crossed bonds in rings, though maybe
-      //    technically correct, is irritating.
-      // 2) if it's a terminal bond (where there's no chance of
-      //    stereochemistry anyway), we also skip the any.
-      //    this was sf.net issue 3009756
-      if (bond->getStereo() <= Bond::STEREOANY) {
-        if (bond->getStereo() == Bond::STEREOANY) {
-          dir = Bond::UNKNOWN;
-        } else if (!(bond->getOwningMol().getRingInfo()->numBondRings(
-                       bond->getIdx())) &&
-                   bond->getBeginAtom()->getDegree() > 1 &&
-                   bond->getEndAtom()->getDegree() > 1) {
-          // we don't know that it's explicitly unspecified (covered above with
-          // the ==STEREOANY check)
-          // look to see if one of the atoms has a bond with direction set
-          if (bond->getBondDir() == Bond::EITHERDOUBLE) {
-            dir = Bond::UNKNOWN;
-          } else {
-            if ((bond->getBeginAtom()->getTotalValence() -
-                 bond->getBeginAtom()->getTotalDegree()) == 1 &&
-                (bond->getEndAtom()->getTotalValence() -
-                 bond->getEndAtom()->getTotalDegree()) == 1) {
-              // we only do this if each atom only has one unsaturation
-              // FIX: this is the fix for github #2649, but we will need to
-              // change it once we start handling allenes properly
-
-              if (checkNeighborsForNoBondDir(bond, bond->getBeginAtom()) &&
-                  checkNeighborsForNoBondDir(bond, bond->getEndAtom())) {
-                dir = Bond::UNKNOWN;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
- private:
   bool hasNonDefaultValence(const Atom *atom) {
     PRECONDITION(atom, "no atom");
     if (atom->getNumRadicalElectrons() != 0) {
@@ -587,7 +481,13 @@ class MarvinCMLWriter {
         //  atom maps for rxns
       }
 
-      INT_MAP_INT wedgeBonds = pickBondsToWedge(*mol);
+      const Conformer *confToUse = nullptr;
+      if (conf) {
+        confToUse = conf;
+      } else if (conf3d) {
+        confToUse = conf3d;
+      }
+      auto wedgeBonds = Chirality::pickBondsToWedge(*mol, nullptr, confToUse);
 
       for (auto bond : mol->bonds()) {
         auto marvinBond = new MarvinBond();
@@ -599,9 +499,16 @@ class MarvinCMLWriter {
         GetMarvinBondSymbol(bond, marvinBond->order, marvinBond->queryType,
                             marvinBond->convention);
 
-        Bond::BondDir bondDirection;
-        bool reverse;
-        GetMarvinBondStereoInfo(bond, wedgeBonds, conf, bondDirection, reverse);
+        Bond::BondDir bondDirection = Bond::BondDir::NONE;
+        bool reverse = false;
+
+        if (conf) {
+          Chirality::GetMolFileBondStereoInfo(bond, wedgeBonds, conf,
+                                              bondDirection, reverse);
+        } else if (conf3d) {
+          Chirality::GetMolFileBondStereoInfo(bond, wedgeBonds, conf3d,
+                                              bondDirection, reverse);
+        }
 
         if (reverse) {
           // switch the begin and end atoms on the bond line
@@ -629,11 +536,12 @@ class MarvinCMLWriter {
           case Bond::UNKNOWN:
             marvinBond->bondStereo.value = "";
             marvinBond->bondStereo.convention = "MDL";
-            if (marvinBond->order == "2") {
-              marvinBond->bondStereo.conventionValue = "3";
-            } else {
-              marvinBond->bondStereo.conventionValue = "4";
-            }
+            marvinBond->bondStereo.conventionValue = "4";
+            break;
+          case Bond::EITHERDOUBLE:
+            marvinBond->bondStereo.value = "";
+            marvinBond->bondStereo.convention = "MDL";
+            marvinBond->bondStereo.conventionValue = "3";
             break;
 
           default:
@@ -661,8 +569,13 @@ class MarvinCMLWriter {
           default:
             throw MarvinWriterException("Unrecognized stereo group type");
         }
-        for (auto &&atom : group.getAtoms()) {
-          marvinMol->atoms[atom->getIdx()]->mrvStereoGroup = stereoGroupType;
+
+        std::vector<unsigned int> atomIds;
+        Atropisomers::getAllAtomIdsForStereoGroup(*mol, group, atomIds,
+                                                  wedgeBonds);
+
+        for (auto atomId : atomIds) {
+          marvinMol->atoms[atomId]->mrvStereoGroup = stereoGroupType;
         }
       }
 
@@ -684,7 +597,7 @@ class MarvinCMLWriter {
           auto marvinCoModSruSgroup =
               new MarvinSruCoModSgroup(mrvType, marvinMol);
           marvinMol->sgroups.push_back(
-              (std::unique_ptr<MarvinMolBase>(marvinCoModSruSgroup)));
+              std::unique_ptr<MarvinMolBase>(marvinCoModSruSgroup));
 
           if (!sgroup.getPropIfPresent("LABEL", marvinCoModSruSgroup->title)) {
             throw MarvinWriterException(
@@ -715,7 +628,7 @@ class MarvinCMLWriter {
         else if (type == "DAT") {
           auto marvinDataSgroup = new MarvinDataSgroup(marvinMol);
           marvinMol->sgroups.push_back(
-              (std::unique_ptr<MarvinMolBase>(marvinDataSgroup)));
+              std::unique_ptr<MarvinMolBase>(marvinDataSgroup));
 
           marvinDataSgroup->id = "sg" + std::to_string(++tempSgCount);
           marvinDataSgroup->molID = 'm' + std::to_string(++tempMolCount);
@@ -776,7 +689,7 @@ class MarvinCMLWriter {
           auto superatomSgroupExpanded =
               new MarvinSuperatomSgroupExpanded(marvinMol);
           marvinMol->sgroups.push_back(
-              (std::unique_ptr<MarvinMolBase>(superatomSgroupExpanded)));
+              std::unique_ptr<MarvinMolBase>(superatomSgroupExpanded));
 
           superatomSgroupExpanded->id = "sg" + std::to_string(++tempSgCount);
           superatomSgroupExpanded->molID = 'm' + std::to_string(++tempMolCount);
@@ -824,7 +737,7 @@ class MarvinCMLWriter {
         else if (type == "GEN") {
           auto marvinGenericSgroup = new MarvinGenericSgroup(marvinMol);
           marvinMol->sgroups.push_back(
-              (std::unique_ptr<MarvinMolBase>(marvinGenericSgroup)));
+              std::unique_ptr<MarvinMolBase>(marvinGenericSgroup));
           marvinGenericSgroup->id = "sg" + std::to_string(++tempSgCount);
           marvinGenericSgroup->molID = 'm' + std::to_string(++tempMolCount);
 
@@ -847,7 +760,7 @@ class MarvinCMLWriter {
           // </molecule>
           auto marvinMonomerSgroup = new MarvinMonomerSgroup(marvinMol);
           marvinMol->sgroups.push_back(
-              (std::unique_ptr<MarvinMolBase>(marvinMonomerSgroup)));
+              std::unique_ptr<MarvinMolBase>(marvinMonomerSgroup));
 
           marvinMonomerSgroup->id = "sg" + std::to_string(++tempSgCount);
           marvinMonomerSgroup->molID = 'm' + std::to_string(++tempMolCount);
@@ -1234,20 +1147,20 @@ class MarvinCMLWriter {
   }
 };
 
-std::string MolToMrvBlock(const ROMol &mol, bool includeStereo, int confId,
-                          bool kekulize, bool prettyPrint) {
-  RDKit::Utils::LocaleSwitcher switcher;
+std::string MolToMrvBlock(const ROMol &mol, const MrvWriterParams& params, int confId) {
+  Utils::LocaleSwitcher ls;
+
   RWMol trwmol(mol);
   // NOTE: kekulize the molecule before writing it out
   // because of the way mol files handle aromaticity
   if (trwmol.needsUpdatePropertyCache()) {
     trwmol.updatePropertyCache(false);
   }
-  if (kekulize) {
+  if (params.kekulize) {
     MolOps::Kekulize(trwmol);
   }
 
-  if (includeStereo && !trwmol.getNumConformers()) {
+  if (params.includeStereo && !trwmol.getNumConformers()) {
     // generate coordinates so that the stereo we generate makes sense
     RDDepict::compute2DCoords(trwmol);
   }
@@ -1257,14 +1170,16 @@ std::string MolToMrvBlock(const ROMol &mol, bool includeStereo, int confId,
   MarvinCMLWriter marvinCMLWriter;
 
   auto marvinMol = marvinCMLWriter.MolToMarvinMol(&trwmol, confId);
+  marvinMol->setPrecision(params.precision);
   ptree pt = marvinMol->toMolPtree();
   std::ostringstream out;
-  if (prettyPrint)
+  if (params.prettyPrint) {
     write_xml(out, pt,
               boost::property_tree::xml_writer_make_settings<std::string>(
                   '\t', 1, "windows-1252"));
-  else
+  } else {
     write_xml(out, pt);
+  }
   std::string res = out.str();
   delete marvinMol;
   return res;
@@ -1276,8 +1191,7 @@ std::string MolToMrvBlock(const ROMol &mol, bool includeStereo, int confId,
 //
 //------------------------------------------------
 void MolToMrvFile(const ROMol &mol, const std::string &fName,
-                  bool includeStereo, int confId, bool kekulize,
-                  bool prettyPrint) {
+                  const MrvWriterParams &params, int confId) {
   auto *outStream = new std::ofstream(fName.c_str());
   if (!(*outStream) || outStream->bad()) {
     delete outStream;
@@ -1286,24 +1200,27 @@ void MolToMrvFile(const ROMol &mol, const std::string &fName,
     throw BadFileException(errout.str());
   }
   std::string outString =
-      MolToMrvBlock(mol, includeStereo, confId, kekulize, prettyPrint);
+      MolToMrvBlock(mol, params, confId);
   *outStream << outString;
   delete outStream;
 }
 
 std::string ChemicalReactionToMrvBlock(const ChemicalReaction &rxn,
                                        bool prettyPrint) {
+  Utils::LocaleSwitcher ls;
+
   MarvinCMLWriter marvinCMLWriter;
 
   auto marvinRxn = marvinCMLWriter.ChemicalReactionToMarvinRxn(&rxn);
   ptree pt = marvinRxn->toPtree();
   std::ostringstream out;
-  if (prettyPrint)
+  if (prettyPrint) {
     write_xml(out, pt,
               boost::property_tree::xml_writer_make_settings<std::string>(
                   '\t', 1, "windows-1252"));
-  else
+  } else {
     write_xml(out, pt);
+  }
   delete marvinRxn;
   return out.str();
 };

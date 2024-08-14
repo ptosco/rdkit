@@ -14,6 +14,10 @@
 #include <GraphMol/ChemReactions/Reaction.h>
 #include <GraphMol/ChemReactions/ReactionParser.h>
 
+#ifdef RDK_BUILD_MINIMAL_LIB_MMPA
+#include <GraphMol/MMPA/MMPA.h>
+#endif
+
 class JSMolList;
 
 class JSMol {
@@ -21,15 +25,22 @@ class JSMol {
   JSMol() : d_mol(new RDKit::RWMol()) {}
   JSMol(RDKit::RWMol *mol) : d_mol(mol) { assert(d_mol); }
   std::string get_smiles() const;
+  std::string get_smiles(const std::string &details) const;
   std::string get_cxsmiles() const;
+  std::string get_cxsmiles(const std::string &details) const;
   std::string get_smarts() const;
+  std::string get_smarts(const std::string &details) const;
   std::string get_cxsmarts() const;
+  std::string get_cxsmarts(const std::string &details) const;
   std::string get_molblock(const std::string &details) const;
   std::string get_molblock() const { return get_molblock("{}"); }
   std::string get_v3Kmolblock(const std::string &details) const;
   std::string get_v3Kmolblock() const { return get_v3Kmolblock("{}"); }
   std::string get_pickle() const;
-  std::string get_inchi() const;
+#ifdef RDK_BUILD_INCHI_SUPPORT
+  std::string get_inchi(const std::string &options) const;
+  std::string get_inchi() const { return get_inchi(""); }
+#endif
   std::string get_json() const;
   std::string get_svg(int width, int height) const;
   std::string get_svg() const {
@@ -150,6 +161,11 @@ class JSMol {
   std::string combine_with(const JSMol &other) {
     return combine_with(other, "{}");
   }
+#ifdef RDK_BUILD_MINIMAL_LIB_MMPA
+  std::pair<JSMolList *, JSMolList *> get_mmpa_frags(
+      unsigned int minCuts, unsigned int maxCuts,
+      unsigned int maxCutBonds) const;
+#endif
 
   std::unique_ptr<RDKit::RWMol> d_mol;
   static constexpr int d_defaultWidth = 250;
@@ -203,6 +219,9 @@ class JSReaction {
                   "instead")]] bool
   is_valid() const;
 
+  std::vector<JSMolList *> run_reactants(const JSMolList &reactants,
+                                         unsigned int maxProducts) const;
+  static constexpr int maxProducts = 1000;
   std::string get_svg(int width, int height) const;
   std::string get_svg() const {
     return get_svg(d_defaultWidth, d_defaultHeight);
@@ -262,7 +281,9 @@ class JSSubstructLibrary {
 };
 #endif
 
+#ifdef RDK_BUILD_INCHI_SUPPORT
 std::string get_inchikey_for_inchi(const std::string &input);
+#endif
 JSMol *get_mol(const std::string &input, const std::string &details_json);
 JSMol *get_mol_from_pickle(const std::string &pkl);
 JSMol *get_mol_copy(const JSMol &other);
@@ -283,6 +304,7 @@ void disable_logging();
 JSLog *set_log_tee(const std::string &log_name);
 JSLog *set_log_capture(const std::string &log_name);
 #ifdef RDK_BUILD_MINIMAL_LIB_MCS
+std::string get_mcs_as_json(const JSMolList &mols, const std::string &details_json);
 std::string get_mcs_as_smarts(const JSMolList &mols, const std::string &details_json);
 JSMol *get_mcs_as_mol(const JSMolList &mols, const std::string &details_json);
 #endif

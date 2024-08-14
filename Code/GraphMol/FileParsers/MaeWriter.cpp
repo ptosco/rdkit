@@ -13,6 +13,7 @@
 #include <fstream>
 #include <functional>
 #include <memory>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -22,6 +23,7 @@
 #include <maeparser/Writer.hpp>
 
 #include <GraphMol/Depictor/RDDepictor.h>
+#include <GraphMol/FileParsers/MaestroProperties.h>
 #include <GraphMol/MolOps.h>
 #include <GraphMol/MonomerInfo.h>
 #include <GraphMol/RDKitBase.h>
@@ -30,18 +32,13 @@
 #include <RDGeneral/RDLog.h>
 
 using namespace schrodinger;
+using namespace RDKit::FileParsers::schrodinger;
 
 namespace RDKit {
 
 namespace {
-const std::string MAE_BOND_DATIVE_MARK = "b_sPrivate_dative_bond";
-const std::string PDB_ATOM_NAME = "s_m_pdb_atom_name";
-const std::string PDB_RESIDUE_NAME = "s_m_pdb_residue_name";
-const std::string PDB_CHAIN_NAME = "s_m_chain_name";
-const std::string PDB_INSERTION_CODE = "s_m_insertion_code";
-const std::string PDB_RESIDUE_NUMBER = "i_m_residue_number";
-const std::string PDB_OCCUPANCY = "r_m_pdb_occupancy";
-const std::string PDB_TFACTOR = "r_m_pdb_tfactor";
+
+static const std::regex MMCT_PROP_REGEX("[birs]_[^_ ]+_.+");
 
 template <typename T>
 std::shared_ptr<mae::IndexedProperty<T>> getIndexedProperty(
@@ -155,27 +152,45 @@ void copyProperties(
 
     switch (prop.val.getTag()) {
       case RDTypeTag::BoolTag: {
-        auto propName = std::string("b_rdk_") + prop.key;
+        auto propName = prop.key;
+        if (!std::regex_match(prop.key, MMCT_PROP_REGEX)) {
+          propName.insert(0, "b_rdkit_");
+        }
+
         boolSetter(propName, idx, rdvalue_cast<bool>(prop.val));
         break;
       }
 
       case RDTypeTag::IntTag:
       case RDTypeTag::UnsignedIntTag: {
-        auto propName = std::string("i_rdk_") + prop.key;
+        auto propName = prop.key;
+        if (prop.key == common_properties::_MolFileRLabel) {
+          propName = MAE_RGROUP_LABEL;
+        } else if (!std::regex_match(prop.key, MMCT_PROP_REGEX)) {
+          propName.insert(0, "i_rdkit_");
+        }
+
         intSetter(propName, idx, rdvalue_cast<int>(prop.val));
         break;
       }
 
       case RDTypeTag::DoubleTag:
       case RDTypeTag::FloatTag: {
-        auto propName = std::string("r_rdk_") + prop.key;
+        auto propName = prop.key;
+        if (!std::regex_match(prop.key, MMCT_PROP_REGEX)) {
+          propName.insert(0, "r_rdkit_");
+        }
+
         realSetter(propName, idx, rdvalue_cast<double>(prop.val));
         break;
       }
 
       case RDTypeTag::StringTag: {
-        auto propName = std::string("s_rdk_") + prop.key;
+        auto propName = prop.key;
+        if (!std::regex_match(prop.key, MMCT_PROP_REGEX)) {
+          propName.insert(0, "s_rdkit_");
+        }
+
         stringSetter(propName, idx, rdvalue_cast<std::string>(prop.val));
         break;
       }
@@ -221,6 +236,61 @@ int bondTypeToOrder(const Bond& bond) {
   }
 }
 
+static bool isDoubleAnyBond(const RDKit::Bond& b) {
+  if (b.getBondType() == RDKit::Bond::DOUBLE) {
+    if (b.getStereo() == RDKit::Bond::BondStereo::STEREOANY ||
+        b.getBondDir() == RDKit::Bond::EITHERDOUBLE) {
+      return true;
+    }
+
+    // Check v3000/v2000 stereo either props
+    auto hasPropValue = [&b](const auto& prop, const int& either_value) {
+      return b.hasProp(prop) && b.getProp<int>(prop) == either_value;
+    };
+
+    return hasPropValue(RDKit::common_properties::_MolFileBondCfg, 2) ||
+           hasPropValue(RDKit::common_properties::_MolFileBondStereo, 3);
+  }
+  return false;
+}
+
+static void copyAtomNumChirality(const ROMol& mol, mae::Block& stBlock) {
+  // This property tells Schrodinger software that the stereo and chirality in
+  // the mae file are valid
+  stBlock.setIntProperty(MAE_STEREO_STATUS, 1);
+
+  // Set atom numbering chirality
+  int chiralAts = 0;
+  for (const auto at : mol.atoms()) {
+    std::string atomNumChirality;
+    if (at->getChiralTag() == Atom::CHI_TETRAHEDRAL_CW) {
+      atomNumChirality = "ANR";
+    } else if (at->getChiralTag() == Atom::CHI_TETRAHEDRAL_CCW) {
+      atomNumChirality = "ANS";
+    } else {
+      continue;
+    }
+    ++chiralAts;
+    std::string propName =
+        mae::CT_CHIRALITY_PROP_PREFIX + std::to_string(chiralAts);
+    std::string propVal =
+        std::to_string(at->getIdx() + 1) + "_" + atomNumChirality;
+
+    // We don't know CIP ranks of atoms, so instead we use atom numbering
+    // chirality and adjacent atoms will just be sorted by index.
+    std::vector<int> neighbors;
+    for (const auto nb : mol.atomNeighbors(at)) {
+      neighbors.push_back(nb->getIdx());
+    }
+
+    std::sort(neighbors.begin(), neighbors.end());
+    for (const auto nb : neighbors) {
+      propVal += "_" + std::to_string(nb + 1);
+    }
+    stBlock.setStringProperty(propName, propVal);
+  }
+}
+
 void mapMolProperties(const ROMol& mol, const STR_VECT& propNames,
                       mae::Block& stBlock) {
   // We always write a title, even if the mol doesn't have one
@@ -230,7 +300,7 @@ void mapMolProperties(const ROMol& mol, const STR_VECT& propNames,
   stBlock.setStringProperty(mae::CT_TITLE, molName);
   mol.clearProp(common_properties::_Name);
 
-  // TO DO: Map stereo properties
+  copyAtomNumChirality(mol, stBlock);
 
   auto boolSetter = [&stBlock](const std::string& prop, unsigned, bool value) {
     stBlock.setBoolProperty(prop, value);
@@ -267,8 +337,12 @@ void mapAtom(
   setPropertyValue(atomBlock, mae::ATOM_Y_COORD, numAtoms, idx, coordinates.y);
   setPropertyValue(atomBlock, mae::ATOM_Z_COORD, numAtoms, idx, coordinates.z);
 
-  auto atomic_num = static_cast<int>(atom.getAtomicNum());
-  setPropertyValue(atomBlock, mae::ATOM_ATOMIC_NUM, numAtoms, idx, atomic_num);
+  auto atomicNum = static_cast<int>(atom.getAtomicNum());
+  if (atomicNum == 0) {
+    // Maestro files use atomic number -2 to indicate a dummy atom.
+    atomicNum = -2;
+  }
+  setPropertyValue(atomBlock, mae::ATOM_ATOMIC_NUM, numAtoms, idx, atomicNum);
 
   setPropertyValue(atomBlock, mae::ATOM_FORMAL_CHARGE, numAtoms, idx,
                    atom.getFormalCharge());
@@ -362,6 +436,12 @@ void mapBond(
   setPropertyValue(bondBlock, mae::BOND_ATOM_2, numBonds, idx, bondTo);
   setPropertyValue(bondBlock, mae::BOND_ORDER, numBonds, idx,
                    bondTypeToOrder(bond));
+
+  // Only set double bond stereo if stereo is 'unspecified', otherwise
+  // users can calculate double bond stereo from the coordinates.
+  if (isDoubleAnyBond(bond)) {
+    setPropertyValue(bondBlock, MAE_BOND_PARITY, numBonds, idx, 2);
+  }
 
   if (dativeBondMark != nullptr) {
     dativeBondMark->set(idx, (bond.getBondType() == Bond::BondType::DATIVE));

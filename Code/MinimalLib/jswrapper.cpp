@@ -12,30 +12,39 @@
 #include <emscripten/val.h>
 #include <emscripten/bind.h>
 #include "minilib.h"
+#include "common_defs.h"
 #include <GraphMol/MolDraw2D/MolDraw2D.h>
 #include <GraphMol/MolDraw2D/MolDraw2DUtils.h>
 #include <GraphMol/MolDraw2D/MolDraw2DJS.h>
 
 using namespace RDKit;
 
-namespace RDKit {
-namespace MinimalLib {
-extern std::string process_mol_details(
-    const std::string &details, int &width, int &height, int &offsetx,
-    int &offsety, std::string &legend, std::vector<int> &atomIds,
-    std::vector<int> &bondIds, std::map<int, DrawColour> &atomMap,
-    std::map<int, DrawColour> &bondMap, std::map<int, double> &radiiMap,
-    bool &kekulize, bool &addChiralHs, bool &wedgeBonds, bool &forceCoords,
-    bool &wavyBonds);
-extern std::string process_rxn_details(
-    const std::string &details, int &width, int &height, int &offsetx,
-    int &offsety, std::string &legend, std::vector<int> &atomIds,
-    std::vector<int> &bondIds, bool &kekulize, bool &highlightByReactant,
-    std::vector<DrawColour> &highlightColorsReactants);
-}  // namespace MinimalLib
-}  // namespace RDKit
-
 namespace {
+class JSDrawerFromDetails : public MinimalLib::DrawerFromDetails {
+ public:
+  JSDrawerFromDetails(const emscripten::val &ctx, int w = -1, int h = -1,
+                      const std::string &details = std::string()) {
+    init(w, h, details);
+    d_ctx = ctx;
+  }
+
+ private:
+  MolDraw2DJS &drawer() const {
+    PRECONDITION(d_drawer, "d_drawer must not be null");
+    return *d_drawer;
+  };
+  void initDrawer(const MinimalLib::DrawingDetails &drawingDetails) {
+    d_drawer.reset(new MolDraw2DJS(drawingDetails.width, drawingDetails.height,
+                                   d_ctx, drawingDetails.panelWidth,
+                                   drawingDetails.panelHeight,
+                                   drawingDetails.noFreetype));
+    updateDrawerParamsFromJSON();
+  }
+  std::string finalizeDrawing() { return ""; }
+  std::unique_ptr<MolDraw2DJS> d_drawer;
+  emscripten::val d_ctx;
+};
+
 std::string draw_to_canvas_with_offset(JSMol &self, emscripten::val canvas,
                                        int offsetx, int offsety, int width,
                                        int height) {
@@ -67,44 +76,10 @@ std::string draw_to_canvas_with_highlights(JSMol &self, emscripten::val canvas,
   }
 
   auto ctx = canvas.call<emscripten::val>("getContext", std::string("2d"));
-  int w = canvas["width"].as<int>();
-  int h = canvas["height"].as<int>();
-  std::vector<int> atomIds;
-  std::vector<int> bondIds;
-  std::map<int, DrawColour> atomMap;
-  std::map<int, DrawColour> bondMap;
-  std::map<int, double> radiiMap;
-  std::string legend = "";
-  int offsetx = 0;
-  int offsety = 0;
-  bool kekulize = true;
-  bool addChiralHs = true;
-  bool wedgeBonds = true;
-  bool forceCoords = false;
-  bool wavyBonds = false;
-  if (!details.empty()) {
-    auto problems = MinimalLib::process_mol_details(
-        details, w, h, offsetx, offsety, legend, atomIds, bondIds, atomMap,
-        bondMap, radiiMap, kekulize, addChiralHs, wedgeBonds, forceCoords,
-        wavyBonds);
-    if (!problems.empty()) {
-      return problems;
-    }
-  }
-
-  std::unique_ptr<MolDraw2DJS> d2d(new MolDraw2DJS(w, h, ctx));
-  if (!details.empty()) {
-    MolDraw2DUtils::updateDrawerParamsFromJSON(*d2d, details);
-  }
-  d2d->setOffset(offsetx, offsety);
-
-  MolDraw2DUtils::prepareAndDrawMolecule(
-      *d2d, *self.d_mol, legend, &atomIds, &bondIds,
-      atomMap.empty() ? nullptr : &atomMap,
-      bondMap.empty() ? nullptr : &bondMap,
-      radiiMap.empty() ? nullptr : &radiiMap, -1, kekulize, addChiralHs,
-      wedgeBonds, forceCoords, wavyBonds);
-  return "";
+  int width = canvas["width"].as<int>();
+  int height = canvas["height"].as<int>();
+  JSDrawerFromDetails jsDrawer(ctx, width, height, details);
+  return jsDrawer.draw_mol(*self.d_mol);
 }
 
 #ifdef RDK_BUILD_MINIMAL_LIB_RXN
@@ -142,36 +117,8 @@ std::string draw_rxn_to_canvas_with_highlights(JSReaction &self,
   auto ctx = canvas.call<emscripten::val>("getContext", std::string("2d"));
   int w = canvas["width"].as<int>();
   int h = canvas["height"].as<int>();
-  std::vector<int> atomIds;
-  std::vector<int> bondIds;
-  std::string legend = "";
-  int offsetx = 0;
-  int offsety = 0;
-  bool kekulize = true;
-  bool highlightByReactant = false;
-  std::vector<DrawColour> highlightColorsReactants;
-  if (!details.empty()) {
-    auto problems = MinimalLib::process_rxn_details(
-        details, w, h, offsetx, offsety, legend, atomIds, bondIds, kekulize,
-        highlightByReactant, highlightColorsReactants);
-    if (!problems.empty()) {
-      return problems;
-    }
-  }
-
-  std::unique_ptr<MolDraw2DJS> d2d(new MolDraw2DJS(w, h, ctx));
-  if (!details.empty()) {
-    MolDraw2DUtils::updateDrawerParamsFromJSON(*d2d, details);
-  }
-  d2d->setOffset(offsetx, offsety);
-  if (!kekulize) {
-    d2d->drawOptions().prepareMolsBeforeDrawing = false;
-  }
-  d2d->drawReaction(*self.d_rxn, highlightByReactant,
-                    !highlightByReactant || highlightColorsReactants.empty()
-                        ? nullptr
-                        : &highlightColorsReactants);
-  return "";
+  JSDrawerFromDetails jsDrawer(ctx, w, h, details);
+  return jsDrawer.draw_rxn(*self.d_rxn);
 }
 #endif
 
@@ -180,6 +127,10 @@ JSMol *get_mol_no_details(const std::string &input) {
 }
 
 #ifdef RDK_BUILD_MINIMAL_LIB_MCS
+std::string get_mcs_as_json_no_details(const JSMolList &mols) {
+  return get_mcs_as_json(mols, std::string());
+}
+
 JSMol *get_mcs_as_mol_no_details(const JSMolList &mols) {
   return get_mcs_as_mol(mols, std::string());
 }
@@ -413,20 +364,48 @@ emscripten::val get_coords_helper(const JSMol &self) {
   }
   return res;
 }
+#ifdef RDK_BUILD_MINIMAL_LIB_MMPA
+emscripten::val get_mmpa_frags_helper(const JSMol &self, unsigned int minCuts,
+                                      unsigned int maxCuts,
+                                      unsigned int maxCutBonds) {
+  auto obj = emscripten::val::object();
+  auto pairs = self.get_mmpa_frags(minCuts, maxCuts, maxCutBonds);
+  obj.set("cores", pairs.first);
+  obj.set("sidechains", pairs.second);
+  return obj;
+}
+#endif
 
 }  // namespace
 
 using namespace emscripten;
 EMSCRIPTEN_BINDINGS(RDKit_minimal) {
   register_vector<std::string>("StringList");
+  register_vector<JSMolList *>("JSMolListList");
 
   class_<JSMol>("Mol")
       .function("is_valid", &JSMol::is_valid)
       .function("has_coords", &JSMol::has_coords)
-      .function("get_smiles", &JSMol::get_smiles)
-      .function("get_cxsmiles", &JSMol::get_cxsmiles)
-      .function("get_smarts", &JSMol::get_smarts)
-      .function("get_cxsmarts", &JSMol::get_cxsmarts)
+      .function("get_smiles",
+                select_overload<std::string() const>(&JSMol::get_smiles))
+      .function("get_smiles",
+                select_overload<std::string(const std::string &) const>(
+                    &JSMol::get_smiles))
+      .function("get_cxsmiles",
+                select_overload<std::string() const>(&JSMol::get_cxsmiles))
+      .function("get_cxsmiles",
+                select_overload<std::string(const std::string &) const>(
+                    &JSMol::get_cxsmiles))
+      .function("get_smarts",
+                select_overload<std::string() const>(&JSMol::get_smarts))
+      .function("get_smarts",
+                select_overload<std::string(const std::string &) const>(
+                    &JSMol::get_smarts))
+      .function("get_cxsmarts",
+                select_overload<std::string() const>(&JSMol::get_cxsmarts))
+      .function("get_cxsmarts",
+                select_overload<std::string(const std::string &) const>(
+                    &JSMol::get_cxsmarts))
       .function("get_molblock",
                 select_overload<std::string() const>(&JSMol::get_molblock))
       .function("get_molblock",
@@ -437,8 +416,14 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("get_v3Kmolblock",
                 select_overload<std::string(const std::string &) const>(
                     &JSMol::get_v3Kmolblock))
-      .function("get_as_uint8array", get_as_uint8array)
-      .function("get_inchi", &JSMol::get_inchi)
+      .function("get_as_uint8array", &get_as_uint8array)
+#ifdef RDK_BUILD_INCHI_SUPPORT
+      .function("get_inchi",
+                select_overload<std::string(const std::string &) const>(
+                    &JSMol::get_inchi))
+      .function("get_inchi",
+                select_overload<std::string() const>(&JSMol::get_inchi))
+#endif
       .function("get_json", &JSMol::get_json)
       .function("get_svg",
                 select_overload<std::string() const>(&JSMol::get_svg))
@@ -619,7 +604,14 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
                                      &JSMol::get_num_atoms))
       .function("get_num_atoms",
                 select_overload<unsigned int() const>(&JSMol::get_num_atoms))
-      .function("get_num_bonds", &JSMol::get_num_bonds);
+      .function("get_num_bonds", &JSMol::get_num_bonds)
+#ifdef RDK_BUILD_MINIMAL_LIB_MMPA
+      .function("get_mmpa_frags",
+                select_overload<emscripten::val(const JSMol &, unsigned int,
+                                                unsigned int, unsigned int)>(
+                    get_mmpa_frags_helper))
+#endif
+      ;
 
   class_<JSMolList>("MolList")
       .constructor<>()
@@ -635,6 +627,9 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
 #ifdef RDK_BUILD_MINIMAL_LIB_RXN
   class_<JSReaction>("Reaction")
 #ifdef __EMSCRIPTEN__
+      .function("run_reactants", select_overload<std::vector<JSMolList *>(
+                                     const JSMolList &, unsigned int) const>(
+                                     &JSReaction::run_reactants))
       .function("draw_to_canvas_with_offset", &draw_rxn_to_canvas_with_offset)
       .function("draw_to_canvas", &draw_rxn_to_canvas)
       .function("draw_to_canvas_with_highlights",
@@ -711,7 +706,9 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
   function("prefer_coordgen", &prefer_coordgen);
   function("use_legacy_stereo_perception", &use_legacy_stereo_perception);
   function("allow_non_tetrahedral_chirality", &allow_non_tetrahedral_chirality);
+#ifdef RDK_BUILD_INCHI_SUPPORT
   function("get_inchikey_for_inchi", &get_inchikey_for_inchi);
+#endif
   function("get_mol", &get_mol, allow_raw_pointers());
   function("get_mol", &get_mol_no_details, allow_raw_pointers());
   function("get_mol_from_uint8array", &get_mol_from_uint8array,
@@ -727,6 +724,8 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
   function("get_rxn", &get_rxn_no_details, allow_raw_pointers());
 #endif
 #ifdef RDK_BUILD_MINIMAL_LIB_MCS
+  function("get_mcs_as_json", &get_mcs_as_json);
+  function("get_mcs_as_json", &get_mcs_as_json_no_details);
   function("get_mcs_as_mol", &get_mcs_as_mol, allow_raw_pointers());
   function("get_mcs_as_mol", &get_mcs_as_mol_no_details, allow_raw_pointers());
   function("get_mcs_as_smarts", &get_mcs_as_smarts);
