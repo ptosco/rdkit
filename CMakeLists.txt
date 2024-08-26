@@ -163,6 +163,18 @@ if(NOT Catch2_FOUND)
   FetchContent_MakeAvailable(Catch2)
 endif()
 
+#include magic_enum
+find_package(magic_enum 0 QUIET)
+if(NOT magic_enum_FOUND)
+  Include(FetchContent)
+
+  FetchContent_Declare(
+    magic_enum
+    GIT_REPOSITORY https://github.com/Neargye/magic_enum.git
+    GIT_TAG        v0.9.6 # or a later release
+  )
+endif()
+
 if(RDK_INSTALL_INTREE)
   set(RDKit_BinDir "${CMAKE_SOURCE_DIR}/bin")
   set(RDKit_LibDir "${CMAKE_SOURCE_DIR}/lib")

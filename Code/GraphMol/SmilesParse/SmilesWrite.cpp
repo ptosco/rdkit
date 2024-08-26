@@ -18,17 +18,23 @@
 #include <GraphMol/FileParsers/MolFileStereochem.h>
 #include <RDGeneral/BoostStartInclude.h>
 #include <boost/dynamic_bitset.hpp>
-#include <RDGeneral/utils.h>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
-#include <RDGeneral/BoostEndInclude.h>
 #include <boost/format.hpp>
+#include <RDGeneral/BoostEndInclude.h>
+#include <RDGeneral/utils.h>
+#include <magic_enum/magic_enum.hpp>
 
 #include <sstream>
 #include <map>
 #include <list>
 
 // #define VERBOSE_CANON 1
+
+template <>
+struct magic_enum::customize::enum_range<RDKit::SmilesWrite::CXSmilesFields> {
+  static constexpr bool is_flags = true;
+};
 
 namespace RDKit {
 
@@ -59,9 +65,7 @@ void updateSmilesWriteParamsFromJSON(SmilesWriteParams &params,
 void updateCXSmilesFieldsFromJSON(SmilesWrite::CXSmilesFields &cxSmilesFields,
                                   RestoreBondDirOption &restoreBondDirs,
                                   const char *details_json) {
-  static const auto cxSmilesFieldsKeyValuePairs = CXSMILESFIELDS_ITEMS_MAP;
-  static const auto restoreBondDirOptionKeyValuePairs =
-      RESTOREBONDDIROPTION_ITEMS_MAP;
+  constexpr auto cxSmilesFieldsValueKeyPairs = magic_enum::enum_entries<SmilesWrite::CXSmilesFields>();
   if (details_json && strlen(details_json)) {
     boost::property_tree::ptree pt;
     std::istringstream ss;
@@ -70,20 +74,25 @@ void updateCXSmilesFieldsFromJSON(SmilesWrite::CXSmilesFields &cxSmilesFields,
     auto cxSmilesFieldsFromJson =
         static_cast<std::underlying_type<SmilesWrite::CXSmilesFields>::type>(
             SmilesWrite::CXSmilesFields::CX_NONE);
-    for (const auto &keyValuePair : cxSmilesFieldsKeyValuePairs) {
-      cxSmilesFieldsFromJson |= (pt.get(keyValuePair.first, false)
-                                     ? keyValuePair.second
+    for (const auto &valueKeyPair : cxSmilesFieldsValueKeyPairs) {
+      std::cerr << "valueKeyPair.second '" << std::string(valueKeyPair.second) << "', valueKeyPair.first " << valueKeyPair.first << std::endl;
+      cxSmilesFieldsFromJson |= static_cast<std::underlying_type<SmilesWrite::CXSmilesFields>::type>(pt.get(std::string(valueKeyPair.second), false)
+                                     ? valueKeyPair.first
                                      : SmilesWrite::CXSmilesFields::CX_NONE);
     }
+    std::cerr << "cxSmilesFieldsFromJson " << cxSmilesFieldsFromJson << std::endl;
     if (cxSmilesFieldsFromJson) {
       cxSmilesFields =
           static_cast<SmilesWrite::CXSmilesFields>(cxSmilesFieldsFromJson);
     }
-    std::string restoreBondDirOption;
-    restoreBondDirOption = pt.get("restoreBondDirOption", restoreBondDirOption);
-    auto it = restoreBondDirOptionKeyValuePairs.find(restoreBondDirOption);
-    if (it != restoreBondDirOptionKeyValuePairs.end()) {
-      restoreBondDirs = it->second;
+    std::cerr << "cxSmilesFields " << cxSmilesFields << std::endl;
+    std::string restoreBondDirOptionKey;
+    restoreBondDirOptionKey = pt.get("restoreBondDirOption", restoreBondDirOptionKey);
+    std::cerr << "restoreBondDirOptionKey '" << restoreBondDirOptionKey << "'" << std::endl;
+    auto it = magic_enum::enum_cast<RestoreBondDirOption>(restoreBondDirOptionKey);
+    if (it.has_value()) {
+      restoreBondDirs = it.value();
+      std::cerr << "restoreBondDirs " << restoreBondDirs << std::endl;
     }
   }
 }

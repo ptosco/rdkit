@@ -55,13 +55,17 @@ else(BISON_EXECUTABLE)
   FILE(GLOB BISON_OUTPUT_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.tab.?pp")
 endif(BISON_EXECUTABLE)
 
-
+FetchContent_MakeAvailable(magic_enum)
 rdkit_library(SmilesParse
               SmilesParse.cpp SmilesParseOps.cpp
               SmilesWrite.cpp SmartsWrite.cpp CXSmilesOps.cpp
               ${BISON_OUTPUT_FILES}
               ${FLEX_OUTPUT_FILES}
               LINK_LIBRARIES GraphMol RDGeneral)
+target_include_directories(SmilesParse PRIVATE ${magic_enum_SOURCE_DIR}/include)
+if(RDK_INSTALL_STATIC_LIBS AND NOT WIN32)
+  target_include_directories(SmilesParse_static PRIVATE ${magic_enum_SOURCE_DIR}/include)
+endif(RDK_INSTALL_STATIC_LIBS AND NOT WIN32)
 target_compile_definitions(SmilesParse PRIVATE RDKIT_SMILESPARSE_BUILD)
 
 rdkit_headers(primes.h
