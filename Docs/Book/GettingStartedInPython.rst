@@ -37,6 +37,7 @@ Reading single molecules
   IPythonConsole.UninstallIPythonRenderer()
   from rdkit.Chem import rdDepictor
   rdDepictor.SetPreferCoordGen(False)
+  
 
 The majority of the basic molecular functionality is found in module :py:mod:`rdkit.Chem`:
 
@@ -322,25 +323,27 @@ molecule before generating the conformer. This is essential to get good structur
 .. doctest::
 
   >>> m3 = Chem.AddHs(m2)
-  >>> AllChem.EmbedMolecule(m3,randomSeed=0xf00d)   # optional random seed for reproducibility)
+  >>> params = AllChem.ETKDGv3()
+  >>> params.randomSeed = 0xf00d # optional random seed for reproducibility
+  >>> AllChem.EmbedMolecule(m3, params)   
   0
   >>> print(Chem.MolToMolBlock(m3))    # doctest: +NORMALIZE_WHITESPACE
   cyclobutane
        RDKit          3D
   <BLANKLINE>
    12 12  0  0  0  0  0  0  0  0999 V2000
-      1.0256    0.2491   -0.0964 C   0  0  0  0  0  0  0  0  0  0  0  0
+      1.0257    0.2442   -0.0991 C   0  0  0  0  0  0  0  0  0  0  0  0
      -0.2041    0.9236    0.4320 C   0  0  0  0  0  0  0  0  0  0  0  0
-     -1.0435   -0.2466   -0.0266 C   0  0  0  0  0  0  0  0  0  0  0  0
-      0.2104   -0.9922   -0.3417 C   0  0  0  0  0  0  0  0  0  0  0  0
-      1.4182    0.7667   -0.9782 H   0  0  0  0  0  0  0  0  0  0  0  0
+     -1.0443   -0.2424   -0.0253 C   0  0  0  0  0  0  0  0  0  0  0  0
+      0.2102   -0.9939   -0.3417 C   0  0  0  0  0  0  0  0  0  0  0  0
+      1.4192    0.7683   -0.9787 H   0  0  0  0  0  0  0  0  0  0  0  0
       1.8181    0.1486    0.6820 H   0  0  0  0  0  0  0  0  0  0  0  0
      -0.1697    1.0826    1.5236 H   0  0  0  0  0  0  0  0  0  0  0  0
-     -0.5336    1.8391   -0.1051 H   0  0  0  0  0  0  0  0  0  0  0  0
+     -0.5360    1.8377   -0.1050 H   0  0  0  0  0  0  0  0  0  0  0  0
      -1.6809   -0.0600   -0.8987 H   0  0  0  0  0  0  0  0  0  0  0  0
-     -1.6501   -0.6194    0.8220 H   0  0  0  0  0  0  0  0  0  0  0  0
+     -1.6510   -0.6193    0.8225 H   0  0  0  0  0  0  0  0  0  0  0  0
       0.4659   -1.7768    0.3858 H   0  0  0  0  0  0  0  0  0  0  0  0
-      0.3439   -1.3147   -1.3988 H   0  0  0  0  0  0  0  0  0  0  0  0
+      0.3467   -1.3126   -1.3975 H   0  0  0  0  0  0  0  0  0  0  0  0
     1  2  1  0
     2  3  1  0
     3  4  1  0
@@ -363,13 +366,13 @@ If we don't want the Hs in our later analysis, they are easy to remove:
   >>> m3 = Chem.RemoveHs(m3)
   >>> print(Chem.MolToMolBlock(m3))    # doctest: +NORMALIZE_WHITESPACE
   cyclobutane
-       RDKit          3D
+        RDKit          3D
   <BLANKLINE>
     4  4  0  0  0  0  0  0  0  0999 V2000
-      1.0256    0.2491   -0.0964 C   0  0  0  0  0  0  0  0  0  0  0  0
+      1.0257    0.2442   -0.0991 C   0  0  0  0  0  0  0  0  0  0  0  0
      -0.2041    0.9236    0.4320 C   0  0  0  0  0  0  0  0  0  0  0  0
-     -1.0435   -0.2466   -0.0266 C   0  0  0  0  0  0  0  0  0  0  0  0
-      0.2104   -0.9922   -0.3417 C   0  0  0  0  0  0  0  0  0  0  0  0
+     -1.0443   -0.2424   -0.0253 C   0  0  0  0  0  0  0  0  0  0  0  0
+      0.2102   -0.9939   -0.3417 C   0  0  0  0  0  0  0  0  0  0  0  0
     1  2  1  0
     2  3  1  0
     3  4  1  0
@@ -401,7 +404,7 @@ An SDWriter can also be initialized using a file-like object:
 
 .. doctest::
 
-  >>> from rdkit.six import StringIO
+  >>> from io import StringIO
   >>> sio = StringIO()
   >>> with Chem.SDWriter(sio) as w:
   ...   for m in mols: 
@@ -690,7 +693,8 @@ minimisation step to clean up the structures.
 More detailed information about the conformer generator and the parameters
 controlling it can be found in the "RDKit Book".
 
-Since the 2018.09 release of the RDKit, ETKDG is the default conformer generation method.
+Since the 2018.09 release of the RDKit, ETKDG is the default conformer
+generation method. Since the 2024.03 release ETKDGv3 is the default.
 
 The full process of embedding a molecule is easier than all the above verbiage makes it sound:
 
@@ -770,7 +774,9 @@ via the `numThreads` argument:
 
 .. doctest::
 
-  >>> cids = AllChem.EmbedMultipleConfs(m2, numThreads=0)
+  >>> params = AllChem.ETKDGv3()
+  >>> params.numThreads = 0
+  >>> cids = AllChem.EmbedMultipleConfs(m2, 10, params)
   >>> res = AllChem.MMFFOptimizeMoleculeConfs(m2, numThreads=0)
 
 Setting `numThreads` to zero causes the software to use the maximum number
@@ -1042,6 +1048,7 @@ metadata about the molecule(s) or chemical reaction included in the drawing.
 This metadata can be used later to reconstruct the molecule(s) or reaction.
 
 .. doctest::
+  :skipif: not hasattr(Chem,'MolFromPNGString')
 
   >>> template = Chem.MolFromSmiles('c1nccc2n1ccc2')
   >>> AllChem.Compute2DCoords(template)
@@ -1065,6 +1072,7 @@ If the PNG contains multiple molecules we can retrieve them all at once using
 `Chem.MolsFromPNGString()`:
 
 .. doctest::
+  :skipif: not hasattr(Chem,'MolsFromPNGString')
 
   >>> from rdkit.Chem import Draw
   >>> png = Draw.MolsToGridImage(ms,returnPNG=True)
@@ -1553,7 +1561,7 @@ requirement.
   >>> rdFMCS.FindMCS(mols).smartsString
   '[#6]1-[#6]-[#6](-[#6]-1-[#6])-[#6]'
   >>> rdFMCS.FindMCS(mols, ringMatchesRingOnly=True).smartsString
-  '[#6&R]1-&@[#6&R]-&@[#6&R](-&@[#6&R]-&@1)-&@[#6&R]'
+  '[#6]1-&@[#6]-&@[#6](-&@[#6]-&@1)-&@[#6&R]'
   >>> rdFMCS.FindMCS(mols, completeRingsOnly=True).smartsString
   '[#6]1-&@[#6]-&@[#6]-&@[#6]-&@1'
 
@@ -2288,7 +2296,8 @@ specification of the fingerprint function and optionally the similarity metric.
 The default for the latter is the Dice similarity. Using all the default arguments
 of the Morgan fingerprint function, the similarity map can be generated like this:
 
-  >>> fig, maxweight = SimilarityMaps.GetSimilarityMapForFingerprint(refmol, mol, SimilarityMaps.GetMorganFingerprint)
+  >>> d2d = Draw.MolDraw2DCairo(400, 400)
+  >>> _, maxweight = SimilarityMaps.GetSimilarityMapForFingerprint(refmol, mol, SimilarityMaps.GetMorganFingerprint, d2d)
 
 Producing this image:
 
@@ -2298,7 +2307,7 @@ For a different type of Morgan (e.g. count) and radius = 1 instead of 2, as well
 similarity metric (e.g. Tanimoto), the call becomes:
 
   >>> from rdkit import DataStructs
-  >>> fig, maxweight = SimilarityMaps.GetSimilarityMapForFingerprint(refmol, mol, lambda m,idx: SimilarityMaps.GetMorganFingerprint(m, atomId=idx, radius=1, fpType='count'), metric=DataStructs.TanimotoSimilarity)
+  >>> _, maxweight = SimilarityMaps.GetSimilarityMapForFingerprint(refmol, mol, lambda m,idx: SimilarityMaps.GetMorganFingerprint(m, atomId=idx, radius=1, fpType='count'), d2d, metric=DataStructs.TanimotoSimilarity)
 
 Producing this image:
 
@@ -2316,7 +2325,7 @@ If one does not want the normalisation step, the map can be created like:
   >>> weights = SimilarityMaps.GetAtomicWeightsForFingerprint(refmol, mol, SimilarityMaps.GetMorganFingerprint)
   >>> print(["%.2f " % w for w in weights])
   ['0.05 ', ...
-  >>> fig = SimilarityMaps.GetSimilarityMapFromWeights(mol, weights)
+  >>> _ = SimilarityMaps.GetSimilarityMapFromWeights(mol, weights, d2d)
 
 Producing this image:
 
@@ -2391,11 +2400,13 @@ The Gasteiger partial charges can be visualized as (using a different color sche
 
 .. doctest::
 
+  >>> from rdkit.Chem import Draw
   >>> from rdkit.Chem.Draw import SimilarityMaps
   >>> mol = Chem.MolFromSmiles('COc1cccc2cc(C(=O)NCCCCN3CCN(c4cccc5nccnc54)CC3)oc21')
   >>> AllChem.ComputeGasteigerCharges(mol)
   >>> contribs = [mol.GetAtomWithIdx(i).GetDoubleProp('_GasteigerCharge') for i in range(mol.GetNumAtoms())]
-  >>> fig = SimilarityMaps.GetSimilarityMapFromWeights(mol, contribs, colorMap='jet', contourLines=10)
+  >>> d2d = Draw.MolDraw2DCairo(400, 400)
+  >>> _ = SimilarityMaps.GetSimilarityMapFromWeights(mol, contribs, d2d, colorMap='jet', contourLines=10)
 
 Producing this image:
 
@@ -2407,7 +2418,7 @@ Or for the Crippen contributions to logP:
 
   >>> from rdkit.Chem import rdMolDescriptors
   >>> contribs = rdMolDescriptors._CalcCrippenContribs(mol)
-  >>> fig = SimilarityMaps.GetSimilarityMapFromWeights(mol,[x for x,y in contribs], colorMap='jet', contourLines=10)
+  >>> _ = SimilarityMaps.GetSimilarityMapFromWeights(mol,[x for x,y in contribs], d2d, colorMap='jet', contourLines=10)
 
 Producing this image:
 
@@ -2538,6 +2549,7 @@ As of the 2020.09 release, PNG images of reactions include metadata allowing the
 reaction to be reconstructed:
 
 .. doctest::
+  :skipif: not hasattr(AllChem,'ReactionFromPNGString')
 
   >>> newRxn = AllChem.ReactionFromPNGString(png)
   >>> AllChem.ReactionToSmarts(newRxn)
@@ -3264,7 +3276,7 @@ These are accessible using Python's help command:
   Help on method GetNumAtoms:
   <BLANKLINE>
   GetNumAtoms(...) method of rdkit.Chem.rdchem.Mol instance
-      GetNumAtoms( (Mol)arg1 [, (int)onlyHeavy=-1 [, (bool)onlyExplicit=True]]) -> int :
+      GetNumAtoms( (Mol)self [, (int)onlyHeavy=-1 [, (bool)onlyExplicit=True]]) -> int :
           Returns the number of atoms in the molecule.
   <BLANKLINE>
             ARGUMENTS:
@@ -3647,6 +3659,10 @@ These all require the molecule to have a 3D conformer.
 |                                                     |reproduce values from DRAGON for these descriptors. We       |          |
 |                                                     |believe that this is close.                                  |          |
 +-----------------------------------------------------+-------------------------------------------------------------+----------+
+|DCLV                                                 |New in 2024.03 release.  Eisenhaber et al.                   | C++      |
+|                                                     |J. of Comp. Chem, Vol. 16, pp. 273-284, 1995.                |          |
+|                                                     |https://doi.org/10.1002/jcc.540160303                        |          |
++-----------------------------------------------------+-------------------------------------------------------------+----------+
 
 
 
@@ -3711,8 +3727,8 @@ Lipinski Rule of 5
 Lipinski's "Rule of 5" [#lipinski]_ was introduced to estimate the oral bioavailability of molecules. Poor absorption is likely if the molecule violates more than one of the following conditions: 
 
 * Molecular Weight <= 500 Da
-* No. Hydrogen Bond Donors <= 10
-* No. Hydrogen Bond Acceptors <= 5
+* No. Hydrogen Bond Donors <= 5
+* No. Hydrogen Bond Acceptors <= 10
 * LogP <= 5
 
 .. doctest::

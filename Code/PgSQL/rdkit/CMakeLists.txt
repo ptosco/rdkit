@@ -27,9 +27,6 @@ if(RDK_OPTIMIZE_POPCNT)
 endif(RDK_OPTIMIZE_POPCNT)
 
 set(EXTENSION rdkit)
-if(NOT DEFINED Boost_INCLUDE_DIRS)
-  find_package(Boost ${RDK_BOOST_VERSION} REQUIRED)
-endif(NOT DEFINED Boost_INCLUDE_DIRS)
 include_directories(${Boost_INCLUDE_DIRS})
 message("postgres: ${PostgreSQL_INCLUDE_DIRS}")
 add_definitions(-DRDK_TOOLKIT_VERSION="${RDKit_RELEASENAME}")
@@ -151,7 +148,7 @@ foreach(pgRDKitLib ${pgRDKitLibList})
   endif()
   set(pgRDKitLibs "${pgRDKitLibs}${pgRDKitLib}${pgRDKitLibSuffix}")
 endforeach()
-target_link_libraries(${EXTENSION}${EXTENSION_SUFFIX} ${pgRDKitLibs})
+target_link_libraries(${EXTENSION}${EXTENSION_SUFFIX} ${pgRDKitLibs} rdkit_base)
 if(RDK_BUILD_THREADSAFE_SSS)
   target_link_libraries(${EXTENSION}${EXTENSION_SUFFIX} ${RDKit_THREAD_LIBS})
 endif(RDK_BUILD_THREADSAFE_SSS)
@@ -261,6 +258,22 @@ if(RDK_PGSQL_BFP_GIST_SORTSUPPORT AND ${PostgreSQL_VERSION_STRING} VERSION_GREAT
   set(RDKIT_PG_BFP_GIST_SORTSUPPORT "FUNCTION    11   gbfp_sortsupport (internal),")
 else()
   set(RDKIT_PG_BFP_GIST_SORTSUPPORT "")
+endif()
+
+if (${PostgreSQL_VERSION_STRING} VERSION_GREATER_EQUAL 17.0)
+  set(RDKIT_PG_ATEQ_COMMUTATOR "'@='")
+  set(RDKIT_PG_ATEQ_NEGATOR "'@<>'")
+  set(RDKIT_PG_ALTER_OPERATOR_ATEQ_MOL "ALTER OPERATOR @= (mol, mol) SET (
+    COMMUTATOR = '@=',
+    NEGATOR = '@<>'
+);")
+  set(RDKIT_PG_ALTER_OPERATOR_ATEQ_REACTION "ALTER OPERATOR @= (reaction, reaction) SET (
+    COMMUTATOR = '@=',
+    NEGATOR = '@<>'
+);")
+else()
+  set(RDKIT_PG_ATEQ_COMMUTATOR "'='")
+  set(RDKIT_PG_ATEQ_NEGATOR "'<>'")
 endif()
 
 configure_file("${PG_CURRENT_SOURCE_DIR}${EXTENSION}.sql.in"

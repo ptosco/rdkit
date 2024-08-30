@@ -1599,35 +1599,35 @@ void testIssue191() {
 }
 
 void testIssue256() {
-  Mol *mol;
-  Bond *bond;
-  std::string smi;
-
   BOOST_LOG(rdInfoLog) << "-------------------------------------" << std::endl;
   BOOST_LOG(rdInfoLog) << "Testing Issue 256: SMILES yields incorrect structure"
                        << std::endl;
 
-  smi = "C1CC[C+]1=1CCC1";
-  mol = SmilesToMol(smi);
-  TEST_ASSERT(mol);
-  bond = mol->getBondBetweenAtoms(3, 0);
-  TEST_ASSERT(bond)
-  TEST_ASSERT(bond->getBondType() == Bond::SINGLE);
-  bond = mol->getBondBetweenAtoms(3, 6);
-  TEST_ASSERT(bond)
-  TEST_ASSERT(bond->getBondType() == Bond::DOUBLE);
-  delete mol;
+  v2::SmilesParse::SmilesParserParams ps;
+  ps.sanitize = false;
+  {
+    auto smi = "C1CC[C+]1=1CCC1";
+    auto mol = v2::SmilesParse::MolFromSmiles(smi, ps);
+    TEST_ASSERT(mol);
+    auto bond = mol->getBondBetweenAtoms(3, 0);
+    TEST_ASSERT(bond)
+    TEST_ASSERT(bond->getBondType() == Bond::SINGLE);
+    bond = mol->getBondBetweenAtoms(3, 6);
+    TEST_ASSERT(bond)
+    TEST_ASSERT(bond->getBondType() == Bond::DOUBLE);
+  }
 
-  smi = "C1CC[C+]=11CCC1";
-  mol = SmilesToMol(smi);
-  TEST_ASSERT(mol);
-  bond = mol->getBondBetweenAtoms(3, 0);
-  TEST_ASSERT(bond)
-  TEST_ASSERT(bond->getBondType() == Bond::DOUBLE);
-  bond = mol->getBondBetweenAtoms(3, 6);
-  TEST_ASSERT(bond)
-  TEST_ASSERT(bond->getBondType() == Bond::SINGLE);
-  delete mol;
+  {
+    auto smi = "C1CC[C+]=11CCC1";
+    auto mol = v2::SmilesParse::MolFromSmiles(smi, ps);
+    TEST_ASSERT(mol);
+    auto bond = mol->getBondBetweenAtoms(3, 0);
+    TEST_ASSERT(bond)
+    TEST_ASSERT(bond->getBondType() == Bond::DOUBLE);
+    bond = mol->getBondBetweenAtoms(3, 6);
+    TEST_ASSERT(bond)
+    TEST_ASSERT(bond->getBondType() == Bond::SINGLE);
+  }
 
   BOOST_LOG(rdInfoLog) << "\tdone" << std::endl;
 }
@@ -4382,6 +4382,36 @@ void testGithub3967() {
   BOOST_LOG(rdInfoLog) << "\tdone" << std::endl;
 }
 
+void testGithub6349() {
+  BOOST_LOG(rdInfoLog) << "-------------------------------------" << std::endl;
+  BOOST_LOG(rdInfoLog)
+      << "Testing Github Issue 6349: Different SMARTS input formats lead to different SMILES outputs."
+      << std::endl;
+
+  auto checkSmartsToSmiles = [](const std::string &sma,
+                                const std::string &refSmi) {
+    std::unique_ptr<ROMol> molFromSmarts(SmartsToMol(sma));
+    {
+      std::string smi = MolToSmiles(*molFromSmarts);
+      TEST_ASSERT(smi == refSmi);
+    }
+
+    std::string molBlock = MolToMolBlock(*molFromSmarts);
+    std::unique_ptr<ROMol> molFromBlock(
+        MolBlockToMol(molBlock, /*sanitize =*/false, /*removeHs =*/false));
+    {
+      std::string smi = MolToSmiles(*molFromBlock);
+      TEST_ASSERT(smi == refSmi);
+    }
+  };
+  checkSmartsToSmiles("[C]", "C");
+  checkSmartsToSmiles("[C,N]", "*");
+  checkSmartsToSmiles("[C,N]~[O,S]", "*~*");
+  checkSmartsToSmiles("C-C(-[Cl,F,Br])-C", "*C(C)C");
+
+  BOOST_LOG(rdInfoLog) << "done" << std::endl;
+}
+
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
@@ -4461,6 +4491,7 @@ int main(int argc, char *argv[]) {
   testGithub1028();
   testGithub3139();
   testGithub3967();
+  testGithub6349();
 #endif
   testOSSFuzzFailures();
 }

@@ -24,13 +24,13 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
-#include <RDGeneral/BoostEndInclude.h>
-#if defined(RDK_USE_BOOST_IOSTREAMS)
-#include <zlib.h>
+#ifdef RDK_USE_BOOST_IOSTREAMS
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
-#elif defined(RDK_USE_ZLIB)
+#endif
+#include <RDGeneral/BoostEndInclude.h>
+#if !defined(RDK_USE_BOOST_IOSTREAMS) && defined(RDK_USE_ZLIB)
 #ifndef ZLIB_CONST
 #define ZLIB_CONST
 #endif

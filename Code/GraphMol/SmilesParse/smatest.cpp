@@ -1146,14 +1146,16 @@ void testSmilesSmarts() {
   delete mol;
 
   smi = "[CH4+]C";
-  mol = SmilesToMol(smi);
+  auto debugParse = false;
+  auto sanitize = false;
+  mol = SmilesToMol(smi, debugParse, sanitize);
   TEST_ASSERT(mol);
   sma = MolToSmarts(*mol);
   TEST_ASSERT(sma == "[#6H4+]-[#6]");
   delete mol;
 
   smi = "[CH5+2]C";
-  mol = SmilesToMol(smi);
+  mol = SmilesToMol(smi, debugParse, sanitize);
   TEST_ASSERT(mol);
   sma = MolToSmarts(*mol);
   TEST_ASSERT(sma == "[#6H5+2]-[#6]");
@@ -2835,6 +2837,20 @@ void testRingBondCrash() {
   BOOST_LOG(rdInfoLog) << "done" << std::endl;
 }
 
+void testGithub6730() {
+  BOOST_LOG(rdInfoLog) << "-------------------------------------" << std::endl;
+  BOOST_LOG(rdInfoLog) << "Testing stereo inverts on first atom of SMARTS"
+                       << std::endl;
+  {
+    auto input = "[C@H](F)(Cl)O"_smarts;
+    auto expected = "F[C@@&H1](Cl)O";
+    auto actual = MolToSmarts(*input, true, 1);  // doChiral,root=F(1)
+    TEST_ASSERT(expected == actual);
+  }
+
+  BOOST_LOG(rdInfoLog) << "done" << std::endl;
+}
+
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
@@ -2889,6 +2905,7 @@ int main(int argc, char *argv[]) {
   testGithub2142();
   testGithub2565();
   testSmartsStereoBonds();
+  testGithub6730();
 #endif
   testRingBondCrash();
   return 0;

@@ -8,7 +8,7 @@
 //  of the RDKit source tree.
 //
 
-#include "catch.hpp"
+#include <catch2/catch_all.hpp>
 
 #include <GraphMol/RDKitBase.h>
 #include <GraphMol/FileParsers/FileParsers.h>
@@ -19,6 +19,8 @@
 #include <GraphMol/Descriptors/ConnectivityDescriptors.h>
 #include <GraphMol/Descriptors/OxidationNumbers.h>
 #include <GraphMol/Descriptors/PMI.h>
+#include <GraphMol/Descriptors/DCLV.h>
+#include <GraphMol/Descriptors/BCUT.h>
 
 using namespace RDKit;
 
@@ -49,7 +51,7 @@ TEST_CASE("Kier kappa2", "[2D]") {
       std::unique_ptr<ROMol> m(SmilesToMol(pr.first));
       REQUIRE(m);
       auto k2 = Descriptors::calcKappa2(*m);
-      CHECK(k2 == Approx(pr.second).epsilon(0.01));
+      CHECK(k2 == Catch::Approx(pr.second).epsilon(0.01));
     }
   }
 }
@@ -110,7 +112,7 @@ TEST_CASE("Kier Phi", "[2D]") {
       std::unique_ptr<ROMol> m(SmilesToMol(pr.first));
       REQUIRE(m);
       auto val = Descriptors::calcPhi(*m);
-      CHECK(val == Approx(pr.second).epsilon(0.01));
+      CHECK(val == Catch::Approx(pr.second).epsilon(0.01));
     }
   }
 }
@@ -546,5 +548,92 @@ TEST_CASE("Oxidation numbers") {
               expected.second);
       }
     }
+  }
+}
+
+TEST_CASE("DCLV") {
+  std::string pathName = getenv("RDBASE");
+  std::string pdbName =
+      pathName + "/Code/GraphMol/Descriptors/test_data/1mup.pdb";
+  auto m = v2::FileParsers::MolFromPDBFile(pdbName);
+  REQUIRE(m);
+  SECTION("defaults") {
+    bool isProtein = true;
+    bool includeLigand = false;
+    Descriptors::DoubleCubicLatticeVolume dclv(*m, isProtein, includeLigand);
+    CHECK(dclv.getSurfaceArea() == Catch::Approx(8330.59).epsilon(0.05));
+    CHECK(dclv.getVolume() == Catch::Approx(31789.6).epsilon(0.05));
+    CHECK(dclv.getVDWVolume() == Catch::Approx(15355.3).epsilon(0.05));
+    CHECK(dclv.getCompactness() == Catch::Approx(1.7166).epsilon(0.05));
+    CHECK(dclv.getPackingDensity() == Catch::Approx(0.48303).epsilon(0.05));
+  }
+  SECTION("depth and radius") {
+    double probeRadius = 1.6;
+    int depth = 6;
+    bool isProtein = true;
+    bool includeLigand = false;
+    Descriptors::DoubleCubicLatticeVolume dclv(*m, isProtein, includeLigand,
+                                               probeRadius, depth);
+    CHECK(dclv.getSurfaceArea() == Catch::Approx(8186.06).epsilon(0.05));
+    CHECK(dclv.getVolume() == Catch::Approx(33464.5).epsilon(0.05));
+    CHECK(dclv.getVDWVolume() == Catch::Approx(15350.7).epsilon(0.05));
+    CHECK(dclv.getCompactness() == Catch::Approx(1.63005).epsilon(0.05));
+    CHECK(dclv.getPackingDensity() == Catch::Approx(0.458717).epsilon(0.05));
+  }
+  SECTION("ligand") {
+    bool isProtein = true;
+    bool includeLigand = true;
+    Descriptors::DoubleCubicLatticeVolume dclv(*m, isProtein, includeLigand);
+    CHECK(dclv.getSurfaceArea() == Catch::Approx(8010.56).epsilon(0.05));
+    CHECK(dclv.getVolume() == Catch::Approx(31228.4).epsilon(0.05));
+    CHECK(dclv.getVDWVolume() == Catch::Approx(15155.7).epsilon(0.05));
+    CHECK(dclv.getCompactness() == Catch::Approx(1.67037).epsilon(0.05));
+    CHECK(dclv.getPackingDensity() == Catch::Approx(0.48532).epsilon(0.05));
+  }
+  SECTION("SDF") {
+    std::string sdfName =
+        pathName + "/Code/GraphMol/Descriptors/test_data/TZL_model.sdf";
+    auto m = v2::FileParsers::MolFromMolFile(sdfName);
+    REQUIRE(m);
+    bool isProtein = false;
+    Descriptors::DoubleCubicLatticeVolume dclv(*m, isProtein);
+    // NOTE - expected values generated from Roger's original C code
+    // Original did not return surface area for Ligand only
+    // so no check for Surface Area or Compactness
+
+    CHECK(dclv.getSurfaceArea() == Catch::Approx(296.466).epsilon(0.05));
+    CHECK(dclv.getVolume() == Catch::Approx(411.972).epsilon(0.05));
+    CHECK(dclv.getVDWVolume() == Catch::Approx(139.97).epsilon(0.05));
+  }
+}
+
+TEST_CASE("Github #7364: BCUT descriptors failing for moleucles with Hs") {
+  SECTION("as reported") {
+    auto m = "CCOC#CCC(C(=O)c1ccc(C)cc1)N1CCCC1"_smiles;
+    REQUIRE(m);
+    RWMol m2 = *m;
+    MolOps::addHs(m2);
+    auto ref = Descriptors::BCUT2D(*m);
+    auto val = Descriptors::BCUT2D(m2);
+    CHECK(ref.size() == val.size());
+    CHECK(ref == val);
+  }
+}
+
+TEST_CASE(
+    "Github #6757: numAtomStereoCenters fails if molecule is sanitized a second time") {
+  SECTION("as reported") {
+    auto m = "C[C@H](F)Cl"_smiles;
+    REQUIRE(m);
+    CHECK(Descriptors::numAtomStereoCenters(*m) == 1);
+    CHECK(Descriptors::numUnspecifiedAtomStereoCenters(*m) == 0);
+    MolOps::sanitizeMol(*m);
+    CHECK(Descriptors::numAtomStereoCenters(*m) == 1);
+  }
+  SECTION("expanded") {
+    auto m = "C[C@H](F)C(O)Cl"_smiles;
+    REQUIRE(m);
+    CHECK(Descriptors::numAtomStereoCenters(*m) == 2);
+    CHECK(Descriptors::numUnspecifiedAtomStereoCenters(*m) == 1);
   }
 }
