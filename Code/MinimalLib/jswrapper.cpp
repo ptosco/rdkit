@@ -369,6 +369,14 @@ emscripten::val get_mmpa_frags_helper(const JSMolBase &self, unsigned int minCut
 }
 #endif
 
+void enable_logging_all() {
+  enable_logging("");
+}
+
+void disable_logging_all() {
+  disable_logging("");
+}
+
 }  // namespace
 
 using namespace emscripten;
@@ -699,7 +707,9 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
   function("get_mol_copy", &get_mol_copy, allow_raw_pointers());
   function("get_qmol", &get_qmol, allow_raw_pointers());
   function("enable_logging", &enable_logging);
+  function("enable_logging", &enable_logging_all);
   function("disable_logging", &disable_logging);
+  function("disable_logging", &disable_logging_all);
   function("set_log_capture", &set_log_capture, allow_raw_pointers());
   function("set_log_tee", &set_log_tee, allow_raw_pointers());
 #ifdef RDK_BUILD_MINIMAL_LIB_RXN

@@ -30,7 +30,7 @@
 #include <boost/iostreams/filter/zlib.hpp>
 #endif
 #include <RDGeneral/BoostEndInclude.h>
-#if !defined(RDK_USE_BOOST_IOSTREAMS) && defined(RDK_USE_ZLIB)
+#if !defined(RDK_USE_BOOST_IOSTREAMS) && defined(RDK_USE_STANDALONE_ZLIB)
 #ifndef ZLIB_CONST
 #define ZLIB_CONST
 #endif
@@ -90,7 +90,7 @@ std::string compressString(const std::string &text) {
   boost::iostreams::copy(bioOutstream, compressed);
   return compressed.str();
 }
-#elif defined(RDK_USE_ZLIB)
+#elif defined(RDK_USE_STANDALONE_ZLIB)
 std::string zlibActOnString(const std::string &inText, bool compress) {
   static const char *deflatePrefix = "de";
   static const char *inflatePrefix = "in";
@@ -190,7 +190,7 @@ std::vector<std::pair<std::string, std::string>> PNGStreamToMetadata(
         bytes[3] == 'D') {
       break;
     }
-#if !defined(RDK_USE_BOOST_IOSTREAMS) && !defined(RDK_USE_ZLIB)
+#if !defined(RDK_USE_BOOST_IOSTREAMS) && !defined(RDK_USE_STANDALONE_ZLIB)
     bool alreadyWarned = false;
 #endif
     if (blockLen > 0 &&
@@ -211,8 +211,8 @@ std::vector<std::pair<std::string, std::string>> PNGStreamToMetadata(
         if (inStream.fail()) {
           throw FileParseException("error when reading from PNG");
         }
-      } else if (bytes[0] == 'z') {
-#if defined(RDK_USE_BOOST_IOSTREAMS) || defined(RDK_USE_ZLIB)
+      } else {
+#if defined(RDK_USE_BOOST_IOSTREAMS) || defined(RDK_USE_STANDALONE_ZLIB)
         value.resize(dataLen);
         inStream.read(&value.front(), dataLen);
         if (inStream.fail()) {
@@ -229,8 +229,6 @@ std::vector<std::pair<std::string, std::string>> PNGStreamToMetadata(
           alreadyWarned = true;
         }
 #endif
-      } else {
-        CHECK_INVARIANT(0, "impossible value");
       }
       if (!value.empty()) {
         res.push_back(std::make_pair(key, value));
@@ -247,7 +245,7 @@ std::string addMetadataToPNGStream(
     std::istream &inStream,
     const std::vector<std::pair<std::string, std::string>> &metadata,
     bool compressed) {
-#if !defined(RDK_USE_BOOST_IOSTREAMS) && !defined(RDK_USE_ZLIB)
+#if !defined(RDK_USE_BOOST_IOSTREAMS) && !defined(RDK_USE_STANDALONE_ZLIB)
   compressed = false;
 #endif
   // confirm that it's a PNG file:
@@ -296,7 +294,7 @@ std::string addMetadataToPNGStream(
       blk.write(pr.first.c_str(), pr.first.size() + 1);
       blk.write(pr.second.c_str(), pr.second.size());
     } else {
-#if defined(RDK_USE_BOOST_IOSTREAMS) || defined(RDK_USE_ZLIB)
+#if defined(RDK_USE_BOOST_IOSTREAMS) || defined(RDK_USE_STANDALONE_ZLIB)
       blk.write("zTXt", 4);
       // write the name along with a zero
       blk.write(pr.first.c_str(), pr.first.size() + 1);

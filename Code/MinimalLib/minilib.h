@@ -27,6 +27,7 @@ class JSMolBase {
   virtual ~JSMolBase(){};
   virtual const RDKit::RWMol &get() const = 0;
   virtual RDKit::RWMol &get() = 0;
+  virtual void reset(RDKit::RWMol *other) = 0;
   std::string get_smiles() const;
   std::string get_smiles(const std::string &details) const;
   std::string get_cxsmiles() const;
@@ -194,6 +195,10 @@ class JSMol : public JSMolBase {
     checkNotNull();
     return *d_mol.get();
   }
+  void reset(RDKit::RWMol *other) {
+    PRECONDITION(other, "other cannot be null");
+    d_mol.reset(other);
+  }
 
  private:
   void checkNotNull() const { CHECK_INVARIANT(d_mol, "d_mol cannot be null"); }
@@ -219,6 +224,14 @@ class JSMolShared : public JSMolBase {
   }
   const RDKit::ROMOL_SPTR &get_sptr() const { return d_mol; }
   RDKit::ROMOL_SPTR &get_sptr() { return d_mol; }
+  void reset(RDKit::RWMol *other) {
+    PRECONDITION(other, "other cannot be null");
+    d_mol.reset(other);
+  }
+  void reset_sptr(const RDKit::ROMOL_SPTR &other) {
+    PRECONDITION(other, "other cannot be null");
+    d_mol = other;
+  }
 
  private:
   void checkNotNull() const { CHECK_INVARIANT(d_mol, "d_mol cannot be null"); }
@@ -352,8 +365,8 @@ JSMolBase *get_mol_from_png_blob(const std::string &pngString,
                              const std::string &details);
 JSMolList *get_mols_from_png_blob(const std::string &pngString,
                                   const std::string &details);
-void enable_logging();
-void disable_logging();
+void enable_logging(const std::string &logName);
+void disable_logging(const std::string &logName);
 JSLog *set_log_tee(const std::string &log_name);
 JSLog *set_log_capture(const std::string &log_name);
 #ifdef RDK_BUILD_MINIMAL_LIB_MCS

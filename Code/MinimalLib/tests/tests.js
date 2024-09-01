@@ -2678,23 +2678,57 @@ function test_partial_sanitization() {
 }
 
 function test_capture_logs() {
-    ["set_log_tee", "set_log_capture"].forEach((func, i) => {
+    const PENTAVALENT_CARBON = 'CC(C)(C)(C)C';
+    const PENTAVALENT_CARBON_VALENCE_ERROR = 'Explicit valence for atom # 1 C, 5, is greater than permitted'
+    const TETRAVALENT_NITROGEN = 'CN(C)(C)C';
+    const TETRAVALENT_NITROGEN_VALENCE_ERROR = 'Explicit valence for atom # 1 N, 4, is greater than permitted'
+    RDKitModule.disable_logging();
+    RDKitModule.enable_logging('rdApp.info');
+    console.log('Should see no warning on pentavalent carbon below');
+    var mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
+    assert(!mol);
+    RDKitModule.enable_logging("rdApp.error");
+    console.log('Should see warning on pentavalent carbon below');
+    var mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
+    assert(!mol);
+    RDKitModule.disable_logging();
+    console.log('Should again see no warning on pentavalent carbon below');
+    var mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
+    assert(!mol);
+    var logHandle1;
+    var logHandle2;
+    var logBuffer1;
+    var logBuffer2;
+    var mol;
+    ['set_log_tee', 'set_log_capture'].forEach((func, i) => {
         console.log(`${i + 1}. ${func}`);
-        var logHandle = RDKitModule[func]("dummy");
-        assert(!logHandle);
-        var logHandle = RDKitModule[func]("rdApp.*");
-        assert(logHandle);
-        var logBuffer = logHandle.get_buffer();
-        assert(!logBuffer);
-        var mol = RDKitModule.get_mol("CN(C)(C)C");
+        logHandle1 = RDKitModule[func]('rdApp.*');
+        assert(logHandle1);
+        logBuffer1 = logHandle1.get_buffer();
+        assert(!logBuffer1);
+        mol = RDKitModule.get_mol(TETRAVALENT_NITROGEN);
         assert(!mol);
-        logBuffer = logHandle.get_buffer();
-        assert(logBuffer);
-        assert(logBuffer.includes('Explicit valence for atom # 1 N, 4, is greater than permitted'));
-        logHandle.clear_buffer();
-        assert(!logHandle.get_buffer());
-        logHandle.delete();
+        logBuffer1 = logHandle1.get_buffer();
+        assert(logBuffer1);
+        assert(logBuffer1.includes(TETRAVALENT_NITROGEN_VALENCE_ERROR));
+        logHandle1.clear_buffer();
+        assert(!logHandle1.get_buffer());
+        logHandle2 = RDKitModule[func]('rdApp.*');
+        assert(!logHandle2);
+        mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
+        assert(!mol);
+        logBuffer1 = logHandle1.get_buffer();
+        assert(logBuffer1);
+        assert(logBuffer1.includes(PENTAVALENT_CARBON_VALENCE_ERROR));
+        assert(!logBuffer1.includes(TETRAVALENT_NITROGEN_VALENCE_ERROR));
+        logHandle1.delete();
+        logHandle2 = RDKitModule[func]('rdApp.*');
+        assert(logHandle2);
+        logHandle2.delete();
     })
+    console.log('Should again see no warning on pentavalent carbon below');
+    var mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
+    assert(!mol);
 }
 
 function test_rgroup_match_heavy_hydro_none_charged() {
@@ -3208,6 +3242,7 @@ function test_png_metadata() {
     assert(penicillin);
     assert.equal(penicillin.has_coords(), 2);
     penicillin.delete();
+    RDKitModule.enable_logging()
     let mol = RDKitModule.get_mol_from_png_blob(png_with_metadata_blob);
     assert(mol);
     assert.equal(mol.has_coords(), 2);

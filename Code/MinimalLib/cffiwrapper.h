@@ -151,7 +151,9 @@ RDKIT_RDKITCFFI_EXPORT void free_ptr(char *ptr);
 
 RDKIT_RDKITCFFI_EXPORT char *version();
 RDKIT_RDKITCFFI_EXPORT void enable_logging();
+RDKIT_RDKITCFFI_EXPORT void enable_logger(const char *log_name);
 RDKIT_RDKITCFFI_EXPORT void disable_logging();
+RDKIT_RDKITCFFI_EXPORT void disable_logger(const char *log_name);
 
 // chirality
 RDKIT_RDKITCFFI_EXPORT short use_legacy_stereo_perception(short value);

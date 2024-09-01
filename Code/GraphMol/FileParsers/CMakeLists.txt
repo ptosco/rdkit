@@ -1,30 +1,10 @@
 
 
-if(RDK_USE_BOOST_IOSTREAMS)
-    find_package(Boost ${RDK_BOOST_VERSION} COMPONENTS system iostreams REQUIRED)
-    set (link_iostreams ${Boost_LIBRARIES})
-    if(NOT Boost_USE_STATIC_LIBS)
-        add_definitions("-DBOOST_IOSTREAMS_DYN_LINK")
-    endif()
+if(NOT RDK_USE_BOOST_IOSTREAMS)
     find_package(ZLIB)
-    include_directories(${ZLIB_INCLUDE_DIRS})
-    if(WIN32)
-        find_package(Boost ${RDK_BOOST_VERSION} COMPONENTS zlib)
-        if(Boost_zlib_FOUND)
-            set(zlib_lib Boost::zlib)
-        else(Boost_zlib_FOUND)
-            set(zlib_lib ${ZLIB_LIBRARIES})
-        endif(Boost_zlib_FOUND)
-    else(WIN32)
-        set(zlib_lib ${ZLIB_LIBRARIES})
-    endif(WIN32)
-    add_definitions("-DRDK_USE_BOOST_IOSTREAMS")
-else(RDK_USE_BOOST_IOSTREAMS)
-    find_package(ZLIB)
-    include_directories(${ZLIB_INCLUDE_DIRS})
-    set(zlib_lib ${ZLIB_LIBRARIES})
-    add_definitions("-DRDK_USE_ZLIB")
-endif(RDK_USE_BOOST_IOSTREAMS)
+    set(STANDALONE_ZLIB_LIBRARY ${ZLIB_LIBRARIES})
+    add_definitions("-DRDK_USE_STANDALONE_ZLIB")
+endif(NOT RDK_USE_BOOST_IOSTREAMS)
 
 if(RDK_BUILD_MAEPARSER_SUPPORT)
     include_directories(${maeparser_INCLUDE_DIRS})
@@ -51,7 +31,10 @@ rdkit_library(FileParsers
     MultithreadedMolSupplier.cpp
     MultithreadedSmilesMolSupplier.cpp
     MultithreadedSDMolSupplier.cpp
-    LINK_LIBRARIES GenericGroups Depictor SmilesParse ChemTransforms GraphMol ${RDK_MAEPARSER_LIBS})
+    LINK_LIBRARIES GenericGroups Depictor SmilesParse ChemTransforms GraphMol ${RDK_MAEPARSER_LIBS} ${STANDALONE_ZLIB_LIBRARY})
+if(STANDALONE_ZLIB_LIBRARY)
+    target_include_directories(FileParsers PRIVATE ${ZLIB_INCLUDE_DIRS})
+endif(STANDALONE_ZLIB_LIBRARY)
 target_compile_definitions(FileParsers PRIVATE RDKIT_FILEPARSERS_BUILD)
 
 rdkit_headers(CDXMLParser.h
