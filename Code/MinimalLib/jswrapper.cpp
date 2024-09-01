@@ -345,7 +345,7 @@ JSMolList *get_mols_from_png_blob_no_details_helper(
   return get_mols_from_png_blob_helper(pngAsUInt8Array, "");
 }
 
-emscripten::val get_coords_helper(const JSMol &self) {
+emscripten::val get_coords_helper(const JSMolBase &self) {
   static const char *PUSH = "push";
   auto res = emscripten::val::array();
   for (const auto &pt : self.get_coords()) {
