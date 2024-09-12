@@ -149,7 +149,7 @@ macro(rdkit_python_extension)
   CAR(RDKPY_NAME ${RDKPY_DEFAULT_ARGS})
   CDR(RDKPY_SOURCES ${RDKPY_DEFAULT_ARGS})
   if(RDK_BUILD_PYTHON_WRAPPERS)
-    PYTHON_ADD_MODULE(${RDKPY_NAME} ${RDKPY_SOURCES})
+    Python3_add_library(${RDKPY_NAME} MODULE ${RDKPY_SOURCES})
     set_target_properties(${RDKPY_NAME} PROPERTIES PREFIX "")
 
     if(WIN32)
@@ -162,7 +162,7 @@ macro(rdkit_python_extension)
                               ${RDK_PYTHON_OUTPUT_DIRECTORY}/${RDKPY_DEST})
     endif(WIN32)
 
-    target_link_libraries(${RDKPY_NAME} ${RDKPY_LINK_LIBRARIES}
+    target_link_libraries(${RDKPY_NAME} PUBLIC ${RDKPY_LINK_LIBRARIES}
                           RDBoost rdkit_py_base rdkit_base )
     if("${PYTHON_LDSHARED}" STREQUAL "")
     else()
@@ -210,7 +210,7 @@ macro(add_pytest)
   CAR(PYTEST_NAME ${PYTEST_DEFAULT_ARGS})
   CDR(PYTEST_SOURCES ${PYTEST_DEFAULT_ARGS})
   if(RDK_BUILD_PYTHON_WRAPPERS)
-    add_test(${PYTEST_NAME}  ${PYTHON_EXECUTABLE}
+    add_test(${PYTEST_NAME}  ${Python3_EXECUTABLE}
              ${PYTEST_SOURCES})
     SET(RDKIT_PYTEST_CACHE "${PYTEST_NAME};${RDKIT_PYTEST_CACHE}" CACHE INTERNAL "Global list of python tests")
   endif(RDK_BUILD_PYTHON_WRAPPERS)
