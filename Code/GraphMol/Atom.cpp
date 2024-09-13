@@ -21,7 +21,7 @@
 #include <RDGeneral/types.h>
 #include <RDGeneral/Dict.h>
 
-//#define VALENCE_DEBUG 1
+#define VALENCE_DEBUG 1
 
 namespace RDKit {
 
