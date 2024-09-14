@@ -916,6 +916,8 @@ M  END
 TEST_CASE("RemoveHsParameters", "[molops]") {
   SmilesParserParams smilesPs;
   smilesPs.removeHs = false;
+  SmilesParserParams smilesPsNoSanitize(smilesPs);
+  smilesPsNoSanitize.sanitize = false;
 
   SECTION("H-H") {
     std::unique_ptr<RWMol> m{SmilesToMol("[H][H].[H]O[H]", smilesPs)};
@@ -1088,25 +1090,28 @@ TEST_CASE("RemoveHsParameters", "[molops]") {
   }
   SECTION("higher degree") {
     // this is a silly example
-    std::unique_ptr<RWMol> m{SmilesToMol("F[H-]F", smilesPs)};
+    std::unique_ptr<RWMol> m{SmilesToMol("F[H-]F", smilesPsNoSanitize)};
     REQUIRE(m);
     CHECK(m->getNumAtoms() == 3);
     {
       RWMol cp(*m);
-      MolOps::removeHs(cp);
-      CHECK(cp.getNumAtoms() == 3);
+      REQUIRE_THROWS_AS(MolOps::removeHs(cp), AtomValenceException);
+    }
+    {
+      RWMol cp(*m);
+      REQUIRE_NOTHROW(MolOps::removeHs(cp, false, false, false));
     }
     {
       MolOps::RemoveHsParameters ps;
       RWMol cp(*m);
-      MolOps::removeHs(cp, ps);
+      MolOps::removeHs(cp, ps, false);
       CHECK(cp.getNumAtoms() == 3);
     }
     {
       MolOps::RemoveHsParameters ps;
       ps.removeHigherDegrees = true;
       RWMol cp(*m);
-      MolOps::removeHs(cp, ps);
+      MolOps::removeHs(cp, ps, false);
       CHECK(cp.getNumAtoms() == 2);
     }
   }
@@ -1129,19 +1134,20 @@ TEST_CASE("RemoveHsParameters", "[molops]") {
   }
   SECTION("allHs") {
     std::unique_ptr<RWMol> m{SmilesToMol(
-        "[C@]12([H])CCC1CO2.[H+].F[H-]F.[H][H].[H]*.F/C=C/[H]", smilesPs)};
+        "[C@]12([H])CCC1CO2.[H+].F[H-]F.[H][H].[H]*.F/C=C/[H]", smilesPsNoSanitize)};
     REQUIRE(m);
     // artificial wedging since we don't have a conformer
     m->getBondBetweenAtoms(0, 1)->setBondDir(Bond::BEGINWEDGE);
     RWMol cp(*m);
-    MolOps::removeAllHs(cp);
+    REQUIRE_THROWS_AS(MolOps::removeAllHs(cp), AtomValenceException);
+    REQUIRE_NOTHROW(MolOps::removeAllHs(cp, false));
     for (auto atom : cp.atoms()) {
       CHECK(atom->getAtomicNum() != 1);
     }
   }
   SECTION("allHs2") {
     std::unique_ptr<ROMol> m{SmilesToMol(
-        "[C@]12([H])CCC1CO2.[H+].F[H-]F.[H][H].[H]*.F/C=C/[H]", smilesPs)};
+        "[C@]12([H])CCC1CO2.[H+].F[H-]F.[H][H].[H]*.F/C=C/[H]", smilesPsNoSanitize)};
     REQUIRE(m);
     // artificial wedging since we don't have a conformer
     m->getBondBetweenAtoms(0, 1)->setBondDir(Bond::BEGINWEDGE);
@@ -3538,7 +3544,7 @@ $$$$
     m->replaceBond(1, new Bond(Bond::BondType::DATIVE));
     m->updatePropertyCache(strict_valences);
     CHECK(begin_atom->getNumExplicitHs() == 1);
-    CHECK(begin_atom->getTotalValence() == 4);
+    CHECK(begin_atom->getTotalValence() == 3);
     CHECK(end_atom->getNumExplicitHs() == 0);
     CHECK(end_atom->getTotalValence() == 4);
   }
