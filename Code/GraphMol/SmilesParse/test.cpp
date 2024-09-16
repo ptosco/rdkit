@@ -22,11 +22,10 @@ using namespace std;
 typedef ROMol Mol;
 
 void testPass() {
-  int i = 0;
-  ROMol *mol, *mol2;
   BOOST_LOG(rdInfoLog) << "-------------------------------------" << std::endl;
   BOOST_LOG(rdInfoLog) << "Testing molecules which should parse." << std::endl;
-  string smis[] = {
+  std::unique_ptr<RWMol> mol, mol2;
+  vector<string> smis{
 #if 1
     "C1CC2C1CC2",
     "c1cccn(=O)c1",
@@ -121,31 +120,48 @@ void testPass() {
     "C[Fe@TB10](O)(Cl)(Br)F",
     "C[Fe@OH](O)(Cl)(Br)(N)F",
     "C[Fe@OH20](O)(Cl)(Br)(N)F",
-    "EOS"
   };
-  while (smis[i] != "EOS") {
-    string smi = smis[i];
+  SmilesParserParams ps;
+  ps.sanitize = false;
+  for (auto smi : smis) {
     BOOST_LOG(rdInfoLog) << "***: " << smi << std::endl;
-    mol = SmilesToMol(smi);
-    CHECK_INVARIANT(mol, smi);
-    if (mol) {
-      unsigned int nAts = mol->getNumAtoms();
-      CHECK_INVARIANT(nAts != 0, smi.c_str());
-      smi = MolToSmiles(*mol);
-      // BOOST_LOG(rdInfoLog)<< "  > " << smi << std::endl;
-      mol2 = SmilesToMol(smi);
-      CHECK_INVARIANT(mol2->getNumAtoms() == nAts, smi.c_str())
-      delete mol;
-      delete mol2;
+    try {
+      mol.reset(SmilesToMol(smi));
+      CHECK_INVARIANT(mol, smi);
+    } catch (const AtomValenceException&) {
+      // there are two molecules with divalent hydrogen
+      // which are expected to fail sanitization
+      mol.reset(SmilesToMol(smi, ps));
+      CHECK_INVARIANT(mol, smi);
+      auto atoms = mol->atoms();
+      TEST_ASSERT(all_of(atoms.begin(), atoms.end(), [](const auto atom) {
+        return atom->getAtomicNum() == 1;
+      }));
     }
-    i++;
+    auto nAts = mol->getNumAtoms();
+    CHECK_INVARIANT(nAts != 0, smi.c_str());
+    smi = MolToSmiles(*mol);
+    // BOOST_LOG(rdInfoLog)<< "  > " << smi << std::endl;
+    try {
+      mol2.reset(SmilesToMol(smi));
+      CHECK_INVARIANT(mol2, smi);
+    } catch (const AtomValenceException&) {
+      // there are two molecules with divalent hydrogen
+      // which are expected to fail sanitization
+      mol2.reset(SmilesToMol(smi, ps));
+      CHECK_INVARIANT(mol2, smi);
+      auto atoms = mol2->atoms();
+      TEST_ASSERT(all_of(atoms.begin(), atoms.end(), [](const auto atom) {
+        return atom->getAtomicNum() == 1;
+      }));
+    }
+    CHECK_INVARIANT(mol2->getNumAtoms() == nAts, smi.c_str())
   }
   BOOST_LOG(rdInfoLog) << "\tdone" << std::endl;
 }
 
 void testFail() {
-  int i = 0;
-  Mol *mol;
+  std::unique_ptr<Mol> mol;
 
   BOOST_LOG(rdInfoLog) << "-------------------------------------" << std::endl;
   BOOST_LOG(rdInfoLog)
@@ -154,7 +170,7 @@ void testFail() {
   // alternate good and bad smiles here to ensure that the parser can resume
   // parsing
   // on good input:
-  string smis[] = {
+  vector<string> smis{
       "CC=(CO)C",    "CC(=CO)C", "C1CC",
       "C1CC1",       "Ccc",      "CCC",
       "fff",  // tests the situation where the parser cannot do anything at all
@@ -177,23 +193,22 @@ void testFail() {
       "[Fe@AL3]",    "C",  //
       "[Fe@TB21]",   "C",  //
       "[Fe@OH31]",   "C",  //
-      "EOS"};
+  };
 
   // turn off the error log temporarily:
-  while (smis[i] != "EOS") {
-    string smi = smis[i];
+  unsigned int i = 0;
+  for (const auto &smi : smis) {
     boost::logging::disable_logs("rdApp.error");
     try {
-      mol = SmilesToMol(smi);
+      mol.reset(SmilesToMol(smi));
     } catch (MolSanitizeException &) {
-      mol = (Mol *)nullptr;
+      mol.reset(nullptr);
     }
     boost::logging::enable_logs("rdApp.error");
     if (!(i % 2)) {
       CHECK_INVARIANT(!mol, smi);
     } else {
       CHECK_INVARIANT(mol, smi);
-      delete mol;
     }
     i++;
   }
