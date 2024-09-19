@@ -4847,23 +4847,17 @@ void testSFNetIssue272() {
 
   {
     std::string smi = "C[H-]C";
-    std::unique_ptr<ROMol> m(SmilesToMol(smi, 0, false));
+    ROMol *m = SmilesToMol(smi);
     TEST_ASSERT(m);
     TEST_ASSERT(m->getNumAtoms() == 3);
-    m->updatePropertyCache(false);
-    bool hasThrown = false;
-    try {
-      m->updatePropertyCache(true);
-    } catch (AtomValenceException &) {
-      hasThrown = true;
-    }
-    TEST_ASSERT(hasThrown);
+    delete m;
   }
   {
     std::string smi = "C[H].C";
-    std::unique_ptr<ROMol> m(SmilesToMol(smi));
+    ROMol *m = SmilesToMol(smi);
     TEST_ASSERT(m);
     TEST_ASSERT(m->getNumAtoms() == 2);
+    delete m;
   }
 
   BOOST_LOG(rdInfoLog) << "Finished" << std::endl;

@@ -183,7 +183,7 @@ double Bond::getBondTypeAsDouble() const {
   return res;
 }
 
-double Bond::getNumValenceElectronsPerAtom(const Atom *atom) const {
+double Bond::getSignedDonatedElectrons(const Atom *atom) const {
   double res = 0.0;
   if (atom != getBeginAtom() && atom != getEndAtom()) {
     return res;
@@ -197,6 +197,13 @@ double Bond::getNumValenceElectronsPerAtom(const Atom *atom) const {
       break;
     default:
       res = getBondTypeAsDouble();
+      break;
+  }
+  if (res < 0.0 && atom->getIdx() == getBeginAtomIdx() && PeriodicTable::getTable()->getValenceList(getEndAtom()->getAtomicNum()).back() == -1) {
+    // organometallic complexes like ferrocene may feature dative bonds
+    // from atoms which actually bear no lone pairs, so we should not be
+    // count the donated electrons when the receiving atom is a metal
+    res = 0.0;
   }
   return res;
 }

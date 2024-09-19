@@ -916,8 +916,6 @@ M  END
 TEST_CASE("RemoveHsParameters", "[molops]") {
   SmilesParserParams smilesPs;
   smilesPs.removeHs = false;
-  SmilesParserParams smilesPsNoSanitize(smilesPs);
-  smilesPsNoSanitize.sanitize = false;
 
   SECTION("H-H") {
     std::unique_ptr<RWMol> m{SmilesToMol("[H][H].[H]O[H]", smilesPs)};
@@ -1090,28 +1088,25 @@ TEST_CASE("RemoveHsParameters", "[molops]") {
   }
   SECTION("higher degree") {
     // this is a silly example
-    std::unique_ptr<RWMol> m{SmilesToMol("F[H-]F", smilesPsNoSanitize)};
+    std::unique_ptr<RWMol> m{SmilesToMol("F[H-]F", smilesPs)};
     REQUIRE(m);
     CHECK(m->getNumAtoms() == 3);
     {
       RWMol cp(*m);
-      REQUIRE_THROWS_AS(MolOps::removeHs(cp), AtomValenceException);
-    }
-    {
-      RWMol cp(*m);
-      REQUIRE_NOTHROW(MolOps::removeHs(cp, false, false, false));
+      MolOps::removeHs(cp);
+      CHECK(cp.getNumAtoms() == 3);
     }
     {
       MolOps::RemoveHsParameters ps;
       RWMol cp(*m);
-      MolOps::removeHs(cp, ps, false);
+      MolOps::removeHs(cp, ps);
       CHECK(cp.getNumAtoms() == 3);
     }
     {
       MolOps::RemoveHsParameters ps;
       ps.removeHigherDegrees = true;
       RWMol cp(*m);
-      MolOps::removeHs(cp, ps, false);
+      MolOps::removeHs(cp, ps);
       CHECK(cp.getNumAtoms() == 2);
     }
   }
@@ -1134,19 +1129,19 @@ TEST_CASE("RemoveHsParameters", "[molops]") {
   }
   SECTION("allHs") {
     std::unique_ptr<RWMol> m{SmilesToMol(
-        "[C@]12([H])CCC1CO2.[H+].F[H-]F.[H][H].[H]*.F/C=C/[H]", smilesPsNoSanitize)};
+        "[C@]12([H])CCC1CO2.[H+].F[H-]F.[H][H].[H]*.F/C=C/[H]", smilesPs)};
     REQUIRE(m);
     // artificial wedging since we don't have a conformer
     m->getBondBetweenAtoms(0, 1)->setBondDir(Bond::BEGINWEDGE);
     RWMol cp(*m);
-    REQUIRE_NOTHROW(MolOps::removeAllHs(cp));
+    MolOps::removeAllHs(cp);
     for (auto atom : cp.atoms()) {
       CHECK(atom->getAtomicNum() != 1);
     }
   }
   SECTION("allHs2") {
     std::unique_ptr<ROMol> m{SmilesToMol(
-        "[C@]12([H])CCC1CO2.[H+].F[H-]F.[H][H].[H]*.F/C=C/[H]", smilesPsNoSanitize)};
+        "[C@]12([H])CCC1CO2.[H+].F[H-]F.[H][H].[H]*.F/C=C/[H]", smilesPs)};
     REQUIRE(m);
     // artificial wedging since we don't have a conformer
     m->getBondBetweenAtoms(0, 1)->setBondDir(Bond::BEGINWEDGE);
@@ -1287,22 +1282,18 @@ TEST_CASE("github #3150 MolOps::removeHs removes hydrides", "[bug][molops]") {
   }
 
   SECTION("Water") {
-    std::unique_ptr<RWMol> m{SmilesToMol("[OH+]<-[H-]", smilesPs)};
+    std::unique_ptr<RWMol> m{SmilesToMol("[OH+][H-]", smilesPs)};
     REQUIRE(m);
-    CHECK(m->getAtomWithIdx(0)->getNumRadicalElectrons() == 0);
-    CHECK(m->getAtomWithIdx(1)->getNumRadicalElectrons() == 0);
     MolOps::RemoveHsParameters ps;
     ps.removeHydrides = false;
     RWMol cp(*m);
     MolOps::removeHs(cp, ps);
     CHECK(cp.getNumAtoms() == 2);
     CHECK(MolOps::getFormalCharge(cp) == 0);
-    CHECK(cp.getAtomWithIdx(0)->getNumRadicalElectrons() == 0);
-    CHECK(cp.getAtomWithIdx(1)->getNumRadicalElectrons() == 0);
   }
 
   SECTION("Water remove Hydrides true") {
-    std::unique_ptr<RWMol> m{SmilesToMol("[OH+]<-[H-]", smilesPs)};
+    std::unique_ptr<RWMol> m{SmilesToMol("[OH+][H-]", smilesPs)};
     REQUIRE(m);
     MolOps::RemoveHsParameters ps;
     ps.removeHydrides = true;
@@ -1310,7 +1301,6 @@ TEST_CASE("github #3150 MolOps::removeHs removes hydrides", "[bug][molops]") {
     MolOps::removeHs(cp, ps);
     CHECK(cp.getNumAtoms() == 1);
     CHECK(MolOps::getFormalCharge(cp) == 1);
-    CHECK(cp.getAtomWithIdx(0)->getNumRadicalElectrons() == 1);
   }
 
   SECTION("Iron Hydride") {
@@ -1333,8 +1323,6 @@ TEST_CASE("github #3150 MolOps::removeHs removes hydrides", "[bug][molops]") {
     MolOps::removeHs(cp, ps);
     CHECK(cp.getNumAtoms() == 1);
     CHECK(MolOps::getFormalCharge(cp) == 2);
-    CHECK(cp.getAtomWithIdx(0)->getNumRadicalElectrons() == 0);
-    CHECK(cp.getAtomWithIdx(0)->getNumExplicitHs() == 1);
   }
 
   SECTION("Ferrous Hydroxide") {
@@ -1370,7 +1358,7 @@ TEST_CASE("github #3150 MolOps::removeHs removes hydrides", "[bug][molops]") {
   }
 
   SECTION("Remove All Hs in Hydrides Water") {
-    std::unique_ptr<RWMol> m{SmilesToMol("[OH+]<-[H-]", smilesPs)};
+    std::unique_ptr<RWMol> m{SmilesToMol("[OH+][H-]", smilesPs)};
     REQUIRE(m);
 
     RWMol cp(*m);

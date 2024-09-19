@@ -165,7 +165,7 @@ class RDKIT_GRAPHMOL_EXPORT Bond : public RDProps {
   //!   engaged in the bond by the atom. If negative,
   //!   this is a dative bond, and electrons are donated
   //!   by the begin atom to the end atom
-  double getNumValenceElectronsPerAtom(const Atom *atom) const;
+  double getSignedDonatedElectrons(const Atom *atom) const;
 
   //! returns our contribution to the explicit valence of an Atom
   /*!

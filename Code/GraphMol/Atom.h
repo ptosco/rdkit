@@ -211,10 +211,6 @@ class RDKIT_GRAPHMOL_EXPORT Atom : public RDProps {
   */
   int getImplicitValence() const;
 
-  //! returns the number of electrons donated (if positive) or received
-  //! (if negative) through dative bonds
-  int getNumDonatedElectrons() const;
-
   //! returns whether the atom has a valency violation or not
   /*!
     <b>Notes:</b>
@@ -425,7 +421,7 @@ class RDKIT_GRAPHMOL_EXPORT Atom : public RDProps {
   // NOTE that these cannot be signed, they are calculated using
   // a lazy scheme and are initialized to -1 to indicate that the
   // calculation has not yet been done.
-  std::int8_t d_implicitValence, d_explicitValence, d_numDonatedElectrons;
+  std::int8_t d_implicitValence, d_explicitValence;
   std::uint8_t d_numRadicalElectrons;
   std::uint8_t d_chiralTag;
   std::uint8_t d_hybrid;

@@ -402,7 +402,7 @@ void assignRadicals(RWMol &mol) {
       double accum =
           std::accumulate(atomBonds.begin(), atomBonds.end(), 0.0,
                           [atom, &valens](double acc, const auto &bond) {
-                            double numElec = bond->getNumValenceElectronsPerAtom(atom);
+                            double numElec = bond->getSignedDonatedElectrons(atom);
                             if (numElec > 0.0 || valens.back() != -1) {
                               acc += fabs(numElec);
                             }
