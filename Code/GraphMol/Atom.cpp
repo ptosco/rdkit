@@ -444,16 +444,14 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
       bool valenceExceeded = (res + offset > maxValence);
       bool tooManyElectronsDonated = false;
       bool tooManyElectronsReceived = false;
-#if 0
+#if 1
       if (!valenceExceeded) {
-        int nOuterElecs = PeriodicTable::getTable()->getNouterElecs(effectiveAtomicNum);
-        tooManyElectronsDonated = (numDonatedElectronsLocal > 0 && numDonatedElectronsLocal + res > nOuterElecs);
+        tooManyElectronsDonated = (numDonatedElectrons > 0 && numDonatedElectrons + res > nOuterElecs);
         if (!tooManyElectronsDonated) {
           int row = PeriodicTable::getTable()->getRow(effectiveAtomicNum);
           int maxElecAllowance = 2 * row * row;
-          tooManyElectronsReceived = (numDonatedElectronsLocal <= 0 && -numDonatedElectronsLocal + nOuterElecs + res > maxElecAllowance);
+          tooManyElectronsReceived = (numDonatedElectrons <= 0 && -numDonatedElectrons + nOuterElecs + res > maxElecAllowance);
         }
-
       }
 #endif
       if (valenceExceeded || tooManyElectronsDonated || tooManyElectronsReceived) {
