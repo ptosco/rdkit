@@ -363,15 +363,6 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
   }
   int dv =
       PeriodicTable::getTable()->getDefaultValence(effectiveAtomicNum);
-  int nOuterElecs = PeriodicTable::getTable()->getNouterElecs(effectiveAtomicNum);
-  int nLoneElectrons = std::max(0, nOuterElecs - dv);
-#ifdef VALENCE_DEBUG
-  std::cerr << "1) calculateExplicitValence atom " << atom.getIdx() << ", accum " << accum << ", effectiveAtomicNum " << effectiveAtomicNum << ", dv " << dv << ", nLoneElectrons " << nLoneElectrons << ", numDonatedElectrons " << numDonatedElectrons << std::endl;
-#endif
-  if (numDonatedElectrons >= nLoneElectrons) {
-    numDonatedElectrons -= nLoneElectrons;
-  }
-  accum += fabs(static_cast<double>(numDonatedElectrons));
   accum += atom.getNumExplicitHs();
 #ifdef VALENCE_DEBUG
   std::cerr << "2) calculateExplicitValence atom " << atom.getIdx() << ", accum " << accum << ", effectiveAtomicNum " << effectiveAtomicNum << ", dv " << dv << ", nLoneElectrons " << nLoneElectrons << ", numDonatedElectrons " << numDonatedElectrons << std::endl;
@@ -440,20 +431,25 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
 #endif
     }
     // maxValence == -1 signifies that we'll take anything at the high end
+#ifdef VALENCE_DEBUG
+    std::cerr << "3) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", numDonatedElectrons "
+      << numDonatedElectrons << ", res " << res
+      << ", maxValence " << maxValence
+      << ", offset " << offset
+      << std::endl;
+#endif
     if (maxValence >= 0 && ovalens.back() >= 0) {
       bool valenceExceeded = (res + offset > maxValence);
       bool tooManyElectronsDonated = false;
       bool tooManyElectronsReceived = false;
-#if 1
       if (!valenceExceeded) {
         tooManyElectronsDonated = (numDonatedElectrons > 0 && numDonatedElectrons + res > nOuterElecs);
         if (!tooManyElectronsDonated) {
           int row = PeriodicTable::getTable()->getRow(effectiveAtomicNum);
           int maxElecAllowance = 2 * row * row;
-          tooManyElectronsReceived = (numDonatedElectrons <= 0 && -numDonatedElectrons + nOuterElecs + res > maxElecAllowance);
+          tooManyElectronsReceived = (numDonatedElectrons <= 0 && nOuterElecs + res - numDonatedElectrons > maxElecAllowance);
         }
       }
-#endif
       if (valenceExceeded || tooManyElectronsDonated || tooManyElectronsReceived) {
         // the explicit valence is greater than any
         // allowed valence for the atoms
@@ -510,9 +506,13 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
     if (QueryOps::hasComplexBondTypeQuery(*bnd)) {
       return 0;
     }
-    auto contrib = bnd->getSignedDonatedElectrons(&atom);
-    if (contrib < 0) {
-      numDonatedElectrons += static_cast<int>(fabs(contrib));
+    auto signedDonatedElectrons = bnd->getSignedDonatedElectrons(&atom);
+    //auto numElec = bnd->getValenceContrib(&atom);
+    if (signedDonatedElectrons < 0.0) {
+      if (atom.getIdx() == bnd->getBeginAtomIdx()) {
+        signedDonatedElectrons = -signedDonatedElectrons;
+      }
+      numDonatedElectrons += static_cast<int>(signedDonatedElectrons);
     }
   }
 
@@ -591,7 +591,6 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
 
   int res = 0;
   // if we have an aromatic case treat it differently
-  int nOuterElecs = PeriodicTable::getTable()->getNouterElecs(effectiveAtomicNum);
   if (isAromaticAtom(atom)) {
     if (explicitPlusRadV <= dv) {
       res = dv - explicitPlusRadV;
@@ -641,11 +640,11 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
       if (explicitPlusRadV <= tot) {
         // if we are recipient of electrons, we do not need to fill
         // those valences with hydrogens
-#if 0
-        if (numDonatedElectrons < 0 && !isEarlyAtom(effectiveAtomicNum)) {
-          explicitPlusRadV -= numDonatedElectrons;
+        int nOuterElecs = PeriodicTable::getTable()->getNouterElecs(effectiveAtomicNum);
+        int nLoneElectrons = nOuterElecs - tot;
+        if (tot < nOuterElecs) {
+          explicitPlusRadV += std::min(nLoneElectrons, abs(numDonatedElectrons));
         }
-#endif
         res = std::max(0, tot - explicitPlusRadV);
         break;
       }
