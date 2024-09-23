@@ -21,7 +21,7 @@
 #include <RDGeneral/types.h>
 #include <RDGeneral/Dict.h>
 
-//#define VALENCE_DEBUG 1
+#define VALENCE_DEBUG 1
 
 namespace RDKit {
 
@@ -353,22 +353,25 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
       accum += signedDonatedElectrons;
     }
   }
+  int atomicNum = atom.getAtomicNum();
+  int effectiveAtomicNum = atomicNum;
   const auto &ovalens =
-      PeriodicTable::getTable()->getValenceList(atom.getAtomicNum());
+      PeriodicTable::getTable()->getValenceList(atomicNum);
   // if we start with an atom that doesn't have specified valences, we stick
   // with that. otherwise we will use the effective valence
-  unsigned int effectiveAtomicNum = atom.getAtomicNum();
   if (ovalens.size() > 1 || ovalens[0] != -1) {
     effectiveAtomicNum = getEffectiveAtomicNum(atom, checkIt);
   }
+  int valenceCorrection = effectiveAtomicNum - atomicNum;
   int dv =
-      PeriodicTable::getTable()->getDefaultValence(effectiveAtomicNum);
+      PeriodicTable::getTable()->getDefaultValence(atomicNum);
+  if (dv != -1) {
+    dv += valenceCorrection;
+  }
   accum += atom.getNumExplicitHs();
 #ifdef VALENCE_DEBUG
-  std::cerr << "2) calculateExplicitValence atom " << atom.getIdx() << ", accum " << accum << ", effectiveAtomicNum " << effectiveAtomicNum << ", dv " << dv << ", nLoneElectrons " << nLoneElectrons << ", numDonatedElectrons " << numDonatedElectrons << std::endl;
+  std::cerr << "2) calculateExplicitValence atom " << atom.getIdx() << ", accum " << accum << ", effectiveAtomicNum " << effectiveAtomicNum << ", dv " << dv << ", numDonatedElectrons " << numDonatedElectrons << std::endl;
 #endif
-  const auto &valens =
-      PeriodicTable::getTable()->getValenceList(effectiveAtomicNum);
   if (accum > dv && isAromaticAtom(atom)) {
     // this needs some explanation : if the atom is aromatic and
     // accum > dv we assume that no hydrogen can be added
@@ -381,10 +384,11 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
     //    nitrogen here : c1cccn1C
 
     int pval = dv;
-    for (auto val : valens) {
+    for (auto val : ovalens) {
       if (val == -1) {
         break;
       }
+      val += valenceCorrection;
       if (val > accum) {
         break;
       } else {
@@ -414,20 +418,23 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
   // Daylight accepts this smiles and we should be able to Kekulize
   // correctly.
   accum += 0.1;
-
+q
   auto res = static_cast<int>(std::round(accum));
-  int maxValence = valens.back();
+  int maxValence = ovalens.back();
+#ifdef VALENCE_DEBUG
+  std::cerr << "2b) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
+    << maxValence << ", ovalens.back() " << ovalens.back() << std::endl;
+#endif
   if (strict || checkIt) {
-    int offset = 0;
     // we have to include a special case here for negatively charged P, S, As,
     // and Se, which all support "hypervalent" forms, but which can be
     // isoelectronic to Cl/Ar or Br/Kr, which do not support hypervalent forms.
     if (canBeHypervalent(atom, effectiveAtomicNum)) {
       maxValence = ovalens.back();
-      offset -= atom.getFormalCharge();
+      valenceCorrection = 0;
 #ifdef VALENCE_DEBUG
-      std::cerr << "3) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
-        << maxValence << ", offset " << offset << ", ovalens.back() " << ovalens.back() << std::endl;
+      std::cerr << "3A) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
+        << maxValence << ", valenceCorrection " << valenceCorrection << ", ovalens.back() " << ovalens.back() << std::endl;
 #endif
     }
     // maxValence == -1 signifies that we'll take anything at the high end
@@ -435,14 +442,15 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
     std::cerr << "3) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", numDonatedElectrons "
       << numDonatedElectrons << ", res " << res
       << ", maxValence " << maxValence
-      << ", offset " << offset
+      << ", valenceCorrection " << valenceCorrection
       << std::endl;
 #endif
     if (maxValence >= 0 && ovalens.back() >= 0) {
-      bool valenceExceeded = (res + offset > maxValence);
+      bool valenceExceeded = (res > maxValence);
       bool tooManyElectronsDonated = false;
       bool tooManyElectronsReceived = false;
       if (!valenceExceeded) {
+        int nOuterElecs = PeriodicTable::getTable()->getNouterElecs(effectiveAtomicNum);
         tooManyElectronsDonated = (numDonatedElectrons > 0 && numDonatedElectrons + res > nOuterElecs);
         if (!tooManyElectronsDonated) {
           int row = PeriodicTable::getTable()->getRow(effectiveAtomicNum);
@@ -542,12 +550,13 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
   int explicitPlusRadV =
       atom.getExplicitValence() + atom.getNumRadicalElectrons();
 
+  unsigned int atomicNum = atom.getAtomicNum();
   const auto &ovalens =
-      PeriodicTable::getTable()->getValenceList(atom.getAtomicNum());
+      PeriodicTable::getTable()->getValenceList(atomicNum);
   // if we start with an atom that doesn't have specified valences, we stick
   // with that. otherwise we will use the effective valence for the rest of
   // this.
-  unsigned int effectiveAtomicNum = atom.getAtomicNum();
+  unsigned int effectiveAtomicNum = atomicNum;
   if (ovalens.size() > 1 || ovalens[0] != -1) {
     effectiveAtomicNum = getEffectiveAtomicNum(atom, checkIt);
   }
@@ -562,10 +571,13 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
 
   // The d-block and f-block of the periodic table (i.e. transition metals,
   // lanthanoids and actinoids) have no default valence.
-  int dv = PeriodicTable::getTable()->getDefaultValence(effectiveAtomicNum);
+  int valenceCorrection = effectiveAtomicNum - atomicNum;
+  int dv =
+      PeriodicTable::getTable()->getDefaultValence(atomicNum);
   if (dv == -1) {
     return 0;
   }
+  dv += valenceCorrection;
 
   // here is how we are going to deal with the possibility of
   // multiple valences
@@ -586,8 +598,6 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
     effectiveAtomicNum = atomicNum;
     explicitPlusRadV -= atom.getFormalCharge();
   }
-  const auto &valens =
-      PeriodicTable::getTable()->getValenceList(effectiveAtomicNum);
 
   int res = 0;
   // if we have an aromatic case treat it differently
@@ -605,8 +615,8 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
       // atom. The only diff I can think of is in the way we handle
       // formal charge here vs the explicit valence function.
       bool satis = false;
-      for (auto vi = valens.begin(); vi != valens.end() && *vi > 0; ++vi) {
-        if (explicitPlusRadV == *vi) {
+      for (auto vi = ovalens.begin(); vi != ovalens.end() && *vi > 0; ++vi) {
+        if (explicitPlusRadV == *vi + valenceCorrection) {
           satis = true;
           break;
         }
@@ -629,8 +639,8 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
     // non-aromatic case we are allowed to have non default valences
     // and be able to add hydrogens
     res = -1;
-    for (auto vi = valens.begin(); vi != valens.end() && *vi >= 0; ++vi) {
-      int tot = *vi;
+    for (auto vi = ovalens.begin(); vi != ovalens.end() && *vi >= 0; ++vi) {
+      int tot = *vi + valenceCorrection;
 #if 0
       if (numDonatedElectrons > 0) {
         int nAvailOuterElecs = nOuterElecs - numDonatedElectrons;
@@ -650,7 +660,7 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
       }
     }
     if (res < 0) {
-      if ((strict || checkIt) && valens.back() != -1 && ovalens.back() > 0) {
+      if ((strict || checkIt) /*&& valens.back() != -1*/ && ovalens.back() > 0) {
         // this means that the explicit valence is greater than any
         // allowed valence for the atoms
         if (strict) {
