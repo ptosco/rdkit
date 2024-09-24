@@ -21,7 +21,8 @@
 #include <RDGeneral/types.h>
 #include <RDGeneral/Dict.h>
 
-#define VALENCE_DEBUG 1
+#define EXPLICIT_VALENCE_DEBUG 1
+#define IMPLICIT_VALENCE_DEBUG 1
 
 namespace RDKit {
 
@@ -362,14 +363,14 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
   if (ovalens.size() > 1 || ovalens[0] != -1) {
     effectiveAtomicNum = getEffectiveAtomicNum(atom, checkIt);
   }
-  int valenceCorrection = effectiveAtomicNum - atomicNum;
+  int valenceCorrection = atomicNum - effectiveAtomicNum;
   int dv =
       PeriodicTable::getTable()->getDefaultValence(atomicNum);
   if (dv != -1) {
     dv += valenceCorrection;
   }
   accum += atom.getNumExplicitHs();
-#ifdef VALENCE_DEBUG
+#ifdef EXPLICIT_VALENCE_DEBUG
   std::cerr << "2) calculateExplicitValence atom " << atom.getIdx() << ", accum " << accum << ", effectiveAtomicNum " << effectiveAtomicNum << ", dv " << dv << ", numDonatedElectrons " << numDonatedElectrons << std::endl;
 #endif
   if (accum > dv && isAromaticAtom(atom)) {
@@ -418,10 +419,9 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
   // Daylight accepts this smiles and we should be able to Kekulize
   // correctly.
   accum += 0.1;
-q
   auto res = static_cast<int>(std::round(accum));
   int maxValence = ovalens.back();
-#ifdef VALENCE_DEBUG
+#ifdef EXPLICIT_VALENCE_DEBUG
   std::cerr << "2b) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
     << maxValence << ", ovalens.back() " << ovalens.back() << std::endl;
 #endif
@@ -432,13 +432,14 @@ q
     if (canBeHypervalent(atom, effectiveAtomicNum)) {
       maxValence = ovalens.back();
       valenceCorrection = 0;
-#ifdef VALENCE_DEBUG
+#ifdef EXPLICIT_VALENCE_DEBUG
       std::cerr << "3A) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", maxValence "
         << maxValence << ", valenceCorrection " << valenceCorrection << ", ovalens.back() " << ovalens.back() << std::endl;
 #endif
     }
+    maxValence += valenceCorrection;
     // maxValence == -1 signifies that we'll take anything at the high end
-#ifdef VALENCE_DEBUG
+#ifdef EXPLICIT_VALENCE_DEBUG
     std::cerr << "3) calculateExplicitValence atom " << atom.getIdx() << ", effectiveAtomicNum " << effectiveAtomicNum << ", numDonatedElectrons "
       << numDonatedElectrons << ", res " << res
       << ", maxValence " << maxValence
@@ -447,18 +448,16 @@ q
 #endif
     if (maxValence >= 0 && ovalens.back() >= 0) {
       bool valenceExceeded = (res > maxValence);
-      bool tooManyElectronsDonated = false;
-      bool tooManyElectronsReceived = false;
       if (!valenceExceeded) {
         int nOuterElecs = PeriodicTable::getTable()->getNouterElecs(effectiveAtomicNum);
-        tooManyElectronsDonated = (numDonatedElectrons > 0 && numDonatedElectrons + res > nOuterElecs);
-        if (!tooManyElectronsDonated) {
+        valenceExceeded = (numDonatedElectrons + res > nOuterElecs);
+        if (!valenceExceeded) {
           int row = PeriodicTable::getTable()->getRow(effectiveAtomicNum);
           int maxElecAllowance = 2 * row * row;
-          tooManyElectronsReceived = (numDonatedElectrons <= 0 && nOuterElecs + res - numDonatedElectrons > maxElecAllowance);
+          valenceExceeded = (nOuterElecs + res - numDonatedElectrons > maxElecAllowance);
         }
       }
-      if (valenceExceeded || tooManyElectronsDonated || tooManyElectronsReceived) {
+      if (valenceExceeded) {
         // the explicit valence is greater than any
         // allowed valence for the atoms
 
@@ -470,14 +469,6 @@ q
             errout << "Explicit valence for atom # " << atom.getIdx() << " "
                   << symbol
                   << ", " << res << ", is greater than permitted";
-          } else if (tooManyElectronsDonated) {
-            errout << "The number of electrons donated by atom # " << atom.getIdx() << " "
-                  << symbol
-                  << ", " << numDonatedElectrons << ", is greater than permitted";
-          } else if (tooManyElectronsReceived) {
-            errout << "The number of electrons received by atom # " << atom.getIdx() << " "
-                  << symbol
-                  << ", " << -numDonatedElectrons << ", is greater than permitted";
           }
           std::string msg = errout.str();
           BOOST_LOG(rdErrorLog) << msg << std::endl;
@@ -488,7 +479,7 @@ q
       }
     }
   }
-#ifdef VALENCE_DEBUG
+#ifdef EXPLICIT_VALENCE_DEBUG
   std::cerr << "5) calculateExplicitValence atom " << atom.getIdx() << ", res " << res << std::endl;
 #endif
   return res;
@@ -523,7 +514,6 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
       numDonatedElectrons += static_cast<int>(signedDonatedElectrons);
     }
   }
-
   auto formalCharge = atom.getFormalCharge();
   auto numRadicalElectrons = atom.getNumRadicalElectrons();
   if (explicitValence == 0 && numRadicalElectrons == 0 && atomicNum == 1) {
@@ -550,7 +540,6 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
   int explicitPlusRadV =
       atom.getExplicitValence() + atom.getNumRadicalElectrons();
 
-  unsigned int atomicNum = atom.getAtomicNum();
   const auto &ovalens =
       PeriodicTable::getTable()->getValenceList(atomicNum);
   // if we start with an atom that doesn't have specified valences, we stick
@@ -571,13 +560,16 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
 
   // The d-block and f-block of the periodic table (i.e. transition metals,
   // lanthanoids and actinoids) have no default valence.
-  int valenceCorrection = effectiveAtomicNum - atomicNum;
+  int valenceCorrection = atomicNum - effectiveAtomicNum;
   int dv =
       PeriodicTable::getTable()->getDefaultValence(atomicNum);
   if (dv == -1) {
     return 0;
   }
   dv += valenceCorrection;
+#ifdef IMPLICIT_VALENCE_DEBUG
+  std::cerr << "1) calculateImplicitValence atom " << atom.getIdx() << ", explicitPlusRadV " << explicitPlusRadV << ", numDonatedElectrons " << numDonatedElectrons << ", effectiveAtomicNum " << effectiveAtomicNum << ", dv " << dv << ", numDonatedElectrons " << numDonatedElectrons << ", valenceCorrection " << valenceCorrection << std::endl;
+#endif
 
   // here is how we are going to deal with the possibility of
   // multiple valences
@@ -596,7 +588,7 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
   // isoelectronic to Cl/Ar or Br/Kr, which do not support hypervalent forms.
   if (canBeHypervalent(atom, effectiveAtomicNum)) {
     effectiveAtomicNum = atomicNum;
-    explicitPlusRadV -= atom.getFormalCharge();
+    explicitPlusRadV -= formalCharge;
   }
 
   int res = 0;
@@ -655,6 +647,9 @@ int calculateImplicitValence(const Atom &atom, bool strict, bool checkIt) {
         if (tot < nOuterElecs) {
           explicitPlusRadV += std::min(nLoneElectrons, abs(numDonatedElectrons));
         }
+#ifdef IMPLICIT_VALENCE_DEBUG
+  std::cerr << "2) calculateImplicitValence atom " << atom.getIdx() << ", nOuterElecs " << nOuterElecs << ", nLoneElectrons " << nLoneElectrons << ", tot " << tot << ", explicitPlusRadV " << explicitPlusRadV << std::endl;
+#endif
         res = std::max(0, tot - explicitPlusRadV);
         break;
       }
