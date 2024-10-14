@@ -234,8 +234,8 @@ enum class WedgeInfoType {
 
 class WedgeInfoBase {
  public:
-  WedgeInfoBase(int idxInit) : idx(idxInit){};
-  virtual ~WedgeInfoBase(){};
+  WedgeInfoBase(int idxInit) : idx(idxInit) {};
+  virtual ~WedgeInfoBase() {};
 
   virtual WedgeInfoType getType() const = 0;
   virtual Bond::BondDir getDir() const = 0;
@@ -248,8 +248,8 @@ class WedgeInfoBase {
 
 class WedgeInfoChiral : public WedgeInfoBase {
  public:
-  WedgeInfoChiral(int atomId) : WedgeInfoBase(atomId){};
-  ~WedgeInfoChiral(){};
+  WedgeInfoChiral(int atomId) : WedgeInfoBase(atomId) {};
+  ~WedgeInfoChiral() {};
 
   WedgeInfoType getType() const override {
     return Chirality::WedgeInfoType::WedgeInfoTypeChiral;
@@ -266,7 +266,7 @@ class WedgeInfoAtropisomer : public WedgeInfoBase {
       : WedgeInfoBase(bondId) {
     dir = dirInit;
   };
-  ~WedgeInfoAtropisomer(){};
+  ~WedgeInfoAtropisomer() {};
 
   RDKit::Bond::BondDir dir = RDKit::Bond::BondDir::NONE;
 
@@ -301,7 +301,8 @@ RDKIT_GRAPHMOL_EXPORT void setStereoForBond(ROMol &mol, Bond *bond,
 /// returns a map from bond idx -> controlling atom idx
 RDKIT_GRAPHMOL_EXPORT
 std::map<int, std::unique_ptr<Chirality::WedgeInfoBase>> pickBondsToWedge(
-    const ROMol &mol, const BondWedgingParameters *params = nullptr);
+  const ROMol &mol, const BondWedgingParameters *params = nullptr);
+
 
 RDKIT_GRAPHMOL_EXPORT
 std::map<int, std::unique_ptr<Chirality::WedgeInfoBase>> pickBondsToWedge(
