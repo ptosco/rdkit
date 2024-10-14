@@ -508,9 +508,10 @@ int JSMolBase::has_coords() const {
   return (get().getConformer().is3D() ? 3 : 2);
 }
 
-const RDGeom::POINT3D_VECT& JSMolBase::get_coords() const {
+const RDGeom::POINT3D_VECT &JSMolBase::get_coords() const {
   static const RDGeom::POINT3D_VECT empty;
-  return (get().getNumConformers() ? get().getConformer().getPositions() : empty);
+  return (get().getNumConformers() ? get().getConformer().getPositions()
+                                   : empty);
 }
 
 double JSMolBase::normalize_depiction(int canonicalize, double scaleFactor) {
@@ -589,7 +590,7 @@ std::pair<JSMolList *, JSMolList *> JSMolBase::get_mmpa_frags(
 #endif
 
 std::string JSMolBase::add_to_png_blob(const std::string &pngString,
-                                   const std::string &details) const {
+                                       const std::string &details) const {
   PNGMetadataParams params;
   std::string res;
   try {
@@ -600,9 +601,11 @@ std::string JSMolBase::add_to_png_blob(const std::string &pngString,
   return res;
 }
 
-std::string JSMolBase::combine_with(const JSMolBase &other, const std::string &details) {
+std::string JSMolBase::combine_with(const JSMolBase &other,
+                                    const std::string &details) {
   std::unique_ptr<ROMol> combinedMol;
-  auto res = MinimalLib::combine_mols_internal(get(), other.get(), combinedMol, details.c_str());
+  auto res = MinimalLib::combine_mols_internal(get(), other.get(), combinedMol,
+                                               details.c_str());
   if (res.empty() && combinedMol) {
     reset(static_cast<RWMol *>(combinedMol.release()));
   }
@@ -926,7 +929,8 @@ JSMolBase *get_mcs_as_mol(const JSMolList &molList,
 }
 #endif
 
-std::unique_ptr<MinimalLib::LoggerStateSingletons> MinimalLib::LoggerStateSingletons::d_instance;
+std::unique_ptr<MinimalLib::LoggerStateSingletons>
+    MinimalLib::LoggerStateSingletons::d_instance;
 
 JSLog::JSLog(MinimalLib::LogHandle *logHandle) : d_logHandle(logHandle) {
   assert(d_logHandle);
@@ -944,14 +948,17 @@ JSLog *set_log_tee(const std::string &log_name) {
 }
 
 JSLog *set_log_capture(const std::string &log_name) {
-  auto logHandle =
-      MinimalLib::LogHandle::setLogCapture(log_name.c_str());
+  auto logHandle = MinimalLib::LogHandle::setLogCapture(log_name.c_str());
   return logHandle ? new JSLog(logHandle) : nullptr;
 }
 
-void enable_logging(const std::string &logName) { MinimalLib::LogHandle::enableLogging(logName.c_str()); }
+void enable_logging(const std::string &logName) {
+  MinimalLib::LogHandle::enableLogging(logName.c_str());
+}
 
-void disable_logging(const std::string &logName) { MinimalLib::LogHandle::disableLogging(logName.c_str()); }
+void disable_logging(const std::string &logName) {
+  MinimalLib::LogHandle::disableLogging(logName.c_str());
+}
 
 void disable_logging() { RDKit::MinimalLib::LogHandle::disableLogging(); }
 

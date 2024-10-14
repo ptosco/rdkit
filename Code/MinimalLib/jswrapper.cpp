@@ -329,7 +329,7 @@ emscripten::val add_to_png_blob_helper(const JSMolBase &self,
 }
 
 JSMolBase *get_mol_from_png_blob_helper(const emscripten::val &pngAsUInt8Array,
-                                    const std::string &details) {
+                                        const std::string &details) {
   auto pngString = pngAsUInt8Array.as<std::string>();
   return get_mol_from_png_blob(pngString, details);
 }
@@ -399,13 +399,9 @@ JSRGroupDecomposition *get_rgd_helper(
   return res;
 }
 
-void enable_logging_all() {
-  enable_logging("");
-}
+void enable_logging_all() { enable_logging(""); }
 
-void disable_logging_all() {
-  disable_logging("");
-}
+void disable_logging_all() { disable_logging(""); }
 
 JSRGroupDecomposition *get_rgd_no_details_helper(
     const emscripten::val &singleOrMultipleCores) {
@@ -495,11 +491,12 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
                                &JSMolBase::get_svg))
 
       .function("get_svg_with_highlights", &JSMolBase::get_svg_with_highlights)
-      .function("combine_with",
-                select_overload<std::string(const JSMolBase &)>(&JSMolBase::combine_with))
-      .function("combine_with",
-                select_overload<std::string(const JSMolBase &, const std::string &)>(
-                    &JSMolBase::combine_with))
+      .function("combine_with", select_overload<std::string(const JSMolBase &)>(
+                                    &JSMolBase::combine_with))
+      .function(
+          "combine_with",
+          select_overload<std::string(const JSMolBase &, const std::string &)>(
+              &JSMolBase::combine_with))
 #ifdef __EMSCRIPTEN__
       .function("draw_to_canvas_with_offset", &draw_to_canvas_with_offset)
       .function("draw_to_canvas", &draw_to_canvas)
@@ -550,14 +547,14 @@ EMSCRIPTEN_BINDINGS(RDKit_minimal) {
       .function("get_frags",
                 select_overload<val(const JSMolBase &)>(get_frags_helper),
                 allow_raw_pointers())
-      .function("add_to_png_blob",
-                select_overload<emscripten::val(
-                    const JSMolBase &, const std::string &, const std::string &)>(
-                    add_to_png_blob_helper))
       .function(
           "add_to_png_blob",
-          select_overload<emscripten::val(const JSMolBase &, const std::string &)>(
+          select_overload<emscripten::val(
+              const JSMolBase &, const std::string &, const std::string &)>(
               add_to_png_blob_helper))
+      .function("add_to_png_blob", select_overload<emscripten::val(
+                                       const JSMolBase &, const std::string &)>(
+                                       add_to_png_blob_helper))
       .function("get_coords", get_coords_helper)
 #ifdef RDK_BUILD_AVALON_SUPPORT
       .function(

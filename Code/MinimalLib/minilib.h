@@ -117,7 +117,7 @@ class JSMolBase {
       "instead")]] bool
   is_valid() const;
   int has_coords() const;
-  const RDGeom::POINT3D_VECT& get_coords() const;
+  const RDGeom::POINT3D_VECT &get_coords() const;
 
   std::string get_stereo_tags();
   std::string get_aromatic_form() const;
@@ -365,7 +365,7 @@ void prefer_coordgen(bool prefer);
 bool use_legacy_stereo_perception(bool value);
 bool allow_non_tetrahedral_chirality(bool value);
 JSMolBase *get_mol_from_png_blob(const std::string &pngString,
-                             const std::string &details);
+                                 const std::string &details);
 JSMolList *get_mols_from_png_blob(const std::string &pngString,
                                   const std::string &details);
 void enable_logging(const std::string &logName);

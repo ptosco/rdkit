@@ -336,9 +336,10 @@ std::string parse_int_array(const rj::Document &doc, std::vector<int> &intVec,
   return "";
 }
 
-std::string parse_double_array(const rj::Document &doc, std::vector<double> &doubleVec,
-                            const std::string &keyName,
-                            const std::string &valueName) {
+std::string parse_double_array(const rj::Document &doc,
+                               std::vector<double> &doubleVec,
+                               const std::string &keyName,
+                               const std::string &valueName) {
   const auto it = doc.FindMember(keyName.c_str());
   if (it != doc.MemberEnd()) {
     if (!it->value.IsArray()) {
@@ -1118,27 +1119,28 @@ std::string parse_inchi_options(const char *details_json) {
 
 namespace {
 #ifdef RDK_BUILD_THREADSAFE_SSS
-  std::mutex &mutex_get() {
-    // create on demand
-    static std::mutex _mutex;
-    return _mutex;
-  }
+std::mutex &mutex_get() {
+  // create on demand
+  static std::mutex _mutex;
+  return _mutex;
+}
 
-  void mutex_create() {
-    std::mutex &mutex = mutex_get();
-    std::lock_guard<std::mutex> test_lock(mutex);
-  }
+void mutex_create() {
+  std::mutex &mutex = mutex_get();
+  std::lock_guard<std::mutex> test_lock(mutex);
+}
 
-  std::mutex &getMutex() {
-    static std::once_flag flag;
-    std::call_once(flag, mutex_create);
-    return mutex_get();
-  }
+std::mutex &getMutex() {
+  static std::once_flag flag;
+  std::call_once(flag, mutex_create);
+  return mutex_get();
+}
 #endif
 
 class LoggerState {
  public:
-  LoggerState(RDLogger &logger, const std::string &logName) : d_logger(logger), d_logName(logName), d_lock(false) {
+  LoggerState(RDLogger &logger, const std::string &logName)
+      : d_logger(logger), d_logName(logName), d_lock(false) {
     CHECK_INVARIANT(d_logger, "d_logger must not be null");
 #ifdef RDK_BUILD_THREADSAFE_SSS
     std::lock_guard<std::mutex> lock(getMutex());
@@ -1148,18 +1150,12 @@ class LoggerState {
     // store whether the logger was originally enabled
     d_enabled = d_logger->df_enabled;
   }
-  LoggerState(const LoggerState&) = delete;
-  LoggerState& operator=(const LoggerState&) = delete;
+  LoggerState(const LoggerState &) = delete;
+  LoggerState &operator=(const LoggerState &) = delete;
   ~LoggerState() {}
-  void resetStream() {
-    setStream(d_prevDest);
-  }
-  void setTee(std::ostream &ostream) {
-    d_logger->SetTee(ostream);
-  }
-  void clearTee() {
-    d_logger->ClearTee();
-  }
+  void resetStream() { setStream(d_prevDest); }
+  void setTee(std::ostream &ostream) { d_logger->SetTee(ostream); }
+  void clearTee() { d_logger->ClearTee(); }
   void setStream(std::ostream *ostream) {
     if (d_logger->dp_dest) {
       d_logger->dp_dest->flush();
@@ -1179,9 +1175,7 @@ class LoggerState {
       boost::logging::disable_logs(d_logName);
     }
   }
-  bool hasLock() {
-    return d_lock;
-  }
+  bool hasLock() { return d_lock; }
   bool setLock() {
     if (!d_lock) {
       d_lock = true;
@@ -1206,7 +1200,7 @@ class LoggerState {
 #endif
 };
 
-typedef std::vector<LoggerState*> LoggerStatePtrVector;
+typedef std::vector<LoggerState *> LoggerStatePtrVector;
 
 class LoggerStateSingletons {
  public:
@@ -1230,12 +1224,13 @@ class LoggerStateSingletons {
     // this runs only once under mutex lock
     // and initializes LoggerState singletons
     RDLog::InitLogs();
-    for (auto &[logName, logger] : std::vector<std::pair<std::string, RDLogger>>{
-      {"rdApp.debug", rdDebugLog},
-      {"rdApp.info", rdInfoLog},
-      {"rdApp.warning", rdWarningLog},
-      {"rdApp.error", rdErrorLog},
-    }) {
+    for (auto &[logName, logger] :
+         std::vector<std::pair<std::string, RDLogger>>{
+             {"rdApp.debug", rdDebugLog},
+             {"rdApp.info", rdInfoLog},
+             {"rdApp.warning", rdWarningLog},
+             {"rdApp.error", rdErrorLog},
+         }) {
       d_singletonLoggerStates.emplace_back(new LoggerState(logger, logName));
       auto loggerState = d_singletonLoggerStates.back().get();
       d_map[logName].push_back(loggerState);
@@ -1259,13 +1254,11 @@ class LoggerStateSingletons {
   std::map<std::string, LoggerStatePtrVector> d_map;
   static std::unique_ptr<LoggerStateSingletons> d_instance;
 };
-} // end anonymous namespace
+}  // end anonymous namespace
 
 struct LogHandle {
  public:
-  ~LogHandle() {
-    close();
-  }
+  ~LogHandle() { close(); }
   static void enableLogging(const char *logName = nullptr) {
     LoggerStateSingletons::enable(logName, true);
   }
@@ -1288,7 +1281,8 @@ struct LogHandle {
   }
 
  private:
-  LogHandle(LoggerStatePtrVector *loggerStates, bool isTee) : d_loggerStates(loggerStates), d_isTee(isTee) {
+  LogHandle(LoggerStatePtrVector *loggerStates, bool isTee)
+      : d_loggerStates(loggerStates), d_isTee(isTee) {
     CHECK_INVARIANT(loggerStates, "loggerStates must not be null");
     open();
   }
@@ -1321,9 +1315,10 @@ struct LogHandle {
       return nullptr;
     }
     auto loggerStates = LoggerStateSingletons::get(logNameCStr);
-    if (loggerStates && std::none_of(loggerStates->begin(), loggerStates->end(), [](const auto &loggerState) {
-      return loggerState->hasLock();
-    })) {
+    if (loggerStates && std::none_of(loggerStates->begin(), loggerStates->end(),
+                                     [](const auto &loggerState) {
+                                       return loggerState->hasLock();
+                                     })) {
       return new LogHandle(loggerStates, isTee);
     }
     return nullptr;
@@ -1365,8 +1360,7 @@ std::vector<ROMOL_SPTR> get_mols_from_png_blob_internal(
           params.includeMol = false;
         }
       }
-    }
-    else if (pair.first.rfind(PNGData::smilesTag, 0) == 0) {
+    } else if (pair.first.rfind(PNGData::smilesTag, 0) == 0) {
       ++smiCount;
       if (params.includeSmiles) {
         mol.reset(MinimalLib::mol_from_input(pair.second, details));
@@ -1375,8 +1369,7 @@ std::vector<ROMOL_SPTR> get_mols_from_png_blob_internal(
           params.includeMol = false;
         }
       }
-    }
-    else if (pair.first.rfind(PNGData::molTag, 0) == 0) {
+    } else if (pair.first.rfind(PNGData::molTag, 0) == 0) {
       ++molCount;
       if (params.includeMol) {
         mol.reset(MinimalLib::mol_from_input(pair.second, details));
@@ -1397,7 +1390,9 @@ std::vector<ROMOL_SPTR> get_mols_from_png_blob_internal(
   return res;
 }
 
-std::string combine_mols_internal(const ROMol &mol1, const ROMol &mol2, std::unique_ptr<ROMol> &combinedMol, const char *details_json = nullptr) {
+std::string combine_mols_internal(const ROMol &mol1, const ROMol &mol2,
+                                  std::unique_ptr<ROMol> &combinedMol,
+                                  const char *details_json = nullptr) {
   std::vector<double> offset(3, 0.0);
   combinedMol = nullptr;
   if (details_json) {
@@ -1413,7 +1408,8 @@ std::string combine_mols_internal(const ROMol &mol1, const ROMol &mol2, std::uni
     }
   }
   try {
-    combinedMol.reset(combineMols(mol1, mol2, RDGeom::Point3D(offset[0], offset[1], offset[2])));
+    combinedMol.reset(combineMols(
+        mol1, mol2, RDGeom::Point3D(offset[0], offset[1], offset[2])));
   } catch (...) {
     return "Failed to combine molecules";
   }

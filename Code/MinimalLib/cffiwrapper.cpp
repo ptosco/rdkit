@@ -948,13 +948,18 @@ extern "C" void free_mol_array(char ***pkl_array, size_t **pkl_sz_array) {
   }
 }
 
-std::unique_ptr<MinimalLib::LoggerStateSingletons> MinimalLib::LoggerStateSingletons::d_instance;
+std::unique_ptr<MinimalLib::LoggerStateSingletons>
+    MinimalLib::LoggerStateSingletons::d_instance;
 
 extern "C" void enable_logging() { MinimalLib::LogHandle::enableLogging(); }
-extern "C" void enable_logger(const char *log_name) { MinimalLib::LogHandle::enableLogging(log_name); }
+extern "C" void enable_logger(const char *log_name) {
+  MinimalLib::LogHandle::enableLogging(log_name);
+}
 
 extern "C" void disable_logging() { MinimalLib::LogHandle::disableLogging(); }
-extern "C" void disable_logger(const char *log_name) { MinimalLib::LogHandle::disableLogging(log_name); }
+extern "C" void disable_logger(const char *log_name) {
+  MinimalLib::LogHandle::disableLogging(log_name);
+}
 
 extern "C" void *set_log_tee(const char *log_name) {
   return MinimalLib::LogHandle::setLogTee(log_name);
