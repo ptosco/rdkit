@@ -962,6 +962,26 @@ bool disable_logging(const std::string &logName) {
 
 void disable_logging() { RDKit::MinimalLib::LogHandle::disableLogging(); }
 
+JSMolBase *get_mol_from_png_blob(const std::string &pngString,
+                             const std::string &details) {
+  auto mols = MinimalLib::get_mols_from_png_blob_internal(pngString, true,
+                                                          details.c_str());
+  if (mols.empty()) {
+    return nullptr;
+  }
+  return new JSMol(new RWMol(*mols.front()));
+}
+
+JSMolList *get_mols_from_png_blob(const std::string &pngString,
+                                  const std::string &details) {
+  auto mols = MinimalLib::get_mols_from_png_blob_internal(pngString, false,
+                                                          details.c_str());
+  if (mols.empty()) {
+    return nullptr;
+  }
+  return new JSMolList(mols);
+}
+
 #ifdef RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP
 JSRGroupDecomposition::JSRGroupDecomposition(const JSMolBase &core,
                                              const std::string &details_json) {

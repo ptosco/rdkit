@@ -364,14 +364,14 @@ std::string version();
 void prefer_coordgen(bool prefer);
 bool use_legacy_stereo_perception(bool value);
 bool allow_non_tetrahedral_chirality(bool value);
-JSMolBase *get_mol_from_png_blob(const std::string &pngString,
-                                 const std::string &details);
-JSMolList *get_mols_from_png_blob(const std::string &pngString,
-                                  const std::string &details);
 bool enable_logging(const std::string &logName);
 bool disable_logging(const std::string &logName);
 JSLog *set_log_tee(const std::string &log_name);
 JSLog *set_log_capture(const std::string &log_name);
+JSMolBase *get_mol_from_png_blob(const std::string &pngString,
+                                 const std::string &details);
+JSMolList *get_mols_from_png_blob(const std::string &pngString,
+                                  const std::string &details);
 #ifdef RDK_BUILD_MINIMAL_LIB_MCS
 std::string get_mcs_as_json(const JSMolList &mols,
                             const std::string &details_json);

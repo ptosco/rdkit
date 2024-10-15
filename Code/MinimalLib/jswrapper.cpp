@@ -399,9 +399,9 @@ JSRGroupDecomposition *get_rgd_helper(
   return res;
 }
 
-void enable_logging_all() { enable_logging(""); }
+void enable_logging_all() { enable_logging("rdApp.*"); }
 
-void disable_logging_all() { disable_logging(""); }
+void disable_logging_all() { disable_logging("rdApp.*"); }
 
 JSRGroupDecomposition *get_rgd_no_details_helper(
     const emscripten::val &singleOrMultipleCores) {
