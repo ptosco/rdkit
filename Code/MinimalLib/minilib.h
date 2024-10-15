@@ -368,8 +368,8 @@ JSMolBase *get_mol_from_png_blob(const std::string &pngString,
                                  const std::string &details);
 JSMolList *get_mols_from_png_blob(const std::string &pngString,
                                   const std::string &details);
-void enable_logging(const std::string &logName);
-void disable_logging(const std::string &logName);
+bool enable_logging(const std::string &logName);
+bool disable_logging(const std::string &logName);
 JSLog *set_log_tee(const std::string &log_name);
 JSLog *set_log_capture(const std::string &log_name);
 #ifdef RDK_BUILD_MINIMAL_LIB_MCS

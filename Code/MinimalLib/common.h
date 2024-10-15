@@ -1139,12 +1139,10 @@ std::mutex &getMutex() {
 
 class LoggerState {
  public:
-  LoggerState(RDLogger &logger, const std::string &logName)
-      : d_logger(logger), d_logName(logName), d_lock(false) {
+  // this runs only once under mutex lock
+  LoggerState(const std::string &logName, RDLogger &logger)
+      : d_logName(logName), d_logger(logger), d_lock(false) {
     CHECK_INVARIANT(d_logger, "d_logger must not be null");
-#ifdef RDK_BUILD_THREADSAFE_SSS
-    std::lock_guard<std::mutex> lock(getMutex());
-#endif
     // store original logger stream
     d_prevDest = d_logger->dp_dest;
     // store whether the logger was originally enabled
@@ -1166,9 +1164,6 @@ class LoggerState {
     if (store) {
       d_enabled = enabled;
     }
-#ifdef RDK_BUILD_THREADSAFE_SSS
-    std::lock_guard<std::mutex> lock(getMutex());
-#endif
     if (enabled) {
       boost::logging::enable_logs(d_logName);
     } else if (!d_lock) {
@@ -1190,8 +1185,8 @@ class LoggerState {
 
  private:
   bool d_enabled = false;
-  RDLogger d_logger;
   std::string d_logName;
+  RDLogger d_logger;
   std::ostream *d_prevDest;
 #ifdef RDK_BUILD_THREADSAFE_SSS
   std::atomic<bool> d_lock;
@@ -1207,16 +1202,23 @@ class LoggerStateSingletons {
   static LoggerStatePtrVector *get(const std::string &logName) {
     auto it = instance()->d_map.find(logName);
     if (it == instance()->d_map.end()) {
-      it = instance()->d_map.find(defaultLogName());
+      return nullptr;
     }
     return &it->second;
   }
-  static void enable(const char *logName, bool enabled) {
+  static bool enable(const char *logName, bool enabled) {
     const char *inputLogName = (logName ? logName : defaultLogName());
     auto loggerStates = get(inputLogName);
+    if (!loggerStates) {
+      return false;
+    }
+#ifdef RDK_BUILD_THREADSAFE_SSS
+    std::lock_guard<std::mutex> lock(getMutex());
+#endif
     for (auto &loggerState : *loggerStates) {
       loggerState->setEnabled(enabled, true);
     }
+    return true;
   }
 
  private:
@@ -1231,8 +1233,9 @@ class LoggerStateSingletons {
              {"rdApp.warning", rdWarningLog},
              {"rdApp.error", rdErrorLog},
          }) {
-      d_singletonLoggerStates.emplace_back(new LoggerState(logger, logName));
+      d_singletonLoggerStates.emplace_back(new LoggerState(logName, logger));
       auto loggerState = d_singletonLoggerStates.back().get();
+      CHECK_INVARIANT(loggerState, "loggerState must not be nullptr");
       d_map[logName].push_back(loggerState);
       d_map[defaultLogName()].push_back(loggerState);
     }
@@ -1259,11 +1262,11 @@ class LoggerStateSingletons {
 struct LogHandle {
  public:
   ~LogHandle() { close(); }
-  static void enableLogging(const char *logName = nullptr) {
-    LoggerStateSingletons::enable(logName, true);
+  static bool enableLogging(const char *logName = nullptr) {
+    return LoggerStateSingletons::enable(logName, true);
   }
-  static void disableLogging(const char *logName = nullptr) {
-    LoggerStateSingletons::enable(logName, false);
+  static bool disableLogging(const char *logName = nullptr) {
+    return LoggerStateSingletons::enable(logName, false);
   }
   void clearBuffer() {
     d_stream.str({});
@@ -1310,6 +1313,7 @@ struct LogHandle {
       loggerState->releaseLock();
     }
   }
+  // returns nullptr if the requested log does not exist or is already captured
   static LogHandle *setLogCommon(const char *logNameCStr, bool isTee) {
     if (!logNameCStr) {
       return nullptr;

@@ -952,12 +952,12 @@ JSLog *set_log_capture(const std::string &log_name) {
   return logHandle ? new JSLog(logHandle) : nullptr;
 }
 
-void enable_logging(const std::string &logName) {
-  MinimalLib::LogHandle::enableLogging(logName.c_str());
+bool enable_logging(const std::string &logName) {
+  return MinimalLib::LogHandle::enableLogging(logName.c_str());
 }
 
-void disable_logging(const std::string &logName) {
-  MinimalLib::LogHandle::disableLogging(logName.c_str());
+bool disable_logging(const std::string &logName) {
+  return MinimalLib::LogHandle::disableLogging(logName.c_str());
 }
 
 void disable_logging() { RDKit::MinimalLib::LogHandle::disableLogging(); }

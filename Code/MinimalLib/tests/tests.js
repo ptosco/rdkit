@@ -2683,7 +2683,8 @@ function test_capture_logs() {
     const TETRAVALENT_NITROGEN = 'CN(C)(C)C';
     const TETRAVALENT_NITROGEN_VALENCE_ERROR = 'Explicit valence for atom # 1 N, 4, is greater than permitted'
     RDKitModule.disable_logging();
-    RDKitModule.enable_logging('rdApp.info');
+    assert(!RDKitModule.enable_logging('dummy'));
+    assert(RDKitModule.enable_logging('rdApp.info'));
     console.log('Should see no warning on pentavalent carbon below');
     var mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
     assert(!mol);
@@ -2698,7 +2699,6 @@ function test_capture_logs() {
     var logHandle1;
     var logHandle2;
     var logBuffer1;
-    var logBuffer2;
     var mol;
     ['set_log_tee', 'set_log_capture'].forEach((func, i) => {
         console.log(`${i + 1}. ${func}`);
