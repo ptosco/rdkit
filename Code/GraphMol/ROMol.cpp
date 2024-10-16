@@ -57,6 +57,7 @@ void ROMol::destroy() {
 
   d_sgroups.clear();
   d_stereo_groups.clear();
+  std::cerr << "ROMol::destroy this " << this << std::endl;
 }
 
 ROMol::ROMol(const std::string &pickle) : RDProps() {

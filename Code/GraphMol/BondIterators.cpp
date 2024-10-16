@@ -16,18 +16,21 @@ BondIterator_::BondIterator_(ROMol *mol) {
   _mol = mol;
   boost::tie(_beg, _end) = mol->getEdges();
   _pos = _beg;
+  std::cerr << "1) BondIterator_::BondIterator_ this " << this << ", _mol " << _mol << std::endl;
 };
 BondIterator_::BondIterator_(ROMol *mol, ROMol::EDGE_ITER pos) {
   _mol = mol;
   boost::tie(_beg, _end) = mol->getEdges();
 
   _pos = pos;
+  std::cerr << "2) BondIterator_::BondIterator_ this " << this << ", _mol " << _mol << std::endl;
 };
 BondIterator_::BondIterator_(const BondIterator_ &other) {
   _mol = other._mol;
   _pos = other._pos;
   _beg = other._beg;
   _end = other._end;
+  std::cerr << "3) BondIterator_::BondIterator_ this " << this << ", _mol " << _mol << std::endl;
 }
 
 BondIterator_ &BondIterator_::operator=(const BondIterator_ &other) {
@@ -45,7 +48,12 @@ bool BondIterator_::operator!=(const BondIterator_ &other) const {
   return _mol != other._mol || _pos != other._pos;
 }
 
-Bond *BondIterator_::operator*() const { return (*_mol)[*_pos]; }
+Bond *BondIterator_::operator*() const {
+  std::cerr << "1) BondIterator_::operator* this " << this << ", _mol " << _mol << ", _pos == _end " << (_pos == _end) << std::endl;
+  auto res = (*_mol)[*_pos];
+  std::cerr << "2) BondIterator_::operator* this " << this << ", _mol " << _mol << ", _pos == _end " << (_pos == _end) << std::endl;
+  return res;
+}
 // pre-increment
 BondIterator_ &BondIterator_::operator++() {
   PRECONDITION(_pos != _end, "bad initial position")
