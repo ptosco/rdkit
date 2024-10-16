@@ -1201,13 +1201,13 @@ class LoggerStateSingletons {
  public:
   static LoggerStatePtrVector *get(const std::string &logName) {
     auto it = instance()->d_map.find(logName);
-    if (it == instance()->d_map.end()) {
-      return nullptr;
+    if (it != instance()->d_map.end()) {
+      return &it->second;
     }
-    return &it->second;
+    return nullptr;
   }
-  static bool enable(const char *logName, bool enabled) {
-    const char *inputLogName = (logName ? logName : defaultLogName());
+  static bool enable(const char *logNameCStr, bool enabled) {
+    std::string inputLogName(logNameCStr ? logNameCStr : defaultLogName());
     auto loggerStates = get(inputLogName);
     if (!loggerStates) {
       return false;
@@ -1245,9 +1245,7 @@ class LoggerStateSingletons {
     return DEFAULT_LOG_NAME;
   }
   static LoggerStateSingletons *instance() {
-#ifdef RDK_BUILD_THREADSAFE_SSS
-    std::lock_guard<std::mutex> lock(getMutex());
-#endif
+    // this is called under mutex lock
     if (!d_instance) {
       d_instance.reset(new LoggerStateSingletons());
     }
@@ -1259,14 +1257,19 @@ class LoggerStateSingletons {
 };
 }  // end anonymous namespace
 
-struct LogHandle {
+class LogHandle {
  public:
-  ~LogHandle() { close(); }
-  static bool enableLogging(const char *logName = nullptr) {
-    return LoggerStateSingletons::enable(logName, true);
+  ~LogHandle() {
+#ifdef RDK_BUILD_THREADSAFE_SSS
+    std::lock_guard<std::mutex> lock(getMutex());
+#endif
+    close();
   }
-  static bool disableLogging(const char *logName = nullptr) {
-    return LoggerStateSingletons::enable(logName, false);
+  static bool enableLogging(const char *logNameCStr = nullptr) {
+    return LoggerStateSingletons::enable(logNameCStr, true);
+  }
+  static bool disableLogging(const char *logNameCStr = nullptr) {
+    return LoggerStateSingletons::enable(logNameCStr, false);
   }
   void clearBuffer() {
     d_stream.str({});
@@ -1284,16 +1287,15 @@ struct LogHandle {
   }
 
  private:
-  LogHandle(LoggerStatePtrVector *loggerStates, bool isTee)
-      : d_loggerStates(loggerStates), d_isTee(isTee) {
-    CHECK_INVARIANT(loggerStates, "loggerStates must not be null");
+  LogHandle(const std::string &logName, bool isTee)
+      : d_logName(logName), d_isTee(isTee) {
     open();
   }
   void open() {
-#ifdef RDK_BUILD_THREADSAFE_SSS
-    std::lock_guard<std::mutex> lock(getMutex());
-#endif
-    for (auto &loggerState : *d_loggerStates) {
+    // this is called under mutex lock
+    auto loggerStates = LoggerStateSingletons::get(d_logName);
+    CHECK_INVARIANT(loggerStates, "loggerStates must not be nullptr");
+    for (auto &loggerState : *loggerStates) {
       CHECK_INVARIANT(loggerState->setLock(), "Failed to acquire lock");
       if (d_isTee) {
         loggerState->setTee(d_stream);
@@ -1304,7 +1306,10 @@ struct LogHandle {
     }
   }
   void close() {
-    for (const auto &loggerState : *d_loggerStates) {
+    // this is called under mutex lock
+    auto loggerStates = LoggerStateSingletons::get(d_logName);
+    CHECK_INVARIANT(loggerStates, "loggerStates must not be nullptr");
+    for (const auto &loggerState : *loggerStates) {
       if (d_isTee) {
         loggerState->clearTee();
       } else {
@@ -1318,16 +1323,20 @@ struct LogHandle {
     if (!logNameCStr) {
       return nullptr;
     }
-    auto loggerStates = LoggerStateSingletons::get(logNameCStr);
+    std::string logName(logNameCStr);
+#ifdef RDK_BUILD_THREADSAFE_SSS
+    std::lock_guard<std::mutex> lock(getMutex());
+#endif
+    auto loggerStates = LoggerStateSingletons::get(logName);
     if (loggerStates && std::none_of(loggerStates->begin(), loggerStates->end(),
                                      [](const auto &loggerState) {
                                        return loggerState->hasLock();
                                      })) {
-      return new LogHandle(loggerStates, isTee);
+      return new LogHandle(logName, isTee);
     }
     return nullptr;
   }
-  LoggerStatePtrVector *d_loggerStates;
+  std::string d_logName;
   bool d_isTee;
   std::stringstream d_stream;
 };

@@ -2677,37 +2677,94 @@ function test_partial_sanitization() {
     mol2.delete();
 }
 
+function captureStdoutStderr(stdoutCallback, optStderrCallback) {
+    if (!stdoutCallback) {
+        return null;
+    }
+    const stderrCallback = optStderrCallback || stdoutCallback;
+    const origStdoutWrite = process.stdout.write;
+    const origStderrWrite = process.stderr.write;
+    process.stdout.write = (chunk) => stdoutCallback(chunk);
+    process.stderr.write = (chunk) => stderrCallback(chunk);
+    return () => {
+        process.stdout.write = origStdoutWrite;
+        process.stderr.write = origStderrWrite;
+    };
+}
+
 function test_capture_logs() {
     const PENTAVALENT_CARBON = 'CC(C)(C)(C)C';
-    const PENTAVALENT_CARBON_VALENCE_ERROR = 'Explicit valence for atom # 1 C, 5, is greater than permitted'
+    const PENTAVALENT_CARBON_VALENCE_ERROR = 'Explicit valence for atom # 1 C, 5, is greater than permitted';
     const TETRAVALENT_NITROGEN = 'CN(C)(C)C';
-    const TETRAVALENT_NITROGEN_VALENCE_ERROR = 'Explicit valence for atom # 1 N, 4, is greater than permitted'
+    const TETRAVALENT_NITROGEN_VALENCE_ERROR = 'Explicit valence for atom # 1 N, 4, is greater than permitted';
     RDKitModule.disable_logging();
     assert(!RDKitModule.enable_logging('dummy'));
     assert(RDKitModule.enable_logging('rdApp.info'));
-    console.log('Should see no warning on pentavalent carbon below');
-    var mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
-    assert(!mol);
+    var restoreStreams;
+    var captureHasHappened;
+    // Should see no warning on pentavalent carbon below
+    captureHasHappened = false;
+    restoreStreams = captureStdoutStderr((capturedStreams) => {
+        captureHasHappened = true;
+    });
+    assert(restoreStreams);
+    try {
+        var mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
+        assert(!mol);
+    } finally {
+        restoreStreams();
+    }
+    assert(!captureHasHappened);
     RDKitModule.enable_logging("rdApp.error");
-    console.log('Should see warning on pentavalent carbon below');
-    var mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
-    assert(!mol);
+    // Should see warning on pentavalent carbon below
+    restoreStreams = captureStdoutStderr((capturedStreams) => {
+        captureHasHappened = true;
+        assert(capturedStreams.includes(PENTAVALENT_CARBON_VALENCE_ERROR));
+    });
+    assert(restoreStreams);
+    try {
+        var mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
+        assert(!mol);
+    } finally {
+        restoreStreams();
+    }
+    assert(captureHasHappened);
+    captureHasHappened = false;
     RDKitModule.disable_logging();
-    console.log('Should again see no warning on pentavalent carbon below');
-    var mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
-    assert(!mol);
+    // Should again see no warning on pentavalent carbon below
+    restoreStreams = captureStdoutStderr((capturedStreams) => {
+        captureHasHappened = true;
+    });
+    assert(restoreStreams);
+    try {
+        var mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
+        assert(!mol);
+    } finally {
+        restoreStreams();
+    }
+    assert(!captureHasHappened);
     var logHandle1;
     var logHandle2;
     var logBuffer1;
     var mol;
     ['set_log_tee', 'set_log_capture'].forEach((func, i) => {
-        console.log(`${i + 1}. ${func}`);
         logHandle1 = RDKitModule[func]('rdApp.*');
         assert(logHandle1);
         logBuffer1 = logHandle1.get_buffer();
         assert(!logBuffer1);
-        mol = RDKitModule.get_mol(TETRAVALENT_NITROGEN);
-        assert(!mol);
+        restoreStreams = captureStdoutStderr((capturedStreams) => {
+            captureHasHappened = true;
+            assert(capturedStreams.includes(TETRAVALENT_NITROGEN_VALENCE_ERROR));
+        });
+        assert(restoreStreams);
+        try {
+            mol = RDKitModule.get_mol(TETRAVALENT_NITROGEN);
+            assert(!mol);
+        } finally {
+            restoreStreams();
+        }
+        assert(!((func === 'set_log_tee') ^ captureHasHappened));
+        captureHasHappened = false;
         logBuffer1 = logHandle1.get_buffer();
         assert(logBuffer1);
         assert(logBuffer1.includes(TETRAVALENT_NITROGEN_VALENCE_ERROR));
@@ -2715,8 +2772,19 @@ function test_capture_logs() {
         assert(!logHandle1.get_buffer());
         logHandle2 = RDKitModule[func]('rdApp.*');
         assert(!logHandle2);
-        mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
-        assert(!mol);
+        restoreStreams = captureStdoutStderr((capturedStreams) => {
+            captureHasHappened = true;
+            assert(capturedStreams.includes(PENTAVALENT_CARBON_VALENCE_ERROR));
+        });
+        assert(restoreStreams);
+        try {
+            mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
+            assert(!mol);
+        } finally {
+            restoreStreams();
+        }
+        assert(!((func === 'set_log_tee') ^ captureHasHappened));
+        captureHasHappened = false;
         logBuffer1 = logHandle1.get_buffer();
         assert(logBuffer1);
         assert(logBuffer1.includes(PENTAVALENT_CARBON_VALENCE_ERROR));
@@ -2726,9 +2794,18 @@ function test_capture_logs() {
         assert(logHandle2);
         logHandle2.delete();
     })
-    console.log('Should again see no warning on pentavalent carbon below');
-    var mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
-    assert(!mol);
+    // Should again see no warning on pentavalent carbon below
+    restoreStreams = captureStdoutStderr((capturedStreams) => {
+        captureHasHappened = true;
+    });
+    assert(restoreStreams);
+    try {
+        var mol = RDKitModule.get_mol(PENTAVALENT_CARBON);
+        assert(!mol);
+    } finally {
+        restoreStreams();
+    }
+    assert(!captureHasHappened);
 }
 
 function test_rgroup_match_heavy_hydro_none_charged() {
@@ -3446,6 +3523,7 @@ function test_png_metadata() {
     const BENZYLPENICILLIN_CAN_SMI = "CC1(C)S[C@@H]2[C@H](NC(=O)Cc3ccccc3)C(=O)N2[C@H]1C(=O)O";
     const AMOXICILLIN_SMI = "O=C(O)[C@@H]2N3C(=O)[C@@H](NC(=O)[C@@H](c1ccc(O)cc1)N)[C@H]3SC2(C)C";
     const AMOXICILLIN_CAN_SMI = "CC1(C)S[C@@H]2[C@H](NC(=O)[C@H](N)c3ccc(O)cc3)C(=O)N2[C@H]1C(=O)O";
+    const RINGINFO_NOT_INITIALIZED = 'RingInfo not initialized';
     let exceptionThrown;
     const png_no_metadata_buf = fs.readFileSync(__dirname + PNG_NO_METADATA);
     const png_no_metadata_blob = new Uint8Array(png_no_metadata_buf.length);
@@ -3489,12 +3567,17 @@ function test_png_metadata() {
     smi = penicillin.get_smiles();
     assert.equal(smi, BENZYLPENICILLIN_CAN_SMI);
     exceptionThrown = false;
+    let logHandle;
+    logHandle = RDKitModule.set_log_capture('rdApp.error');
+    assert(logHandle);
     try {
         penicillin.get_morgan_fp();
     } catch (e) {
         exceptionThrown = true;
     }
     assert(exceptionThrown);
+    assert(logHandle.get_buffer().includes(RINGINFO_NOT_INITIALIZED));
+    logHandle.clear_buffer();
     penicillin.delete();
     assert(!RDKitModule.get_mol_from_png_blob(png_no_metadata_blob2));
     penicillin = RDKitModule.get_mol(BENZYLPENICILLIN_SMI);
@@ -3516,12 +3599,15 @@ function test_png_metadata() {
     smi = mol.get_smiles();
     assert.equal(smi, BENZYLPENICILLIN_CAN_SMI);
     exceptionThrown = false;
+    assert(!logHandle.get_buffer());
     try {
         mol.get_morgan_fp();
     } catch (e) {
         exceptionThrown = true;
     }
     assert(exceptionThrown);
+    assert(logHandle.get_buffer().includes(RINGINFO_NOT_INITIALIZED));
+    logHandle.clear_buffer();
     mol.delete();
     assert(!RDKitModule.get_mol_from_png_blob(png_penicillin_amoxicillin_metadata_blob,
         "{\"includePkl\":false,\"includeSmiles\":false,\"includeMol\":false}"));
@@ -3556,6 +3642,7 @@ function test_png_metadata() {
     assert(!mol.has_coords());
     smi = mol.get_smiles();
     assert.equal(smi, BENZYLPENICILLIN_CAN_SMI);
+    assert(!logHandle.get_buffer());
     exceptionThrown = false;
     try {
         mol.get_morgan_fp();
@@ -3563,18 +3650,24 @@ function test_png_metadata() {
         exceptionThrown = true;
     }
     assert(exceptionThrown);
+    assert(logHandle.get_buffer().includes(RINGINFO_NOT_INITIALIZED));
+    logHandle.clear_buffer();
     mol.delete();
     mol = mols.at(1);
     assert(mol.has_coords());
     smi = mol.get_smiles();
     assert.equal(smi, AMOXICILLIN_CAN_SMI);
     exceptionThrown = false;
+    assert(!logHandle.get_buffer());
     try {
         mol.get_morgan_fp();
     } catch (e) {
         exceptionThrown = true;
     }
     assert(exceptionThrown);
+    assert(logHandle.get_buffer().includes(RINGINFO_NOT_INITIALIZED));
+    logHandle.clear_buffer();
+    logHandle.delete();
     mol.delete();
     mols.delete();
     let png_bilastine_amoxicillin_metadata_blob = amoxicillin.add_to_png_blob(png_with_metadata_blob);

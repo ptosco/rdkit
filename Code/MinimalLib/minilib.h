@@ -263,7 +263,7 @@ class JSMolList {
 
 namespace RDKit {
 namespace MinimalLib {
-struct LogHandle;
+class LogHandle;
 }
 }  // namespace RDKit
 
