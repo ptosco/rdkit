@@ -28,8 +28,35 @@
 #include <boost/archive/text_iarchive.hpp>
 #include <RDGeneral/BoostEndInclude.h>
 #endif
+#ifdef RDK_BUILD_THREADSAFE_SSS
+#include <mutex>
+#endif
+
+#ifdef RDK_BUILD_THREADSAFE_SSS
+namespace {
+std::mutex &romolmutex_get() {
+  // create on demand
+  static std::mutex _mutex;
+  return _mutex;
+}
+
+void romolmutex_create() {
+  std::mutex &mutex = romolmutex_get();
+  std::lock_guard<std::mutex> test_lock(mutex);
+}
+
+std::mutex &GetROMolMutex() {
+  static std::once_flag flag;
+  std::call_once(flag, romolmutex_create);
+  return romolmutex_get();
+}
+}
+#endif
+
 
 namespace RDKit {
+std::set<ROMol *> deletedROMol;
+
 class QueryAtom;
 class QueryBond;
 
@@ -57,6 +84,7 @@ void ROMol::destroy() {
 
   d_sgroups.clear();
   d_stereo_groups.clear();
+  std::lock_guard<std::mutex> lock(GetROMolMutex());
   std::cerr << "ROMol::destroy this " << this << std::endl;
 }
 

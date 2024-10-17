@@ -45,6 +45,7 @@
 #include "StereoGroup.h"
 #include "RingInfo.h"
 
+
 namespace RDKit {
 class SubstanceGroup;
 class Atom;

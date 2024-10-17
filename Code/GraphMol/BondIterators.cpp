@@ -9,28 +9,51 @@
 //  of the RDKit source tree.
 //
 #include "BondIterators.h"
+#ifdef RDK_BUILD_THREADSAFE_SSS
+#include <mutex>
+#endif
+
+#ifdef RDK_BUILD_THREADSAFE_SSS
+namespace {
+std::mutex &bonditmutex_get() {
+  // create on demand
+  static std::mutex _mutex;
+  return _mutex;
+}
+
+void bonditmutex_create() {
+  std::mutex &mutex = bonditmutex_get();
+  std::lock_guard<std::mutex> test_lock(mutex);
+}
+
+std::mutex &GetBondItMutex() {
+  static std::once_flag flag;
+  std::call_once(flag, bonditmutex_create);
+  return bonditmutex_get();
+}
+}
+#endif
+
 
 namespace RDKit {
+extern std::set<ROMol *> deletedROMol;
 
 BondIterator_::BondIterator_(ROMol *mol) {
   _mol = mol;
   boost::tie(_beg, _end) = mol->getEdges();
   _pos = _beg;
-  std::cerr << "1) BondIterator_::BondIterator_ this " << this << ", _mol " << _mol << std::endl;
 };
 BondIterator_::BondIterator_(ROMol *mol, ROMol::EDGE_ITER pos) {
   _mol = mol;
   boost::tie(_beg, _end) = mol->getEdges();
 
   _pos = pos;
-  std::cerr << "2) BondIterator_::BondIterator_ this " << this << ", _mol " << _mol << std::endl;
 };
 BondIterator_::BondIterator_(const BondIterator_ &other) {
   _mol = other._mol;
   _pos = other._pos;
   _beg = other._beg;
   _end = other._end;
-  std::cerr << "3) BondIterator_::BondIterator_ this " << this << ", _mol " << _mol << std::endl;
 }
 
 BondIterator_ &BondIterator_::operator=(const BondIterator_ &other) {
@@ -49,9 +72,15 @@ bool BondIterator_::operator!=(const BondIterator_ &other) const {
 }
 
 Bond *BondIterator_::operator*() const {
-  std::cerr << "1) BondIterator_::operator* this " << this << ", _mol " << _mol << ", _pos == _end " << (_pos == _end) << std::endl;
+  {
+    std::lock_guard<std::mutex> lock(GetBondItMutex());
+    std::cerr << "1) BondIterator_::operator* this " << this << ", _mol " << _mol << ", _pos == _end " << (_pos == _end ? "true" : "false") << (deletedROMol.count(_mol) ? "*** _mol WAS DELETED!!! ***" : "") << std::endl;
+  }
   auto res = (*_mol)[*_pos];
-  std::cerr << "2) BondIterator_::operator* this " << this << ", _mol " << _mol << ", _pos == _end " << (_pos == _end) << std::endl;
+  {
+    std::lock_guard<std::mutex> lock(GetBondItMutex());
+    std::cerr << "2) BondIterator_::operator* this " << this << ", _mol " << _mol << ", _pos == _end " << (_pos == _end ? "true" : "false") << (deletedROMol.count(_mol) ? "*** _mol WAS DELETED!!! ***" : "") << std::endl;
+  }
   return res;
 }
 // pre-increment

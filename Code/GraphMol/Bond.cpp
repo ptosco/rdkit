@@ -40,7 +40,9 @@ Bond::Bond(const Bond &other) : RDProps(other) {
   d_index = other.d_index;
 }
 
-Bond::~Bond() { delete dp_stereoAtoms; }
+Bond::~Bond() {
+  delete dp_stereoAtoms;
+}
 
 Bond &Bond::operator=(const Bond &other) {
   if (this == &other) {
