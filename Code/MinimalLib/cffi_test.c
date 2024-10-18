@@ -14,10 +14,13 @@
 #ifndef _USE_MATH_DEFINES
 #define _USE_MATH_DEFINES
 #define _DEFINED_USE_MATH_DEFINES
+#include <fcntl.h>
+#include <io.h>
+#include <winndows.h>
 #endif
 #else
 #include <unistd.h>
-#include <sys/poll.h>
+#include <poll.h>
 #endif
 #include <math.h>
 #ifdef _DEFINED_USE_MATH_DEFINES
@@ -2571,11 +2574,29 @@ void test_png_metadata() {
   free(png_with_metadata_blob);
 }
 
+#define PIPE_BUF_SIZE 4096
+#define PIPE_FD_SIZE 2
+#ifdef _WIN32
+#define DUP_FUNC _dup
+#define DUP2_FUNC _dup2
+#define PIPE_FUNC(fds, buf_size) _pipe(fds, buf_size, _O_BINARY)
+#define READ_FUNC _read
+#define FILENO_FUNC _fileno
+#define CLOSE_FUNC _close
+#else
+#define DUP_FUNC dup
+#define DUP2_FUNC dup2
+#define PIPE_FUNC(fds, buf_size) pipe(fds)
+#define READ_FUNC read
+#define FILENO_FUNC fileno
+#define CLOSE_FUNC close
+#endif
+
 typedef struct {
   int orig_stdout;
   int orig_stderr;
-  int stdout_pipes[2];
-  int stderr_pipes[2];
+  int stdout_pipes[PIPE_FD_SIZE];
+  int stderr_pipes[PIPE_FD_SIZE];
 } CapturedStreams;
 
 void release_streams(CapturedStreams **captured_streams) {
@@ -2585,29 +2606,28 @@ void release_streams(CapturedStreams **captured_streams) {
   }
   if ((*captured_streams)->orig_stdout != -1) {
     fflush(stdout);
-    dup2((*captured_streams)->orig_stdout, fileno(stdout));
+    DUP2_FUNC((*captured_streams)->orig_stdout, FILENO_FUNC(stdout));
   }
   if ((*captured_streams)->orig_stderr != -1) {
     fflush(stderr);
-    dup2((*captured_streams)->orig_stderr, fileno(stderr));
+    DUP2_FUNC((*captured_streams)->orig_stderr, FILENO_FUNC(stderr));
   }
-  for (i = 0; i < 2; ++i) {
+  for (i = 0; i < PIPE_FD_SIZE; ++i) {
     if ((*captured_streams)->stdout_pipes[i] != -1) {
-      close((*captured_streams)->stdout_pipes[i]);
+      CLOSE_FUNC((*captured_streams)->stdout_pipes[i]);
     }
     if ((*captured_streams)->stderr_pipes[i] != -1) {
-      close((*captured_streams)->stderr_pipes[i]);
+      CLOSE_FUNC((*captured_streams)->stderr_pipes[i]);
     }
   }
   free(*captured_streams);
   *captured_streams = NULL;
 }
 
-CapturedStreams *capture_streams() {
+CapturedStreams *capture_streams(unsigned int buf_size) {
   CapturedStreams *res;
   res = (CapturedStreams *)malloc(sizeof(CapturedStreams));
   if (!res) {
-    fprintf(stderr, "fail1\n");
     return NULL;
   }
   memset(res, 0, sizeof(CapturedStreams));
@@ -2617,33 +2637,69 @@ CapturedStreams *capture_streams() {
   res->stderr_pipes[1] = -1;
   fflush(stdout);
   fflush(stderr);
-  res->orig_stdout = dup(fileno(stdout));
-  res->orig_stderr = dup(fileno(stderr));
+  res->orig_stdout = DUP_FUNC(FILENO_FUNC(stdout));
+  res->orig_stderr = DUP_FUNC(FILENO_FUNC(stderr));
   if (res->orig_stdout == -1 || res->orig_stderr == -1) {
     release_streams(&res);
-    fprintf(stderr, "fail2\n");
     return NULL;
   }
-  if (pipe(res->stdout_pipes) == -1 || pipe(res->stderr_pipes) == -1) {
+  if (PIPE_FUNC(res->stdout_pipes, buf_size) == -1 || PIPE_FUNC(res->stderr_pipes, buf_size) == -1) {
     release_streams(&res);
-    fprintf(stderr, "fail3\n");
     return NULL;
   }
-  if (dup2(res->stdout_pipes[1], fileno(stdout)) == -1 || dup2(res->stderr_pipes[1], fileno(stderr)) == -1) {
+  if (DUP2_FUNC(res->stdout_pipes[1], FILENO_FUNC(stdout)) == -1 || DUP2_FUNC(res->stderr_pipes[1], FILENO_FUNC(stderr)) == -1) {
     release_streams(&res);
-    fprintf(stderr, "fail5\n");
     return NULL;
   }
   return res;
 }
 
-char *_get_capture_buf(int *pipes, size_t buf_size) {
-  char *buf;
+int can_read(int fd) {
+  int res;
+#ifndef _WIN32
   struct pollfd pollfd_instance;
+  pollfd_instance.fd = fd;
+  pollfd_instance.events = POLLIN;
+  res = poll(&pollfd_instance, 1, 0);
+  if (res != -1) {
+    res = (pollfd_instance.revents & POLLIN ? 1 : 0);
+  }
+#else
+  HANDLE pipe_handle;
+  DWORD bytes_avail;
+  pipe_handle = (HANDLE)_get_osfhandle(fd);
+  if (pipe_handle == INVALID_HANDLE_VALUE) {
+    return -1;
+  }
+  res = PeekNamedPipe(pipe_handle, NULL, 0, NULL, &bytes_avail, NULL);
+  if (res == 0) {
+    res = -1;
+  } else {
+    res = (bytes_avail > 0 ? 1 : 0);
+  }
+#endif
+  return res;
+}
+
+int non_blocking_read(int fd, void *buf, unsigned int buf_size) {
+  // do not attempt to read if the pipe is empty as the read operation will block
+  int has_data = can_read(fd);
+  if (has_data == -1) {
+    return -1;
+  }
+  int n_read = 0;
+  if (has_data) {
+    n_read = READ_FUNC(fd, buf, buf_size);
+  }
+  return n_read;
+}
+
+char *_get_capture_buf(int *pipes, unsigned int buf_size) {
+  char *buf;
   if (!pipes || pipes[0] == -1 || pipes[1] == -1) {
     return NULL;
   }
-  if (close(pipes[1]) == -1) {
+  if (CLOSE_FUNC(pipes[1]) == -1) {
     return NULL;
   }
   pipes[1] = -1;
@@ -2653,24 +2709,18 @@ char *_get_capture_buf(int *pipes, size_t buf_size) {
   }
   memset(buf, 0, buf_size);
   // do not attempt to read if the pipe is empty as the read operation will block
-  pollfd_instance.fd = pipes[0];
-  pollfd_instance.events = POLLIN;
-  if (poll(&pollfd_instance, 1, 0) == -1) {
-    free(buf);
-    return NULL;
-  }
-  if ((pollfd_instance.revents & POLLIN) && read(pipes[0], buf, buf_size) == -1) {
+  if (non_blocking_read(pipes[0], buf, buf_size) == -1) {
     free(buf);
     return NULL;
   }
   return buf;
 }
 
-char *get_stdout_buf(CapturedStreams *captured_streams, size_t buf_size) {
+char *get_stdout_buf(CapturedStreams *captured_streams, unsigned int buf_size) {
   return _get_capture_buf(captured_streams->stdout_pipes, buf_size);
 }
 
-char *get_stderr_buf(CapturedStreams *captured_streams, size_t buf_size) {
+char *get_stderr_buf(CapturedStreams *captured_streams, unsigned int buf_size) {
   return _get_capture_buf(captured_streams->stderr_pipes, buf_size);
 }
 
@@ -2687,7 +2737,7 @@ void test_capture_logs() {
   const char *PENTAVALENT_CARBON_VALENCE_ERROR = "Explicit valence for atom # 1 C, 5, is greater than permitted";
   const char *TETRAVALENT_NITROGEN = "CN(C)(C)C";
   const char *TETRAVALENT_NITROGEN_VALENCE_ERROR = "Explicit valence for atom # 1 N, 4, is greater than permitted";
-  const size_t BUF_SIZE = 4096;
+  const size_t BUF_SIZE = PIPE_BUF_SIZE;
   CapturedStreams *captured_streams;
   typedef struct {
     void *(*func)(const char *);
@@ -2697,7 +2747,7 @@ void test_capture_logs() {
   assert(!enable_logger("dummy"));
   assert(enable_logger("rdApp.info"));
   // Should see no warning on pentavalent carbon below
-  captured_streams = capture_streams();
+  captured_streams = capture_streams(BUF_SIZE);
   assert(captured_streams);
   mpkl = get_mol(PENTAVALENT_CARBON, &mpkl_size, "");
   assert(!mpkl);
@@ -2708,7 +2758,7 @@ void test_capture_logs() {
   release_streams(&captured_streams);
   assert(enable_logger("rdApp.error"));
   // Should see warning on pentavalent carbon below
-  captured_streams = capture_streams();
+  captured_streams = capture_streams(BUF_SIZE);
   assert(captured_streams);
   mpkl = get_mol(PENTAVALENT_CARBON, &mpkl_size, "");
   assert(!mpkl);
@@ -2719,7 +2769,7 @@ void test_capture_logs() {
   release_streams(&captured_streams);
   assert(disable_logging());
   // Should again see no warning on pentavalent carbon below
-  captured_streams = capture_streams();
+  captured_streams = capture_streams(BUF_SIZE);
   assert(captured_streams);
   mpkl = get_mol(PENTAVALENT_CARBON, &mpkl_size, "");
   assert(!mpkl);
@@ -2736,7 +2786,7 @@ void test_capture_logs() {
     assert(log_buffer);
     assert(!log_buffer[0]);
     free(log_buffer);
-    captured_streams = capture_streams();
+    captured_streams = capture_streams(BUF_SIZE);
     assert(captured_streams);
     mpkl = get_mol(TETRAVALENT_NITROGEN, &mpkl_size, "");
     assert(!mpkl);
@@ -2756,7 +2806,7 @@ void test_capture_logs() {
     free(log_buffer);
     log_handle2 = tests[i].func("rdApp.*");
     assert(!log_handle2);
-    captured_streams = capture_streams();
+    captured_streams = capture_streams(BUF_SIZE);
     assert(captured_streams);
     mpkl = get_mol(PENTAVALENT_CARBON, &mpkl_size, "");
     assert(!mpkl);
@@ -2779,7 +2829,7 @@ void test_capture_logs() {
     assert(!log_handle2);
   }
   // Should again see no warning on pentavalent carbon below
-  captured_streams = capture_streams();
+  captured_streams = capture_streams(BUF_SIZE);
   assert(captured_streams);
   mpkl = get_mol(PENTAVALENT_CARBON, &mpkl_size, "");
   assert(!mpkl);

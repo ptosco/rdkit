@@ -1119,21 +1119,21 @@ std::string parse_inchi_options(const char *details_json) {
 
 namespace {
 #ifdef RDK_BUILD_THREADSAFE_SSS
-std::mutex &mutex_get() {
+std::mutex &logger_mutex_get() {
   // create on demand
   static std::mutex _mutex;
   return _mutex;
 }
 
-void mutex_create() {
-  std::mutex &mutex = mutex_get();
+void logger_mutex_create() {
+  std::mutex &mutex = logger_mutex_get();
   std::lock_guard<std::mutex> test_lock(mutex);
 }
 
-std::mutex &getMutex() {
+std::mutex &getLoggerMutex() {
   static std::once_flag flag;
-  std::call_once(flag, mutex_create);
-  return mutex_get();
+  std::call_once(flag, logger_mutex_create);
+  return logger_mutex_get();
 }
 #endif
 
@@ -1213,7 +1213,7 @@ class LoggerStateSingletons {
       return false;
     }
 #ifdef RDK_BUILD_THREADSAFE_SSS
-    std::lock_guard<std::mutex> lock(getMutex());
+    std::lock_guard<std::mutex> lock(getLoggerMutex());
 #endif
     for (auto &loggerState : *loggerStates) {
       loggerState->setEnabled(enabled, true);
@@ -1261,7 +1261,7 @@ class LogHandle {
  public:
   ~LogHandle() {
 #ifdef RDK_BUILD_THREADSAFE_SSS
-    std::lock_guard<std::mutex> lock(getMutex());
+    std::lock_guard<std::mutex> lock(getLoggerMutex());
 #endif
     close();
   }
@@ -1325,7 +1325,7 @@ class LogHandle {
     }
     std::string logName(logNameCStr);
 #ifdef RDK_BUILD_THREADSAFE_SSS
-    std::lock_guard<std::mutex> lock(getMutex());
+    std::lock_guard<std::mutex> lock(getLoggerMutex());
 #endif
     auto loggerStates = LoggerStateSingletons::get(logName);
     if (loggerStates && std::none_of(loggerStates->begin(), loggerStates->end(),
