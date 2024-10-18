@@ -951,12 +951,16 @@ extern "C" void free_mol_array(char ***pkl_array, size_t **pkl_sz_array) {
 std::unique_ptr<MinimalLib::LoggerStateSingletons>
     MinimalLib::LoggerStateSingletons::d_instance;
 
-extern "C" short enable_logging() { return MinimalLib::LogHandle::enableLogging(); }
+extern "C" short enable_logging() {
+  return MinimalLib::LogHandle::enableLogging();
+}
 extern "C" short enable_logger(const char *log_name) {
   return MinimalLib::LogHandle::enableLogging(log_name);
 }
 
-extern "C" short disable_logging() { return MinimalLib::LogHandle::disableLogging(); }
+extern "C" short disable_logging() {
+  return MinimalLib::LogHandle::disableLogging();
+}
 extern "C" short disable_logger(const char *log_name) {
   return MinimalLib::LogHandle::disableLogging(log_name);
 }
