@@ -28,6 +28,7 @@ BondIterator_::BondIterator_(const BondIterator_ &other) {
   _pos = other._pos;
   _beg = other._beg;
   _end = other._end;
+  std::cerr << "BondIterator_::BondIterator_(const BondIterator_ &other)" << std::endl;
 }
 
 BondIterator_ &BondIterator_::operator=(const BondIterator_ &other) {
@@ -35,7 +36,9 @@ BondIterator_ &BondIterator_::operator=(const BondIterator_ &other) {
   _pos = other._pos;
   _beg = other._beg;
   _end = other._end;
-  return *this;
+  auto res = *this;
+  std::cerr << "BondIterator_ &BondIterator_::operator=(const BondIterator_ &other)" << std::endl;
+  return res;
 }
 
 bool BondIterator_::operator==(const BondIterator_ &other) const {
@@ -45,17 +48,30 @@ bool BondIterator_::operator!=(const BondIterator_ &other) const {
   return _mol != other._mol || _pos != other._pos;
 }
 
-Bond *BondIterator_::operator*() const { return (*_mol)[*_pos]; }
+Bond *BondIterator_::operator*() const {
+  std::cerr << "1) BondIterator_::operator*()" << std::endl;
+  auto posDeref = *_pos;
+  std::cerr << "2) BondIterator_::operator*()" << std::endl;
+  auto molDeref = *_mol;
+  std::cerr << "3) BondIterator_::operator*()" << std::endl;
+  auto bondDeref = molDeref[posDeref];
+  std::cerr << "4) BondIterator_::operator*()" << std::endl;
+  return bondDeref;
+}
 // pre-increment
 BondIterator_ &BondIterator_::operator++() {
   PRECONDITION(_pos != _end, "bad initial position")
+  std::cerr << "BondIterator_ &BondIterator_::operator++()" << std::endl;
   _pos++;
   return *this;
 }
 BondIterator_ BondIterator_::operator++(int) {
   PRECONDITION(_pos != _end, "bad initial position")
+  std::cerr << "1) BondIterator_ BondIterator_::operator++(int)" << std::endl;
   BondIterator_ res(*this);
+  std::cerr << "2) BondIterator_ BondIterator_::operator++(int)" << std::endl;
   _pos++;
+  std::cerr << "3) BondIterator_ BondIterator_::operator++(int)" << std::endl;
   return res;
 }
 // pre-decrement
