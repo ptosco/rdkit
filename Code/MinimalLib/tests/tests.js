@@ -3513,6 +3513,25 @@ function test_custom_palette() {
     mol.delete();
 }
 
+function test_pickle() {
+    const mol = RDKitModule.get_mol('c1ccccn1');
+    assert(mol);
+    mol.set_prop('a', '1');
+    assert(mol.get_prop('a') === '1');
+    const pklWithProps = mol.get_as_uint8array();
+    assert(pklWithProps);
+    let molFromPkl = RDKitModule.get_mol_from_uint8array(pklWithProps);
+    assert(molFromPkl);
+    assert(molFromPkl.has_prop('a'));
+    assert(molFromPkl.get_prop('a') === '1');
+    molFromPkl.delete();
+    const pklWithoutProps = mol.get_as_uint8array(JSON.stringify({propertyPickleOptions: { NoProps: true } }));
+    molFromPkl = RDKitModule.get_mol_from_uint8array(pklWithoutProps);
+    assert(molFromPkl);
+    assert(!molFromPkl.has_prop('a'));
+    molFromPkl.delete();
+}
+
 function test_png_metadata() {
     const PNG_NO_METADATA = "/../test_data/bilastine_no_metadata.png";
     const PNG_WITH_METADATA = "/../test_data/bilastine_with_metadata.png";
@@ -3830,6 +3849,7 @@ initRDKitModule().then(function(instance) {
     }
     test_bw_palette();
     test_custom_palette();
+    test_pickle();
     test_png_metadata();
     test_combine_with();
     test_get_coords();
