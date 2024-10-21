@@ -36,6 +36,7 @@ struct RDKIT_FILEPARSERS_EXPORT PNGMetadataParams {
   bool includePkl = true;
   bool includeSmiles = true;
   bool includeMol = false;
+  unsigned int propertyFlags = PicklerOps::NoProps;
 };
 
 RDKIT_FILEPARSERS_EXPORT void updatePNGMetadataParamsFromJSON(

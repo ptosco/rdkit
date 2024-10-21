@@ -1,6 +1,7 @@
 #define USE_BETTER_ENUMS
 #include "JSONParsers.h"
 #include <GraphMol/MolPickler.h>
+#include <GraphMol/FileParsers/PNGParser.h>
 #include <RDGeneral/BoostStartInclude.h>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -19,7 +20,7 @@ bool updatePropertyPickleOptionsFromJSON(const char *details_json,
     boost::property_tree::ptree pt;
     ss.str(details_json);
     boost::property_tree::read_json(ss, pt);
-    const auto nodeIt = pt.find("propertyPickleOptions");
+    const auto nodeIt = pt.find("propertyFlags");
     if (nodeIt != pt.not_found()) {
       for (const auto *key : PicklerOps::PropertyPickleOptions::_names()) {
         propertyPickleOptionsFromJson |=
@@ -33,6 +34,20 @@ bool updatePropertyPickleOptionsFromJSON(const char *details_json,
     }
   }
   return res;
+}
+
+void updatePNGMetadataParamsFromJSON(PNGMetadataParams &params,
+                                     const char *details_json) {
+  if (details_json && strlen(details_json)) {
+    boost::property_tree::ptree pt;
+    std::istringstream ss;
+    ss.str(details_json);
+    boost::property_tree::read_json(ss, pt);
+    params.includePkl = pt.get("includePkl", params.includePkl);
+    params.includeSmiles = pt.get("includeSmiles", params.includeSmiles);
+    params.includeMol = pt.get("includeMol", params.includeMol);
+    updatePropertyPickleOptionsFromJSON(details_json, params.propertyFlags);
+  }
 }
 
 }  // end namespace MinimalLib

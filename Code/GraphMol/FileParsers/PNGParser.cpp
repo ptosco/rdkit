@@ -45,19 +45,6 @@ const std::string molTag = "MOL";
 const std::string pklTag = "rdkitPKL";
 }  // namespace PNGData
 
-void updatePNGMetadataParamsFromJSON(PNGMetadataParams &params,
-                                     const char *details_json) {
-  if (details_json && strlen(details_json)) {
-    boost::property_tree::ptree pt;
-    std::istringstream ss;
-    ss.str(details_json);
-    boost::property_tree::read_json(ss, pt);
-    params.includePkl = pt.get("includePkl", params.includePkl);
-    params.includeSmiles = pt.get("includeSmiles", params.includeSmiles);
-    params.includeMol = pt.get("includeMol", params.includeMol);
-  }
-}
-
 namespace {
 std::vector<unsigned char> pngHeader = {137, 80, 78, 71, 13, 10, 26, 10};
 bool checkPNGHeader(std::istream &inStream) {
@@ -340,7 +327,7 @@ std::string addMolToPNGStream(const ROMol &mol, std::istream &iStream,
   std::vector<std::pair<std::string, std::string>> metadata;
   if (params.includePkl) {
     std::string pkl;
-    MolPickler::pickleMol(mol, pkl);
+    MolPickler::pickleMol(mol, pkl, params.propertyFlags);
     metadata.push_back(std::make_pair(augmentTagName(PNGData::pklTag), pkl));
   }
   if (params.includeSmiles) {
