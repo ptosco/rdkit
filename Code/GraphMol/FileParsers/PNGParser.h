@@ -16,6 +16,7 @@
 #include <GraphMol/RDKitBase.h>
 #include <GraphMol/SmilesParse/SmilesParse.h>
 #include <GraphMol/SmilesParse/SmilesWrite.h>
+#include <GraphMol/MolPickler.h>
 
 #include <boost/format.hpp>
 
@@ -36,11 +37,8 @@ struct RDKIT_FILEPARSERS_EXPORT PNGMetadataParams {
   bool includePkl = true;
   bool includeSmiles = true;
   bool includeMol = false;
-  unsigned int propertyFlags = PicklerOps::NoProps;
+  unsigned int propertyFlags = PicklerOps::PropertyPickleOptions::NoProps;
 };
-
-RDKIT_FILEPARSERS_EXPORT void updatePNGMetadataParamsFromJSON(
-    PNGMetadataParams &params, const char *details_json);
 
 //! \name metadata to/from PNG
 //! @{

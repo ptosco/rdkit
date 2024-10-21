@@ -854,7 +854,7 @@ extern "C" short add_mol_to_png_blob(char **png_blob, size_t *png_blob_sz,
     return 0;
   }
   PNGMetadataParams params;
-  updatePNGMetadataParamsFromJSON(params, details_json);
+  MinimalLib::updatePNGMetadataParamsFromJSON(details_json, params);
   std::string pngString(*png_blob, *png_blob_sz);
   try {
     auto mol = mol_from_pkl(pkl, pkl_sz);

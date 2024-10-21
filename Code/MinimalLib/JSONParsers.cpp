@@ -36,8 +36,8 @@ bool updatePropertyPickleOptionsFromJSON(const char *details_json,
   return res;
 }
 
-void updatePNGMetadataParamsFromJSON(PNGMetadataParams &params,
-                                     const char *details_json) {
+void updatePNGMetadataParamsFromJSON(const char *details_json,
+                                     PNGMetadataParams &params) {
   if (details_json && strlen(details_json)) {
     boost::property_tree::ptree pt;
     std::istringstream ss;

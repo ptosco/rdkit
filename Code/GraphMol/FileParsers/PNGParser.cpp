@@ -13,7 +13,6 @@
 // https://github.com/openbabel/openbabel/blob/master/src/formats/pngformat.cpp
 
 #include "PNGParser.h"
-#include <GraphMol/MolPickler.h>
 #include <RDGeneral/FileParseException.h>
 #include <RDGeneral/StreamOps.h>
 #include <vector>

@@ -1349,7 +1349,7 @@ std::vector<ROMOL_SPTR> get_mols_from_png_blob_internal(
     return res;
   }
   PNGMetadataParams params;
-  updatePNGMetadataParamsFromJSON(params, details);
+  updatePNGMetadataParamsFromJSON(details, params);
   if (!params.includePkl && !params.includeSmiles && !params.includeMol) {
     return res;
   }

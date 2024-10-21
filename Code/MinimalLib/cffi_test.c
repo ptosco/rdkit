@@ -3450,7 +3450,7 @@ void test_props() {
   assert(!strcmp(prop, "2"));
   free(prop);
   keep_props(&mpkl, &mpkl_size,
-             "{\"propertyPickleOptions\":{\"NoProps\":true}}");
+             "{\"propertyFlags\":{\"NoProps\":true}}");
   prop_list = get_prop_list(mpkl, mpkl_size, 0, 0);
   assert(prop_list && !prop_list[0]);
   free(prop_list);
@@ -3463,7 +3463,7 @@ void test_props() {
   free(cxsmi_out);
   free(mpkl);
   mpkl = get_mol(cxsmi_in, &mpkl_size,
-                 "{\"propertyPickleOptions\":{\"NoProps\":true}}");
+                 "{\"propertyFlags\":{\"NoProps\":true}}");
   cxsmi_out = get_cxsmiles(mpkl, mpkl_size, "");
   assert(!strcmp(cxsmi_out, "c1ccncc1"));
   free(cxsmi_out);

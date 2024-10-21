@@ -2749,6 +2749,42 @@ TEST_CASE("write molecule to PNG", "[writer][PNG]") {
     CHECK(mol->getNumAtoms() == 29);
     CHECK(mol->getNumConformers() == 1);
   }
+  SECTION("use PKL") {
+    std::string fname =
+        rdbase +
+        "/Code/GraphMol/FileParsers/test_data/colchicine.no_metadata.png";
+    std::ifstream strm(fname, std::ios::in | std::ios::binary);
+    auto colchicine =
+        "COc1cc2c(c(OC)c1OC)-c1ccc(OC)c(=O)cc1[C@@H](NC(C)=O)CC2"_smiles;
+    REQUIRE(colchicine);
+    static const std::string propertyName("property");
+    static const std::string propertyValue("value");
+    colchicine->setProp<std::string>(propertyName, propertyValue);
+    PNGMetadataParams params;
+    params.includePkl = true;
+    params.includeSmiles = false;
+    params.includeMol = false;
+    {
+      auto pngString = addMolToPNGStream(*colchicine, strm, params);
+      // read it back out
+      std::unique_ptr<ROMol> mol(PNGStringToMol(pngString));
+      REQUIRE(mol);
+      CHECK(mol->getNumAtoms() == 29);
+      CHECK(mol->getNumConformers() == 1);
+      CHECK(!mol->hasProp(propertyName));
+    }
+    {
+      params.propertyFlags = PicklerOps::PropertyPickleOptions::AllProps;
+      auto pngString = addMolToPNGStream(*colchicine, strm, params);
+      // read it back out
+      std::unique_ptr<ROMol> mol(PNGStringToMol(pngString));
+      REQUIRE(mol);
+      CHECK(mol->getNumAtoms() == 29);
+      CHECK(mol->getNumConformers() == 1);
+      CHECK(mol->hasProp(propertyName));
+      CHECK(mol->getProp<std::string>(propertyName) == propertyValue);
+    }
+  }
 }
 TEST_CASE("multiple molecules in the PNG", "[writer][PNG]") {
   std::string rdbase = getenv("RDBASE");
