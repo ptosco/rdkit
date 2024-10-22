@@ -34,10 +34,20 @@ RDKIT_FILEPARSERS_EXPORT extern const std::string pklTag;
 }  // namespace PNGData
 
 struct RDKIT_FILEPARSERS_EXPORT PNGMetadataParams {
+  //! include molecule pickle
   bool includePkl = true;
+  //! include CXSMILES for the molecule
   bool includeSmiles = true;
+  //! include molblock for the molecule
   bool includeMol = false;
-  unsigned int propertyFlags = PicklerOps::PropertyPickleOptions::NoProps;
+  //! choose properties to be included in the pickle
+  unsigned int propertyFlags = MolPickler::getDefaultPickleProperties();
+  //! choose SmilesWriteParams for the CXSMILES string
+  SmilesWriteParams smilesWriteParams = SmilesWriteParams();
+  //! choose CXSMILES fields to be included in the CXSMILES string
+  std::uint32_t cxSmilesFlags = SmilesWrite::CXSmilesFields::CX_ALL;
+  //! choose what to do with bond dirs in the CXSMILES string
+  RestoreBondDirOption restoreBondDirs = RestoreBondDirOption::RestoreBondDirOptionClear;
 };
 
 //! \name metadata to/from PNG

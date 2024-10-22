@@ -15,6 +15,7 @@
 #include "PNGParser.h"
 #include <RDGeneral/FileParseException.h>
 #include <RDGeneral/StreamOps.h>
+#include <GraphMol/Chirality.h>
 #include <vector>
 
 #include "FileParsers.h"
@@ -217,7 +218,7 @@ std::vector<std::pair<std::string, std::string>> PNGStreamToMetadata(
 #endif
       }
       if (!value.empty()) {
-        res.push_back(std::make_pair(key, value));
+        res.emplace_back(key, value);
       }
     }
     inStream.seekg(beginBlock);
@@ -272,22 +273,22 @@ std::string addMetadataToPNGStream(
   }
 
   // write out the metadata:
-  for (const auto &pr : metadata) {
+  for (const auto &[key, value] : metadata) {
     std::stringstream blk;
     if (!compressed) {
       blk.write("tEXt", 4);
       // write the name along with a zero
-      blk.write(pr.first.c_str(), pr.first.size() + 1);
-      blk.write(pr.second.c_str(), pr.second.size());
+      blk.write(key.c_str(), key.size() + 1);
+      blk.write(value.c_str(), value.size());
     } else {
 #if defined(RDK_USE_BOOST_IOSTREAMS) || defined(RDK_USE_STANDALONE_ZLIB)
       blk.write("zTXt", 4);
       // write the name along with a zero
-      blk.write(pr.first.c_str(), pr.first.size() + 1);
+      blk.write(key.c_str(), key.size() + 1);
       // write the compressed data
       // first a zero for the "compression method":
       blk.write("\0", 1);
-      auto dest = compressString(pr.second);
+      auto dest = compressString(value);
       blk.write((const char *)dest.c_str(), dest.size());
 #else
       // we shouldn't get here since we disabled compressed at the beginning of
@@ -327,18 +328,25 @@ std::string addMolToPNGStream(const ROMol &mol, std::istream &iStream,
   if (params.includePkl) {
     std::string pkl;
     MolPickler::pickleMol(mol, pkl, params.propertyFlags);
-    metadata.push_back(std::make_pair(augmentTagName(PNGData::pklTag), pkl));
+    metadata.emplace_back(augmentTagName(PNGData::pklTag), pkl);
   }
   if (params.includeSmiles) {
-    std::string smi = MolToCXSmiles(mol);
-    metadata.push_back(std::make_pair(augmentTagName(PNGData::smilesTag), smi));
+    std::string smi = MolToCXSmiles(mol, params.smilesWriteParams, params.cxSmilesFlags, params.restoreBondDirs);
+    metadata.emplace_back(augmentTagName(PNGData::smilesTag), smi);
   }
   if (params.includeMol) {
+    std::unique_ptr<ROMol> molOrigWedging;
+    const ROMol *molRef = &mol;
     bool includeStereo = true;
     int confId = -1;
     bool kekulize = false;
-    std::string mb = MolToMolBlock(mol, includeStereo, confId, kekulize);
-    metadata.push_back(std::make_pair(augmentTagName(PNGData::molTag), mb));
+    if (params.restoreBondDirs == RestoreBondDirOptionTrue) {
+      molOrigWedging.reset(new ROMol(mol));
+      Chirality::reapplyMolBlockWedging(*molOrigWedging);
+      molRef = molOrigWedging.get();
+    }
+    std::string mb = MolToMolBlock(*molRef, includeStereo, confId, kekulize);
+    metadata.emplace_back(augmentTagName(PNGData::molTag), mb);
   }
   return addMetadataToPNGStream(iStream, metadata);
 };
@@ -348,15 +356,15 @@ ROMol *PNGStreamToMol(std::istream &inStream,
   ROMol *res = nullptr;
   auto metadata = PNGStreamToMetadata(inStream);
   bool formatFound = false;
-  for (const auto &pr : metadata) {
-    if (boost::starts_with(pr.first, PNGData::pklTag)) {
-      res = new ROMol(pr.second);
+  for (const auto &[key, value] : metadata) {
+    if (boost::starts_with(key, PNGData::pklTag)) {
+      res = new ROMol(value);
       formatFound = true;
-    } else if (boost::starts_with(pr.first, PNGData::smilesTag)) {
-      res = SmilesToMol(pr.second, params);
+    } else if (boost::starts_with(key, PNGData::smilesTag)) {
+      res = SmilesToMol(value, params);
       formatFound = true;
-    } else if (boost::starts_with(pr.first, PNGData::molTag)) {
-      res = MolBlockToMol(pr.second, params.sanitize, params.removeHs);
+    } else if (boost::starts_with(key, PNGData::molTag)) {
+      res = MolBlockToMol(value, params.sanitize, params.removeHs);
       formatFound = true;
     }
     if (formatFound) {
@@ -374,17 +382,17 @@ std::vector<std::unique_ptr<ROMol>> PNGStreamToMols(
     const SmilesParserParams &params) {
   std::vector<std::unique_ptr<ROMol>> res;
   auto metadata = PNGStreamToMetadata(inStream);
-  for (const auto &pr : metadata) {
-    if (!boost::starts_with(pr.first, tagToUse)) {
+  for (const auto &[key, value] : metadata) {
+    if (!boost::starts_with(key, tagToUse)) {
       continue;
     }
-    if (boost::starts_with(pr.first, PNGData::pklTag)) {
-      res.emplace_back(new ROMol(pr.second));
-    } else if (boost::starts_with(pr.first, PNGData::smilesTag)) {
-      res.emplace_back(SmilesToMol(pr.second, params));
-    } else if (boost::starts_with(pr.first, PNGData::molTag)) {
+    if (boost::starts_with(key, PNGData::pklTag)) {
+      res.emplace_back(new ROMol(value));
+    } else if (boost::starts_with(key, PNGData::smilesTag)) {
+      res.emplace_back(SmilesToMol(value, params));
+    } else if (boost::starts_with(key, PNGData::molTag)) {
       res.emplace_back(
-          MolBlockToMol(pr.second, params.sanitize, params.removeHs));
+          MolBlockToMol(value, params.sanitize, params.removeHs));
     }
   }
   return res;

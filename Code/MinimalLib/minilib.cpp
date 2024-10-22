@@ -145,8 +145,7 @@ std::string JSMolBase::get_json() const {
 
 std::string JSMolBase::get_pickle(const std::string &details) const {
   unsigned int propFlags = PicklerOps::NoProps;
-  if (!MinimalLib::updatePropertyPickleOptionsFromJSON(details.c_str(),
-                                                       propFlags)) {
+  if (!MinimalLib::updatePropertyPickleOptionsFromJSON(propFlags, details.c_str())) {
     propFlags = PicklerOps::AllProps ^ PicklerOps::ComputedProps;
   }
   std::string pickle;
@@ -602,7 +601,7 @@ std::string JSMolBase::add_to_png_blob(const std::string &pngString,
   PNGMetadataParams params;
   std::string res;
   try {
-    updatePNGMetadataParamsFromJSON(params, details.c_str());
+    MinimalLib::updatePNGMetadataParamsFromJSON(params, details.c_str());
     res = addMolToPNGString(get(), pngString, params);
   } catch (...) {
   }

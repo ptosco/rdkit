@@ -3533,8 +3533,8 @@ function test_pickle() {
 }
 
 function test_png_metadata() {
-    const PNG_NO_METADATA = "/../test_data/bilastine_no_metadata.png";
-    const PNG_WITH_METADATA = "/../test_data/bilastine_with_metadata.png";
+    const PNG_NO_METADATA = "/../../GraphMol/FileParsers/test_data/colchicine.no_metadata.png";
+    const PNG_WITH_METADATA = "/../../GraphMol/FileParsers/test_data/colchicine.png";
     const PNG_PENICILLIN_METADATA = "penicillin_metadata.png";
     const PNG_PENICILLIN_AMOXICILLIN_METADATA = "penicillin_amoxicillin_metadata.png";
     const PNG_BILASTINE_AMOXICILLIN_METADATA = "bilastine_amoxicillin_metadata.png";

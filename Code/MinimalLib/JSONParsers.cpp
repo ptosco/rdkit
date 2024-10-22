@@ -2,6 +2,7 @@
 #include "JSONParsers.h"
 #include <GraphMol/MolPickler.h>
 #include <GraphMol/FileParsers/PNGParser.h>
+#include <GraphMol/SmilesParse/SmilesJSONParsers.h>
 #include <RDGeneral/BoostStartInclude.h>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -10,8 +11,7 @@
 namespace RDKit {
 namespace MinimalLib {
 
-bool updatePropertyPickleOptionsFromJSON(const char *details_json,
-                                         unsigned int &propFlags) {
+bool updatePropertyPickleOptionsFromJSON(unsigned int &propFlags, const char *details_json) {
   auto propertyFlagsFromJson =
       (+PicklerOps::PropertyPickleOptions::NoProps)._to_integral();
   bool res = false;
@@ -36,8 +36,7 @@ bool updatePropertyPickleOptionsFromJSON(const char *details_json,
   return res;
 }
 
-void updatePNGMetadataParamsFromJSON(const char *details_json,
-                                     PNGMetadataParams &params) {
+void updatePNGMetadataParamsFromJSON(PNGMetadataParams &params, const char *details_json) {
   if (details_json && strlen(details_json)) {
     boost::property_tree::ptree pt;
     std::istringstream ss;
@@ -46,7 +45,11 @@ void updatePNGMetadataParamsFromJSON(const char *details_json,
     params.includePkl = pt.get("includePkl", params.includePkl);
     params.includeSmiles = pt.get("includeSmiles", params.includeSmiles);
     params.includeMol = pt.get("includeMol", params.includeMol);
-    updatePropertyPickleOptionsFromJSON(details_json, params.propertyFlags);
+    updatePropertyPickleOptionsFromJSON(params.propertyFlags, details_json);
+    updateSmilesWriteParamsFromJSON(params.smilesWriteParams, details_json);
+    unsigned int restoreBondDirs = params.restoreBondDirs;
+    updateCXSmilesFieldsFromJSON(params.cxSmilesFlags, restoreBondDirs, details_json);
+    params.restoreBondDirs = RestoreBondDirOption::_from_integral(restoreBondDirs);
   }
 }
 

@@ -1349,7 +1349,7 @@ std::vector<ROMOL_SPTR> get_mols_from_png_blob_internal(
     return res;
   }
   PNGMetadataParams params;
-  updatePNGMetadataParamsFromJSON(details, params);
+  updatePNGMetadataParamsFromJSON(params, details);
   if (!params.includePkl && !params.includeSmiles && !params.includeMol) {
     return res;
   }
@@ -1357,14 +1357,13 @@ std::vector<ROMOL_SPTR> get_mols_from_png_blob_internal(
   unsigned int smiCount = 0;
   unsigned int molCount = 0;
   unsigned int pklCount = 0;
-  for (const auto &pair : metadata) {
+  for (const auto &[key, value] : metadata) {
     std::unique_ptr<RWMol> mol;
-    if (pair.first.rfind(PNGData::pklTag, 0) == 0) {
+    if (key.rfind(PNGData::pklTag, 0) == 0) {
       ++pklCount;
       if (params.includePkl) {
-        mol.reset(new RWMol());
         try {
-          MolPickler::molFromPickle(pair.second, mol.get());
+          mol.reset(new RWMol(value));
         } catch (...) {
           mol.reset();
         }
@@ -1373,19 +1372,19 @@ std::vector<ROMOL_SPTR> get_mols_from_png_blob_internal(
           params.includeMol = false;
         }
       }
-    } else if (pair.first.rfind(PNGData::smilesTag, 0) == 0) {
+    } else if (key.rfind(PNGData::smilesTag, 0) == 0) {
       ++smiCount;
       if (params.includeSmiles) {
-        mol.reset(MinimalLib::mol_from_input(pair.second, details));
+        mol.reset(MinimalLib::mol_from_input(value, details));
         if (mol && smiCount == 1) {
           params.includePkl = false;
           params.includeMol = false;
         }
       }
-    } else if (pair.first.rfind(PNGData::molTag, 0) == 0) {
+    } else if (key.rfind(PNGData::molTag, 0) == 0) {
       ++molCount;
       if (params.includeMol) {
-        mol.reset(MinimalLib::mol_from_input(pair.second, details));
+        mol.reset(MinimalLib::mol_from_input(value, details));
         if (mol && molCount == 1) {
           params.includePkl = false;
           params.includeSmiles = false;
