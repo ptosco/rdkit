@@ -12,7 +12,7 @@ namespace MinimalLib {
 
 bool updatePropertyPickleOptionsFromJSON(const char *details_json,
                                          unsigned int &propFlags) {
-  auto propertyPickleOptionsFromJson =
+  auto propertyFlagsFromJson =
       (+PicklerOps::PropertyPickleOptions::NoProps)._to_integral();
   bool res = false;
   if (details_json && strlen(details_json)) {
@@ -23,13 +23,13 @@ bool updatePropertyPickleOptionsFromJSON(const char *details_json,
     const auto nodeIt = pt.find("propertyFlags");
     if (nodeIt != pt.not_found()) {
       for (const auto *key : PicklerOps::PropertyPickleOptions::_names()) {
-        propertyPickleOptionsFromJson |=
+        propertyFlagsFromJson |=
             (nodeIt->second.get(key, false)
                  ? PicklerOps::PropertyPickleOptions::_from_string(key)
                  : +PicklerOps::PropertyPickleOptions::NoProps)
                 ._to_integral();
       }
-      propFlags = propertyPickleOptionsFromJson;
+      propFlags = propertyFlagsFromJson;
       res = true;
     }
   }
