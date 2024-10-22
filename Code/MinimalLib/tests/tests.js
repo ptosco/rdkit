@@ -3414,7 +3414,7 @@ function test_pickle() {
     assert(molFromPkl.has_prop('a'));
     assert(molFromPkl.get_prop('a') === '1');
     molFromPkl.delete();
-    const pklWithoutProps = mol.get_as_uint8array(JSON.stringify({propertyPickleOptions: { NoProps: true } }));
+    const pklWithoutProps = mol.get_as_uint8array(JSON.stringify({propertyFlags: { NoProps: true } }));
     molFromPkl = RDKitModule.get_mol_from_uint8array(pklWithoutProps);
     assert(molFromPkl);
     assert(!molFromPkl.has_prop('a'));
