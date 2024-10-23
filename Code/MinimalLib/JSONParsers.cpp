@@ -11,7 +11,8 @@
 namespace RDKit {
 namespace MinimalLib {
 
-bool updatePropertyPickleOptionsFromJSON(unsigned int &propFlags, const char *details_json) {
+bool updatePropertyPickleOptionsFromJSON(unsigned int &propFlags,
+                                         const char *details_json) {
   auto propertyFlagsFromJson =
       (+PicklerOps::PropertyPickleOptions::NoProps)._to_integral();
   bool res = false;
@@ -36,7 +37,8 @@ bool updatePropertyPickleOptionsFromJSON(unsigned int &propFlags, const char *de
   return res;
 }
 
-void updatePNGMetadataParamsFromJSON(PNGMetadataParams &params, const char *details_json) {
+void updatePNGMetadataParamsFromJSON(PNGMetadataParams &params,
+                                     const char *details_json) {
   if (details_json && strlen(details_json)) {
     boost::property_tree::ptree pt;
     std::istringstream ss;
@@ -48,8 +50,10 @@ void updatePNGMetadataParamsFromJSON(PNGMetadataParams &params, const char *deta
     updatePropertyPickleOptionsFromJSON(params.propertyFlags, details_json);
     updateSmilesWriteParamsFromJSON(params.smilesWriteParams, details_json);
     unsigned int restoreBondDirs = params.restoreBondDirs;
-    updateCXSmilesFieldsFromJSON(params.cxSmilesFlags, restoreBondDirs, details_json);
-    params.restoreBondDirs = RestoreBondDirOption::_from_integral(restoreBondDirs);
+    updateCXSmilesFieldsFromJSON(params.cxSmilesFlags, restoreBondDirs,
+                                 details_json);
+    params.restoreBondDirs =
+        RestoreBondDirOption::_from_integral(restoreBondDirs);
   }
 }
 

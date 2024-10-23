@@ -539,8 +539,9 @@ ROMol *MolFromPNGString(python::object png, python::object pyParams) {
   return newM;
 }
 
-python::object addMolToPNGFileHelperParams(const ROMol &mol, python::object fname,
-                                     const PNGMetadataParams &params) {
+python::object addMolToPNGFileHelperParams(const ROMol &mol,
+                                           python::object fname,
+                                           const PNGMetadataParams &params) {
   std::string cstr = python::extract<std::string>(fname);
 
   auto res = addMolToPNGFile(mol, cstr, params);
@@ -560,12 +561,12 @@ python::object addMolToPNGFileHelper(const ROMol &mol, python::object fname,
   return addMolToPNGFileHelperParams(mol, fname, params);
 }
 
-python::object addMolToPNGStringHelperParams(const ROMol &mol, python::object png,
-                                       const PNGMetadataParams &params) {
+python::object addMolToPNGStringHelperParams(const ROMol &mol,
+                                             python::object png,
+                                             const PNGMetadataParams &params) {
   std::string cstr = python::extract<std::string>(png);
 
-  auto res =
-      addMolToPNGString(mol, cstr, params);
+  auto res = addMolToPNGString(mol, cstr, params);
 
   python::object retval = python::object(
       python::handle<>(PyBytes_FromStringAndSize(res.c_str(), res.length())));
@@ -698,7 +699,8 @@ python::tuple MolsFromCDXML(python::object cdxml, bool sanitize,
 
 namespace {
 PyObject *translateMetadata(
-    const std::vector<std::pair<std::string, std::string>> &metadata, bool asList) {
+    const std::vector<std::pair<std::string, std::string>> &metadata,
+    bool asList) {
   std::unique_ptr<python::dict> resAsDict;
   std::unique_ptr<python::list> resAsList;
   if (asList) {
@@ -2338,16 +2340,14 @@ BOOST_PYTHON_MODULE(rdmolfiles) {
 
 #ifdef RDK_USE_BOOST_IOSTREAMS
   python::class_<RDKit::PNGMetadataParams, boost::noncopyable>(
-      "PNGMetadataParams", "Parameters controlling metadata included in PNG images")
-      .def_readwrite(
-          "includePkl", &RDKit::PNGMetadataParams::includePkl,
-          "toggles inclusion of molecule pickle (default=True)")
-      .def_readwrite(
-          "includeSmiles", &RDKit::PNGMetadataParams::includeSmiles,
-          "toggles inclusion of molecule CXSMILES (default=True)")
-      .def_readwrite(
-          "includeMol", &RDKit::PNGMetadataParams::includeMol,
-          "toggles inclusion of molecule molblock (default=False)")
+      "PNGMetadataParams",
+      "Parameters controlling metadata included in PNG images")
+      .def_readwrite("includePkl", &RDKit::PNGMetadataParams::includePkl,
+                     "toggles inclusion of molecule pickle (default=True)")
+      .def_readwrite("includeSmiles", &RDKit::PNGMetadataParams::includeSmiles,
+                     "toggles inclusion of molecule CXSMILES (default=True)")
+      .def_readwrite("includeMol", &RDKit::PNGMetadataParams::includeMol,
+                     "toggles inclusion of molecule molblock (default=False)")
       .def_readwrite(
           "propertyFlags", &RDKit::PNGMetadataParams::propertyFlags,
           "choose properties to be included in the pickle (default=rdkit.Chem.rdchem.PropertyPickleOptions.NoProps)")
@@ -2494,8 +2494,7 @@ BOOST_PYTHON_MODULE(rdmolfiles) {
        the updated PNG data)DOC";
   python::def(
       "MolMetadataToPNGFile", addMolToPNGFileHelperParams,
-      (python::arg("mol"), python::arg("filename"),
-       python::arg("params")),
+      (python::arg("mol"), python::arg("filename"), python::arg("params")),
       docString.c_str());
 
   docString =
@@ -2534,10 +2533,9 @@ BOOST_PYTHON_MODULE(rdmolfiles) {
 
      RETURNS:
        the updated PNG data)DOC";
-  python::def(
-      "MolMetadataToPNGString", addMolToPNGStringHelperParams,
-      (python::arg("mol"), python::arg("png"), python::arg("params")),
-      docString.c_str());
+  python::def("MolMetadataToPNGString", addMolToPNGStringHelperParams,
+              (python::arg("mol"), python::arg("png"), python::arg("params")),
+              docString.c_str());
 
   docString =
       R"DOC(Adds metadata to PNG data read from a file.

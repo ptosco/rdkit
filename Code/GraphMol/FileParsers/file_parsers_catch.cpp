@@ -2877,22 +2877,29 @@ M  END
     REQUIRE(colchicineUnusualWedging);
     CHECK(colchicineUnusualWedging->getNumConformers() == 1);
     SmilesWriteParams ps;
-    CHECK(MolToCXSmiles(*colchicineUnusualWedging).find("wU:22.24|") != std::string::npos);
-    CHECK(MolToCXSmiles(*colchicineUnusualWedging, ps, SmilesWrite::CX_ALL, RestoreBondDirOptionTrue).find("wU:22.23|") != std::string::npos);
+    CHECK(MolToCXSmiles(*colchicineUnusualWedging).find("wU:22.24|") !=
+          std::string::npos);
+    CHECK(MolToCXSmiles(*colchicineUnusualWedging, ps, SmilesWrite::CX_ALL,
+                        RestoreBondDirOptionTrue)
+              .find("wU:22.23|") != std::string::npos);
     PNGMetadataParams params;
     params.includePkl = true;
     params.includeSmiles = true;
     params.includeMol = true;
-    params.propertyFlags = PicklerOps::PropertyPickleOptions::AtomProps | PicklerOps::PropertyPickleOptions::BondProps;
+    params.propertyFlags = PicklerOps::PropertyPickleOptions::AtomProps |
+                           PicklerOps::PropertyPickleOptions::BondProps;
     {
       std::ifstream strm(fname, std::ios::in | std::ios::binary);
-      auto pngString = addMolToPNGStream(*colchicineUnusualWedging, strm, params);
+      auto pngString =
+          addMolToPNGStream(*colchicineUnusualWedging, strm, params);
       // read it back out
       std::unique_ptr<ROMol> mol(PNGStringToMol(pngString));
       REQUIRE(mol);
       CHECK(mol->getNumAtoms() == 29);
       CHECK(mol->getNumConformers() == 1);
-      CHECK(MolToCXSmiles(*mol, ps, SmilesWrite::CX_ALL, RestoreBondDirOptionTrue).find("wU:22.23|") != std::string::npos);
+      CHECK(
+          MolToCXSmiles(*mol, ps, SmilesWrite::CX_ALL, RestoreBondDirOptionTrue)
+              .find("wU:22.23|") != std::string::npos);
       auto metadata = PNGStringToMetadata(pngString);
       auto smilesFound = false;
       auto ctabFound = false;
@@ -2907,9 +2914,11 @@ M  END
         } else if (key.substr(0, 8) == "rdkitPKL") {
           pklFound = true;
           RWMol molFromPkl(value);
-          CHECK(MolToMolBlock(molFromPkl).find(" 23 24  1  1") != std::string::npos);
+          CHECK(MolToMolBlock(molFromPkl).find(" 23 24  1  1") !=
+                std::string::npos);
           Chirality::reapplyMolBlockWedging(molFromPkl);
-          CHECK(MolToMolBlock(molFromPkl).find(" 23 22  1  1") != std::string::npos);
+          CHECK(MolToMolBlock(molFromPkl).find(" 23 22  1  1") !=
+                std::string::npos);
         }
       }
       CHECK((smilesFound && ctabFound && pklFound));
@@ -2917,13 +2926,16 @@ M  END
     {
       params.restoreBondDirs = RestoreBondDirOptionTrue;
       std::ifstream strm(fname, std::ios::in | std::ios::binary);
-      auto pngString = addMolToPNGStream(*colchicineUnusualWedging, strm, params);
+      auto pngString =
+          addMolToPNGStream(*colchicineUnusualWedging, strm, params);
       // read it back out
       std::unique_ptr<ROMol> mol(PNGStringToMol(pngString));
       REQUIRE(mol);
       CHECK(mol->getNumAtoms() == 29);
       CHECK(mol->getNumConformers() == 1);
-      CHECK(MolToCXSmiles(*mol, ps, SmilesWrite::CX_ALL, RestoreBondDirOptionTrue).find("wU:22.23|") != std::string::npos);
+      CHECK(
+          MolToCXSmiles(*mol, ps, SmilesWrite::CX_ALL, RestoreBondDirOptionTrue)
+              .find("wU:22.23|") != std::string::npos);
       auto metadata = PNGStringToMetadata(pngString);
       auto smilesFound = false;
       auto ctabFound = false;
@@ -2938,9 +2950,11 @@ M  END
         } else if (key.substr(0, 8) == "rdkitPKL") {
           pklFound = true;
           RWMol molFromPkl(value);
-          CHECK(MolToMolBlock(molFromPkl).find(" 23 24  1  1") != std::string::npos);
+          CHECK(MolToMolBlock(molFromPkl).find(" 23 24  1  1") !=
+                std::string::npos);
           Chirality::reapplyMolBlockWedging(molFromPkl);
-          CHECK(MolToMolBlock(molFromPkl).find(" 23 22  1  1") != std::string::npos);
+          CHECK(MolToMolBlock(molFromPkl).find(" 23 22  1  1") !=
+                std::string::npos);
         }
       }
       CHECK((smilesFound && ctabFound && pklFound));

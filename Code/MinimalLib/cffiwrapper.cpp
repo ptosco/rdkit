@@ -280,7 +280,8 @@ extern "C" char *get_mol(const char *input, size_t *pkl_sz,
     return nullptr;
   }
   unsigned int propFlags = PicklerOps::PropertyPickleOptions::NoProps;
-  if (!MinimalLib::updatePropertyPickleOptionsFromJSON(propFlags, details_json)) {
+  if (!MinimalLib::updatePropertyPickleOptionsFromJSON(propFlags,
+                                                       details_json)) {
     propFlags = PicklerOps::PropertyPickleOptions::AllProps ^
                 PicklerOps::PropertyPickleOptions::ComputedProps;
   }
@@ -858,7 +859,8 @@ extern "C" short add_mol_to_png_blob(char **png_blob, size_t *png_blob_sz,
   try {
     auto mol = mol_from_pkl(pkl, pkl_sz);
     auto updatedPngString = addMolToPNGString(mol, pngString, params);
-    auto updated_png_blob = static_cast<char *>(malloc(updatedPngString.size()));
+    auto updated_png_blob =
+        static_cast<char *>(malloc(updatedPngString.size()));
     if (!updated_png_blob) {
       return 0;
     }
@@ -1068,7 +1070,8 @@ extern "C" void keep_props(char **mol_pkl, size_t *mol_pkl_sz,
                            const char *details_json) {
   auto mol = mol_from_pkl(*mol_pkl, *mol_pkl_sz);
   unsigned int propFlags = PicklerOps::PropertyPickleOptions::NoProps;
-  if (!MinimalLib::updatePropertyPickleOptionsFromJSON(propFlags, details_json)) {
+  if (!MinimalLib::updatePropertyPickleOptionsFromJSON(propFlags,
+                                                       details_json)) {
     propFlags = PicklerOps::PropertyPickleOptions::AllProps ^
                 PicklerOps::PropertyPickleOptions::ComputedProps;
   }

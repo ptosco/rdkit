@@ -331,7 +331,9 @@ std::string addMolToPNGStream(const ROMol &mol, std::istream &iStream,
     metadata.emplace_back(augmentTagName(PNGData::pklTag), pkl);
   }
   if (params.includeSmiles) {
-    std::string smi = MolToCXSmiles(mol, params.smilesWriteParams, params.cxSmilesFlags, params.restoreBondDirs);
+    std::string smi =
+        MolToCXSmiles(mol, params.smilesWriteParams, params.cxSmilesFlags,
+                      params.restoreBondDirs);
     metadata.emplace_back(augmentTagName(PNGData::smilesTag), smi);
   }
   if (params.includeMol) {
@@ -391,8 +393,7 @@ std::vector<std::unique_ptr<ROMol>> PNGStreamToMols(
     } else if (boost::starts_with(key, PNGData::smilesTag)) {
       res.emplace_back(SmilesToMol(value, params));
     } else if (boost::starts_with(key, PNGData::molTag)) {
-      res.emplace_back(
-          MolBlockToMol(value, params.sanitize, params.removeHs));
+      res.emplace_back(MolBlockToMol(value, params.sanitize, params.removeHs));
     }
   }
   return res;

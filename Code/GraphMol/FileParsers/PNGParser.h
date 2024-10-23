@@ -47,7 +47,8 @@ struct RDKIT_FILEPARSERS_EXPORT PNGMetadataParams {
   //! choose CXSMILES fields to be included in the CXSMILES string
   std::uint32_t cxSmilesFlags = SmilesWrite::CXSmilesFields::CX_ALL;
   //! choose what to do with bond dirs in the CXSMILES string
-  RestoreBondDirOption restoreBondDirs = RestoreBondDirOption::RestoreBondDirOptionClear;
+  RestoreBondDirOption restoreBondDirs =
+      RestoreBondDirOption::RestoreBondDirOptionClear;
 };
 
 //! \name metadata to/from PNG

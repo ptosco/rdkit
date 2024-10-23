@@ -145,7 +145,8 @@ std::string JSMolBase::get_json() const {
 
 std::string JSMolBase::get_pickle(const std::string &details) const {
   unsigned int propFlags = PicklerOps::NoProps;
-  if (!MinimalLib::updatePropertyPickleOptionsFromJSON(propFlags, details.c_str())) {
+  if (!MinimalLib::updatePropertyPickleOptionsFromJSON(propFlags,
+                                                       details.c_str())) {
     propFlags = PicklerOps::AllProps ^ PicklerOps::ComputedProps;
   }
   std::string pickle;
@@ -970,7 +971,7 @@ bool disable_logging(const std::string &logName) {
 void disable_logging() { RDKit::MinimalLib::LogHandle::disableLogging(); }
 
 JSMolBase *get_mol_from_png_blob(const std::string &pngString,
-                             const std::string &details) {
+                                 const std::string &details) {
   auto mols = MinimalLib::get_mols_from_png_blob_internal(pngString, true,
                                                           details.c_str());
   if (mols.empty()) {
