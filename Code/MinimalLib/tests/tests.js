@@ -3719,52 +3719,30 @@ function test_png_metadata() {
     assert(!mol.has_coords());
     mol.delete();
     // use SMILES
-    png_colchicine_metadata_blob = colchicine.add_to_png_blob(png_no_metadata_blob, JSON.stringify({ includePkl: true }));
+    png_colchicine_metadata_blob = colchicine.add_to_png_blob(png_no_metadata_blob,
+        JSON.stringify({ includePkl: false }));
     mol = RDKitModule.get_mol_from_png_blob(png_colchicine_metadata_blob);
     assert(mol);
     assert(mol.get_num_atoms() === 29);
     assert(!mol.has_coords());
     mol.delete();
+    // use MOL
+    png_colchicine_metadata_blob = colchicine.add_to_png_blob(png_no_metadata_blob,
+        JSON.stringify({ includePkl: false, includeSmiles: false, includeMol: true }));
+    mol = RDKitModule.get_mol_from_png_blob(png_colchicine_metadata_blob);
+    assert(mol);
+    assert(mol.get_num_atoms() === 29);
+    assert(mol.has_coords() === 2);
+    mol.delete();
+    // use PKL
+    colchicine.set_new_coords();
+    assert(colchicine.has_coords() === 2);
+    const PROPERTY_NAME = 'property';
+    const PROPERTY_VALUE = 'value';
+    colchicine.set_prop(PROPERTY_NAME, PROPERTY_VALUE);
+    png_colchicine_metadata_blob = colchicine.add_to_png_blob(png_no_metadata_blob,
+        JSON.stringify({ includePkl: true, includeSmiles: false, includeMol: false, propertyFlags }));
 
-          bool includePkl = false;
-          auto pngString = addMolToPNGStream(*colchicine, strm, includePkl);
-          // read it back out
-          std::unique_ptr<ROMol> mol(PNGStringToMol(pngString));
-          REQUIRE(mol);
-          CHECK(mol->getNumAtoms() == 29);
-          CHECK(mol->getNumConformers() == 0);
-        }
-        SECTION("use MOL") {
-          std::string fname =
-              rdbase +
-              "/Code/GraphMol/FileParsers/test_data/colchicine.no_metadata.png";
-          std::ifstream strm(fname, std::ios::in | std::ios::binary);
-          auto colchicine =
-              "COc1cc2c(c(OC)c1OC)-c1ccc(OC)c(=O)cc1[C@@H](NC(C)=O)CC2"_smiles;
-          REQUIRE(colchicine);
-          bool includePkl = false;
-          bool includeSmiles = false;
-          bool includeMol = true;
-          auto pngString = addMolToPNGStream(*colchicine, strm, includePkl,
-                                             includeSmiles, includeMol);
-          // read it back out
-          std::unique_ptr<ROMol> mol(PNGStringToMol(pngString));
-          REQUIRE(mol);
-          CHECK(mol->getNumAtoms() == 29);
-          CHECK(mol->getNumConformers() == 1);
-        }
-        SECTION("use PKL") {
-          std::string fname =
-              rdbase +
-              "/Code/GraphMol/FileParsers/test_data/colchicine.no_metadata.png";
-          auto colchicine =
-              "COc1cc2c(c(OC)c1OC)-c1ccc(OC)c(=O)cc1[C@@H](NC(C)=O)CC2"_smiles;
-          REQUIRE(colchicine);
-          RDDepict::compute2DCoords(*colchicine);
-          CHECK(colchicine->getNumConformers() == 1);
-          static const std::string propertyName("property");
-          static const std::string propertyValue("value");
-          colchicine->setProp<std::string>(propertyName, propertyValue);
           PNGMetadataParams params;
           params.includePkl = true;
           params.includeSmiles = false;
