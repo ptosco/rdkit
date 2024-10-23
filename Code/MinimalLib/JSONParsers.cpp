@@ -9,11 +9,8 @@
 namespace RDKit {
 namespace MinimalLib {
 
-bool updatePropertyPickleOptionsFromJSON(const char *details_json,
+void updatePropertyPickleOptionsFromJSON(const char *details_json,
                                          unsigned int &propFlags) {
-  auto propertyFlagsFromJson =
-      (+PicklerOps::PropertyPickleOptions::NoProps)._to_integral();
-  bool res = false;
   if (details_json && strlen(details_json)) {
     std::istringstream ss;
     boost::property_tree::ptree pt;
@@ -21,6 +18,8 @@ bool updatePropertyPickleOptionsFromJSON(const char *details_json,
     boost::property_tree::read_json(ss, pt);
     const auto nodeIt = pt.find("propertyFlags");
     if (nodeIt != pt.not_found()) {
+      auto propertyFlagsFromJson =
+          (+PicklerOps::PropertyPickleOptions::NoProps)._to_integral();
       for (const auto *key : PicklerOps::PropertyPickleOptions::_names()) {
         propertyFlagsFromJson |=
             (nodeIt->second.get(key, false)
@@ -29,10 +28,8 @@ bool updatePropertyPickleOptionsFromJSON(const char *details_json,
                 ._to_integral();
       }
       propFlags = propertyFlagsFromJson;
-      res = true;
     }
   }
-  return res;
 }
 
 }  // end namespace MinimalLib

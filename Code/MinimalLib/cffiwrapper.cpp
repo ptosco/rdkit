@@ -270,12 +270,9 @@ extern "C" char *get_mol(const char *input, size_t *pkl_sz,
     *pkl_sz = 0;
     return nullptr;
   }
-  unsigned int propFlags = PicklerOps::PropertyPickleOptions::NoProps;
-  if (!MinimalLib::updatePropertyPickleOptionsFromJSON(details_json,
-                                                       propFlags)) {
-    propFlags = PicklerOps::PropertyPickleOptions::AllProps ^
-                PicklerOps::PropertyPickleOptions::ComputedProps;
-  }
+  unsigned int propFlags = PicklerOps::PropertyPickleOptions::AllProps ^
+                           PicklerOps::PropertyPickleOptions::ComputedProps;
+  MinimalLib::updatePropertyPickleOptionsFromJSON(details_json, propFlags);
   std::string pkl;
   MolPickler::pickleMol(*mol, pkl, propFlags);
   return str_to_c(pkl, pkl_sz);
