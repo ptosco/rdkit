@@ -3740,163 +3740,119 @@ function test_png_metadata() {
     const PROPERTY_NAME = 'property';
     const PROPERTY_VALUE = 'value';
     colchicine.set_prop(PROPERTY_NAME, PROPERTY_VALUE);
-    png_colchicine_metadata_blob = colchicine.add_to_png_blob(png_no_metadata_blob,
-        JSON.stringify({ includePkl: true, includeSmiles: false, includeMol: false, propertyFlags }));
+    png_colchicine_metadata_blob = colchicine.add_to_png_blob(png_no_metadata_blob, JSON.stringify({
+        includePkl: true, includeSmiles: false, includeMol: false, propertyFlags: { NoProps: true }
+    }));
+    mol = RDKitModule.get_mol_from_png_blob(png_colchicine_metadata_blob);
+    assert(mol);
+    assert(mol.get_num_atoms() === 29);
+    assert(mol.has_coords() === 2);
+    assert(!mol.has_prop(PROPERTY_NAME));
+    mol.delete();
+    png_colchicine_metadata_blob = colchicine.add_to_png_blob(png_no_metadata_blob, JSON.stringify({
+        includePkl: true, includeSmiles: false, includeMol: false, propertyFlags: { AllProps: true }
+    }));
+    mol = RDKitModule.get_mol_from_png_blob(png_colchicine_metadata_blob);
+    assert(mol);
+    assert(mol.get_num_atoms() === 29);
+    assert(mol.has_coords() === 2);
+    assert(mol.has_prop(PROPERTY_NAME));
+    assert(mol.get_prop(PROPERTY_NAME) == PROPERTY_VALUE);
+    mol.delete();
+    png_colchicine_metadata_blob = colchicine.add_to_png_blob(png_no_metadata_blob, JSON.stringify({
+        includePkl: false, includeSmiles: true, includeMol: false,
+        propertyFlags: { NoProps: true }, cxSmilesFlags: { CX_ALL_BUT_COORDS: true }
+    }));
+    mol = RDKitModule.get_mol_from_png_blob(png_colchicine_metadata_blob);
+    assert(mol);
+    assert(mol.get_num_atoms() === 29);
+    assert(!mol.has_coords());
+    assert(!mol.has_prop(PROPERTY_NAME));
+    mol.delete();
+    // use original wedging
+    const colchicineUnusualWedging = `
+     RDKit          2D
 
-          PNGMetadataParams params;
-          params.includePkl = true;
-          params.includeSmiles = false;
-          params.includeMol = false;
-          {
-            std::ifstream strm(fname, std::ios::in | std::ios::binary);
-            params.propertyFlags = PicklerOps::PropertyPickleOptions::NoProps;
-            auto pngString = addMolToPNGStream(*colchicine, strm, params);
-            // read it back out
-            std::unique_ptr<ROMol> mol(PNGStringToMol(pngString));
-            REQUIRE(mol);
-            CHECK(mol->getNumAtoms() == 29);
-            CHECK(mol->getNumConformers() == 1);
-            CHECK(!mol->hasProp(propertyName));
-          }
-          {
-            std::ifstream strm(fname, std::ios::in | std::ios::binary);
-            params.propertyFlags = PicklerOps::PropertyPickleOptions::AllProps;
-            auto pngString = addMolToPNGStream(*colchicine, strm, params);
-            // read it back out
-            std::unique_ptr<ROMol> mol(PNGStringToMol(pngString));
-            REQUIRE(mol);
-            CHECK(mol->getNumAtoms() == 29);
-            CHECK(mol->getNumConformers() == 1);
-            CHECK(mol->hasProp(propertyName));
-            CHECK(mol->getProp<std::string>(propertyName) == propertyValue);
-          }
-          {
-            std::ifstream strm(fname, std::ios::in | std::ios::binary);
-            params.includePkl = false;
-            params.includeSmiles = true;
-            params.cxSmilesFlags = SmilesWrite::CXSmilesFields::CX_ALL_BUT_COORDS;
-            auto pngString = addMolToPNGStream(*colchicine, strm, params);
-            // read it back out
-            std::unique_ptr<ROMol> mol(PNGStringToMol(pngString));
-            REQUIRE(mol);
-            CHECK(mol->getNumAtoms() == 29);
-            CHECK(mol->getNumConformers() == 0);
-            CHECK(!mol->hasProp(propertyName));
-          }
-        }
-        SECTION("use original wedging") {
-          std::string fname =
-              rdbase +
-              "/Code/GraphMol/FileParsers/test_data/colchicine.no_metadata.png";
-          auto colchicineUnusualWedging =
-              R"CTAB(
-           RDKit          2D
-      
-       29 31  0  0  0  0  0  0  0  0999 V2000
-          6.4602    1.0300    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-          5.3062    1.9883    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
-          3.8993    1.4680    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-          2.7453    2.4262    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-          1.3384    1.9059    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-          1.0856    0.4273    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-          2.2396   -0.5309    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-          1.9868   -2.0094    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
-          3.1408   -2.9677    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-          3.6465   -0.0106    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-          4.8005   -0.9688    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
-          4.5477   -2.4474    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-         -0.2280   -0.2968    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-          0.1857   -1.7387    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-         -0.6836   -2.9611    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-         -2.1813   -3.0436    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-         -2.7569   -4.4288    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
-         -4.2442   -4.6230    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-         -3.1797   -1.9240    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-         -4.6215   -2.3378    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
-         -2.9268   -0.4455    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-         -1.6132    0.2787    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-         -2.0269    1.7205    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-         -3.5055    1.9733    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
-         -4.0258    3.3802    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-         -5.5043    3.6330    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-         -3.0675    4.5342    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
-         -1.1576    2.9429    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-          0.3401    3.0254    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
-        1  2  1  0
-        2  3  1  0
-        3  4  2  0
-        4  5  1  0
-        5  6  2  0
-        6  7  1  0
-        7  8  1  0
-        8  9  1  0
-        7 10  2  0
-       10 11  1  0
-       11 12  1  0
-        6 13  1  0
-       13 14  2  0
-       14 15  1  0
-       15 16  2  0
-       16 17  1  0
-       17 18  1  0
-       16 19  1  0
-       19 20  2  0
-       19 21  1  0
-       21 22  2  0
-       23 22  1  1
-       23 24  1  0
-       24 25  1  0
-       25 26  1  0
-       25 27  2  0
-       23 28  1  0
-       28 29  1  0
-       10  3  1  0
-       22 13  1  0
-       29  5  1  0
-      M  END
-      )CTAB"_ctab;
-          REQUIRE(colchicineUnusualWedging);
-          CHECK(colchicineUnusualWedging->getNumConformers() == 1);
-          SmilesWriteParams ps;
-          CHECK(MolToCXSmiles(*colchicineUnusualWedging).find("wU:22.24|") != std::string::npos);
-          CHECK(MolToCXSmiles(*colchicineUnusualWedging, ps, SmilesWrite::CX_ALL, RestoreBondDirOptionTrue).find("wU:22.23|") != std::string::npos);
-          PNGMetadataParams params;
-          params.includePkl = true;
-          params.includeSmiles = true;
-          params.includeMol = true;
-          params.propertyFlags = PicklerOps::PropertyPickleOptions::AtomProps | PicklerOps::PropertyPickleOptions::BondProps;
-          {
-            std::ifstream strm(fname, std::ios::in | std::ios::binary);
-            auto pngString = addMolToPNGStream(*colchicineUnusualWedging, strm, params);
-            // read it back out
-            std::unique_ptr<ROMol> mol(PNGStringToMol(pngString));
-            REQUIRE(mol);
-            CHECK(mol->getNumAtoms() == 29);
-            CHECK(mol->getNumConformers() == 1);
-            CHECK(MolToCXSmiles(*mol, ps, SmilesWrite::CX_ALL, RestoreBondDirOptionTrue).find("wU:22.23|") != std::string::npos);
-            auto metadata = PNGStringToMetadata(pngString);
-            auto smilesFound = false;
-            auto ctabFound = false;
-            auto pklFound = false;
-            for (const auto &[key, value] : metadata) {
-              if (key.substr(0, 6) == "SMILES") {
-                smilesFound = true;
-                CHECK(value.find("wU:22.24|") != std::string::npos);
-              } else if (key.substr(0, 3) == "MOL") {
-                ctabFound = true;
-                CHECK(value.find(" 23 24  1  1") != std::string::npos);
-              } else if (key.substr(0, 8) == "rdkitPKL") {
-                pklFound = true;
-                RWMol molFromPkl(value);
-                CHECK(MolToMolBlock(molFromPkl).find(" 23 24  1  1") != std::string::npos);
-                Chirality::reapplyMolBlockWedging(molFromPkl);
-                CHECK(MolToMolBlock(molFromPkl).find(" 23 22  1  1") != std::string::npos);
-              }
-            }
-            CHECK((smilesFound && ctabFound && pklFound));
-          }
-          {
-            params.restoreBondDirs = RestoreBondDirOptionTrue;
+ 29 31  0  0  0  0  0  0  0  0999 V2000
+    6.4602    1.0300    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    5.3062    1.9883    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+    3.8993    1.4680    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    2.7453    2.4262    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.3384    1.9059    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.0856    0.4273    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    2.2396   -0.5309    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.9868   -2.0094    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+    3.1408   -2.9677    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    3.6465   -0.0106    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    4.8005   -0.9688    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+    4.5477   -2.4474    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.2280   -0.2968    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.1857   -1.7387    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.6836   -2.9611    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.1813   -3.0436    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.7569   -4.4288    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+   -4.2442   -4.6230    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -3.1797   -1.9240    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -4.6215   -2.3378    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.9268   -0.4455    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.6132    0.2787    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.0269    1.7205    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -3.5055    1.9733    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+   -4.0258    3.3802    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -5.5043    3.6330    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -3.0675    4.5342    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.1576    2.9429    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.3401    3.0254    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0
+  2  3  1  0
+  3  4  2  0
+  4  5  1  0
+  5  6  2  0
+  6  7  1  0
+  7  8  1  0
+  8  9  1  0
+  7 10  2  0
+ 10 11  1  0
+ 11 12  1  0
+  6 13  1  0
+ 13 14  2  0
+ 14 15  1  0
+ 15 16  2  0
+ 16 17  1  0
+ 17 18  1  0
+ 16 19  1  0
+ 19 20  2  0
+ 19 21  1  0
+ 21 22  2  0
+ 23 22  1  1
+ 23 24  1  0
+ 24 25  1  0
+ 25 26  1  0
+ 25 27  2  0
+ 23 28  1  0
+ 28 29  1  0
+ 10  3  1  0
+ 22 13  1  0
+ 29  5  1  0
+M  END
+`;
+    assert(colchicineUnusualWedging);
+    assert(colchicineUnusualWedging.has_coords() === 2);
+    assert(colchicineUnusualWedging.get_cxsmiles().includes('wU:22.24|'));
+    assert(colchicineUnusualWedging.get_cxsmiles(JSON.stringify({ CX_ALL: true, restoreBondDirOption: 'RestoreBondDirOptionTrue' })).includes('wU:22.23|'));
+    png_colchicine_metadata_blob = colchicineUnusualWedging.add_to_png_blob(png_no_metadata_blob, JSON.stringify({
+        includePkl: true, includeSmiles: true, includeMol: true,
+        propertyFlags: { AtomProps: true, BondProps: true }
+    }));
+    assert(mol);
+    assert(mol.get_num_atoms() === 29);
+    assert(mol.has_coords() === 2);
+    assert(mol.get_cxsmiles(JSON.stringify({ CX_ALL: true, restoreBondDirOption: 'RestoreBondDirOptionTrue' })).includes('wU:22.23|'));
+    assert(mol.get_cxsmiles(JSON.stringify({ CX_ALL: true, restoreBondDirOption: 'RestoreBondDirOptionClear' })).includes('wU:22.24|'));
+    assert(mol.get_molblock().includes(' 23 24  1  1'));
+    assert(mol.get_molblock(JSON.stringify({ useMolBlockWedging: true })).includes(' 23 22  1  1'));
+
+    params.restoreBondDirs = RestoreBondDirOptionTrue;
             std::ifstream strm(fname, std::ios::in | std::ios::binary);
             auto pngString = addMolToPNGStream(*colchicineUnusualWedging, strm, params);
             // read it back out
