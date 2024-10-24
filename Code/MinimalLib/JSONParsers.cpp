@@ -21,11 +21,11 @@ void updatePropertyPickleOptionsFromJSON(const char *details_json,
       auto propertyFlagsFromJson =
           (+PicklerOps::PropertyPickleOptions::NoProps)._to_integral();
       for (const auto *key : PicklerOps::PropertyPickleOptions::_names()) {
-        propertyFlagsFromJson |=
-            (nodeIt->second.get(key, false)
-                 ? PicklerOps::PropertyPickleOptions::_from_string(key)
-                 : +PicklerOps::PropertyPickleOptions::NoProps)
-                ._to_integral();
+        if (nodeIt->second.get(key, false)) {
+          propertyFlagsFromJson |=
+              PicklerOps::PropertyPickleOptions::_from_string(key)
+                  ._to_integral();
+        }
       }
       propFlags = propertyFlagsFromJson;
     }
