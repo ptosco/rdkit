@@ -11,11 +11,8 @@
 namespace RDKit {
 namespace MinimalLib {
 
-bool updatePropertyPickleOptionsFromJSON(unsigned int &propFlags,
-                                         const char *details_json) {
-  auto propertyFlagsFromJson =
-      (+PicklerOps::PropertyPickleOptions::NoProps)._to_integral();
-  bool res = false;
+void updatePropertyPickleOptionsFromJSON(const char *details_json,
+                                         unsigned int &propFlags) {
   if (details_json && strlen(details_json)) {
     std::istringstream ss;
     boost::property_tree::ptree pt;
@@ -23,18 +20,18 @@ bool updatePropertyPickleOptionsFromJSON(unsigned int &propFlags,
     boost::property_tree::read_json(ss, pt);
     const auto nodeIt = pt.find("propertyFlags");
     if (nodeIt != pt.not_found()) {
+      auto propertyFlagsFromJson =
+          (+PicklerOps::PropertyPickleOptions::NoProps)._to_integral();
       for (const auto *key : PicklerOps::PropertyPickleOptions::_names()) {
-        propertyFlagsFromJson |=
-            (nodeIt->second.get(key, false)
-                 ? PicklerOps::PropertyPickleOptions::_from_string(key)
-                 : +PicklerOps::PropertyPickleOptions::NoProps)
-                ._to_integral();
+        if (nodeIt->second.get(key, false)) {
+          propertyFlagsFromJson |=
+              PicklerOps::PropertyPickleOptions::_from_string(key)
+                  ._to_integral();
+        }
       }
       propFlags = propertyFlagsFromJson;
-      res = true;
     }
   }
-  return res;
 }
 
 void updatePNGMetadataParamsFromJSON(PNGMetadataParams &params,

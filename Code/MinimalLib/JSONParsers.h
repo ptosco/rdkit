@@ -5,7 +5,7 @@
 namespace RDKit {
 namespace MinimalLib {
 
-bool updatePropertyPickleOptionsFromJSON(unsigned int &propFlags,
+void updatePropertyPickleOptionsFromJSON(unsigned int &propFlags,
                                          const char *details_json);
 void updatePNGMetadataParamsFromJSON(PNGMetadataParams &params,
                                      const char *details_json);
