@@ -939,12 +939,10 @@ extern "C" short clear_prop(char **mol_pkl, size_t *mol_pkl_sz,
 extern "C" void keep_props(char **mol_pkl, size_t *mol_pkl_sz,
                            const char *details_json) {
   auto mol = mol_from_pkl(*mol_pkl, *mol_pkl_sz);
-  unsigned int propFlags = PicklerOps::PropertyPickleOptions::NoProps;
-  if (!MinimalLib::updatePropertyPickleOptionsFromJSON(details_json,
-                                                       propFlags)) {
-    propFlags = PicklerOps::PropertyPickleOptions::AllProps ^
-                PicklerOps::PropertyPickleOptions::ComputedProps;
-  }
+  unsigned int propFlags = propFlags =
+      PicklerOps::PropertyPickleOptions::AllProps ^
+      PicklerOps::PropertyPickleOptions::ComputedProps;
+  MinimalLib::updatePropertyPickleOptionsFromJSON(details_json, propFlags);
   mol_to_pkl(mol, mol_pkl, mol_pkl_sz, propFlags);
 }
 
