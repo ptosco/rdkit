@@ -3844,6 +3844,8 @@ M  END
         includePkl: true, includeSmiles: true, includeMol: true,
         propertyFlags: { AtomProps: true, BondProps: true }
     }));
+    // the mol is restored from pickle, so it will retain
+    // original molblock wedging
     assert(mol);
     assert(mol.get_num_atoms() === 29);
     assert(mol.has_coords() === 2);
@@ -3851,40 +3853,38 @@ M  END
     assert(mol.get_cxsmiles(JSON.stringify({ CX_ALL: true, restoreBondDirOption: 'RestoreBondDirOptionClear' })).includes('wU:22.24|'));
     assert(mol.get_molblock().includes(' 23 24  1  1'));
     assert(mol.get_molblock(JSON.stringify({ useMolBlockWedging: true })).includes(' 23 22  1  1'));
-
-    params.restoreBondDirs = RestoreBondDirOptionTrue;
-            std::ifstream strm(fname, std::ios::in | std::ios::binary);
-            auto pngString = addMolToPNGStream(*colchicineUnusualWedging, strm, params);
-            // read it back out
-            std::unique_ptr<ROMol> mol(PNGStringToMol(pngString));
-            REQUIRE(mol);
-            CHECK(mol->getNumAtoms() == 29);
-            CHECK(mol->getNumConformers() == 1);
-            CHECK(MolToCXSmiles(*mol, ps, SmilesWrite::CX_ALL, RestoreBondDirOptionTrue).find("wU:22.23|") != std::string::npos);
-            auto metadata = PNGStringToMetadata(pngString);
-            auto smilesFound = false;
-            auto ctabFound = false;
-            auto pklFound = false;
-            for (const auto &[key, value] : metadata) {
-              if (key.substr(0, 6) == "SMILES") {
-                smilesFound = true;
-                CHECK(value.find("wU:22.23|") != std::string::npos);
-              } else if (key.substr(0, 3) == "MOL") {
-                ctabFound = true;
-                CHECK(value.find(" 23 22  1  1") != std::string::npos);
-              } else if (key.substr(0, 8) == "rdkitPKL") {
-                pklFound = true;
-                RWMol molFromPkl(value);
-                CHECK(MolToMolBlock(molFromPkl).find(" 23 24  1  1") != std::string::npos);
-                Chirality::reapplyMolBlockWedging(molFromPkl);
-                CHECK(MolToMolBlock(molFromPkl).find(" 23 22  1  1") != std::string::npos);
-              }
-            }
-            CHECK((smilesFound && ctabFound && pklFound));
-          }
-        }
-      }
-      
+    mol.delete();
+    // the mol is restored from CXSMILES, so it will not retain
+    // original molblock wedging, as it was not stored in the CXSMILES string
+    png_colchicine_metadata_blob = colchicineUnusualWedging.add_to_png_blob(png_no_metadata_blob, JSON.stringify({
+        includePkl: false, includeSmiles: true, includeMol: true,
+        propertyFlags: { AtomProps: true, BondProps: true }
+    }));
+    assert(mol);
+    assert(mol.get_num_atoms() === 29);
+    assert(mol.has_coords() === 2);
+    assert(mol.get_cxsmiles(JSON.stringify({ CX_ALL: true, restoreBondDirOption: 'RestoreBondDirOptionTrue' })).includes('wU:22.24|'));
+    assert(mol.get_cxsmiles(JSON.stringify({ CX_ALL: true, restoreBondDirOption: 'RestoreBondDirOptionClear' })).includes('wU:22.24|'));
+    assert(mol.get_molblock().includes(' 23 24  1  1'));
+    assert(mol.get_molblock(JSON.stringify({ useMolBlockWedging: true })).includes(' 23 24  1  1'));
+    mol.delete();
+    // the mol is restored from CXSMILES, but restoreBondDirOption was set
+    // to 'RestoreBondDirOptionTrue', so it will not retain
+    // original molblock wedging, as it was stored in the CXSMILES string
+    png_colchicine_metadata_blob = colchicineUnusualWedging.add_to_png_blob(png_no_metadata_blob, JSON.stringify({
+        includePkl: false, includeSmiles: true, includeMol: true,
+        propertyFlags: { AtomProps: true, BondProps: true },
+        restoreBondDirOption: 'RestoreBondDirOptionTrue'
+    }));
+    assert(mol);
+    assert(mol.get_num_atoms() === 29);
+    assert(mol.has_coords() === 2);
+    assert(mol.get_cxsmiles(JSON.stringify({ CX_ALL: true, restoreBondDirOption: 'RestoreBondDirOptionTrue' })).includes('wU:22.23|'));
+    assert(mol.get_cxsmiles(JSON.stringify({ CX_ALL: true, restoreBondDirOption: 'RestoreBondDirOptionClear' })).includes('wU:22.24|'));
+    assert(mol.get_molblock().includes(' 23 24  1  1'));
+    assert(mol.get_molblock(JSON.stringify({ useMolBlockWedging: true })).includes(' 23 22  1  1'));
+    mol.delete();
+    colchicineUnusualWedging.delete();
 }
 
 function test_combine_with() {

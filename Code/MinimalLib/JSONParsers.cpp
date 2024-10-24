@@ -11,8 +11,8 @@
 namespace RDKit {
 namespace MinimalLib {
 
-void updatePropertyPickleOptionsFromJSON(const char *details_json,
-                                         unsigned int &propFlags) {
+void updatePropertyPickleOptionsFromJSON(unsigned int &propFlags,
+                                         const char *details_json) {
   if (details_json && strlen(details_json)) {
     std::istringstream ss;
     boost::property_tree::ptree pt;
