@@ -145,7 +145,7 @@ std::string JSMolBase::get_json() const {
 
 std::string JSMolBase::get_pickle(const std::string &details) const {
   unsigned int propFlags = PicklerOps::AllProps ^ PicklerOps::ComputedProps;
-  MinimalLib::updatePropertyPickleOptionsFromJSON(details.c_str(), propFlags);
+  MinimalLib::updatePropertyPickleOptionsFromJSON(propFlags, details.c_str());
   std::string pickle;
   MolPickler::pickleMol(get(), pickle, propFlags);
   return pickle;
