@@ -3668,16 +3668,21 @@ function test_png_metadata() {
     mol.delete();
     mols.delete();
     let png_colchicine_amoxicillin_metadata_blob = amoxicillin.add_to_png_blob(
-        png_with_metadata_blob, JSON.stringify({ includeMol: true }));
+        png_with_metadata_blob, JSON.stringify({ includeMol: true, CX_ALL_BUT_COORDS:true }));
     assert(png_colchicine_amoxicillin_metadata_blob);
     fs.writeFileSync(PNG_COLCHICINE_AMOXICILLIN_METADATA, png_colchicine_amoxicillin_metadata_blob);
     mols = RDKitModule.get_mols_from_png_blob(png_colchicine_amoxicillin_metadata_blob,
         "{\"includePkl\":false,\"includeMol\":true}");
-    // png_with_metadata_blob only has SMILES and here we request MOL
     assert.equal(mols.size(), 1);
     mol = mols.at(0);
     assert.equal(mol.has_coords(), 2);
     mol.delete();
+    mols.delete();
+    mols = RDKitModule.get_mols_from_png_blob(png_colchicine_amoxicillin_metadata_blob,
+        "{\"includeSmiles\":true}");
+    assert.equal(mols.size(), 2);
+    assert.equal(mols.at(0).has_coords(), 2);
+    assert(!mols.at(1).has_coords());
     mols.delete();
     penicillin.delete();
     amoxicillin.delete();

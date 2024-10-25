@@ -2230,16 +2230,89 @@ void test_png_metadata() {
       "penicillin_amoxicillin_metadata.png";
   const char *PNG_COLCHICINE_AMOXICILLIN_METADATA =
       "colchicine_amoxicillin_metadata.png";
+  const char *COLCHICINE = "COc1cc2c(c(OC)c1OC)-c1ccc(OC)c(=O)cc1[C@@H](NC(C)=O)CC2";
+  const char *COLCHICINE_UNUSUAL_WEDGING = "\n\
+     RDKit          2D\n\
+\n\
+ 29 31  0  0  0  0  0  0  0  0999 V2000\n\
+    6.4602    1.0300    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+    5.3062    1.9883    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n\
+    3.8993    1.4680    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+    2.7453    2.4262    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+    1.3384    1.9059    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+    1.0856    0.4273    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+    2.2396   -0.5309    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+    1.9868   -2.0094    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n\
+    3.1408   -2.9677    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+    3.6465   -0.0106    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+    4.8005   -0.9688    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n\
+    4.5477   -2.4474    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -0.2280   -0.2968    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+    0.1857   -1.7387    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -0.6836   -2.9611    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -2.1813   -3.0436    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -2.7569   -4.4288    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -4.2442   -4.6230    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -3.1797   -1.9240    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -4.6215   -2.3378    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -2.9268   -0.4455    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -1.6132    0.2787    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -2.0269    1.7205    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -3.5055    1.9733    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -4.0258    3.3802    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -5.5043    3.6330    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -3.0675    4.5342    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n\
+   -1.1576    2.9429    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+    0.3401    3.0254    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n\
+  1  2  1  0\n\
+  2  3  1  0\n\
+  3  4  2  0\n\
+  4  5  1  0\n\
+  5  6  2  0\n\
+  6  7  1  0\n\
+  7  8  1  0\n\
+  8  9  1  0\n\
+  7 10  2  0\n\
+ 10 11  1  0\n\
+ 11 12  1  0\n\
+  6 13  1  0\n\
+ 13 14  2  0\n\
+ 14 15  1  0\n\
+ 15 16  2  0\n\
+ 16 17  1  0\n\
+ 17 18  1  0\n\
+ 16 19  1  0\n\
+ 19 20  2  0\n\
+ 19 21  1  0\n\
+ 21 22  2  0\n\
+ 23 22  1  1\n\
+ 23 24  1  0\n\
+ 24 25  1  0\n\
+ 25 26  1  0\n\
+ 25 27  2  0\n\
+ 23 28  1  0\n\
+ 28 29  1  0\n\
+ 10  3  1  0\n\
+ 22 13  1  0\n\
+ 29  5  1  0\n\
+M  END\n";
   char *penicillin_pkl;
   size_t penicillin_pkl_sz;
   char *amoxicillin_pkl;
   size_t amoxicillin_pkl_sz;
+  char *colchicine_pkl;
+  size_t colchicine_pkl_sz;
+  const char *PROPERTY_NAME = "property";
+  const char *PROPERTY_VALUE = "value";
   char_type *rdbase;
   char_type *png_no_metadata_abspath;
   char_type *png_with_metadata_abspath;
-  char_type *png_no_metadata_blob;
-  char_type *png_no_metadata_blob2;
-  char_type *png_with_metadata_blob;
+  char *png_no_metadata_blob;
+  char *png_no_metadata_blob2;
+  char *png_with_metadata_blob;
+  char *prop;
+  char *smi;
+  char *molblock;
   FILE *hnd_no_metadata;
   FILE *hnd_with_metadata;
   size_t rdbase_len;
@@ -2257,7 +2330,6 @@ void test_png_metadata() {
   size_t _write_png_blob(FILE * hnd, char *png_blob, size_t png_blob_sz);
   short res;
   void *null_ptr = NULL;
-  char *smi;
 #ifdef WIN32
   rdbase = _wgetenv(L"RDBASE");
 #else
@@ -2567,13 +2639,14 @@ void test_png_metadata() {
   assert(!add_mol_to_png_blob(&png_with_metadata_blob,
                               &png_with_metadata_blob_sz, amoxicillin_pkl, 0,
                               NULL));
-  assert(add_mol_to_png_blob(&png_with_metadata_blob,
-                             &png_with_metadata_blob_sz, amoxicillin_pkl,
-                             amoxicillin_pkl_sz, NULL));
+  assert(add_mol_to_png_blob(
+      &png_with_metadata_blob, &png_with_metadata_blob_sz, amoxicillin_pkl,
+      amoxicillin_pkl_sz, "{\"includeMol\":true,\"CX_ALL_BUT_COORDS\":true}"));
   hnd_with_metadata = fopen(PNG_COLCHICINE_AMOXICILLIN_METADATA, "wb");
   assert(hnd_with_metadata);
-  assert(_write_png_blob(hnd_with_metadata, png_no_metadata_blob,
-                         png_no_metadata_blob_sz) == png_no_metadata_blob_sz);
+  assert(_write_png_blob(hnd_with_metadata, png_with_metadata_blob,
+                         png_with_metadata_blob_sz) ==
+         png_with_metadata_blob_sz);
   fclose(hnd_with_metadata);
   assert(get_mols_from_png_blob(
              png_with_metadata_blob, png_with_metadata_blob_sz, &mpkl_array,
@@ -2592,11 +2665,191 @@ void test_png_metadata() {
   assert(has_coords(mpkl_array[0], mpkl_sz_array[0]) == 2);
   free_mol_array(&mpkl_array, &mpkl_sz_array);
   assert(!mpkl_array && !mpkl_sz_array);
+  assert(get_mols_from_png_blob(
+             png_with_metadata_blob, png_with_metadata_blob_sz, &mpkl_array,
+             &mpkl_sz_array, "{\"includeSmiles\":true}") == 2);
+  i = 0;
+  while (mpkl_array[i]) {
+    ++i;
+  }
+  assert(i == 2);
+  i = 0;
+  while (mpkl_sz_array[i]) {
+    ++i;
+  }
+  assert(i == 2);
+  assert(has_coords(mpkl_array[0], mpkl_sz_array[0]) == 2);
+  assert(!has_coords(mpkl_array[1], mpkl_sz_array[1]));
+  free_mol_array(&mpkl_array, &mpkl_sz_array);
+  assert(!mpkl_array && !mpkl_sz_array);
   free(penicillin_pkl);
   free(amoxicillin_pkl);
+  free(png_with_metadata_blob);
+
+  colchicine_pkl = get_mol(COLCHICINE, &colchicine_pkl_sz, "");
+  assert(colchicine_pkl && colchicine_pkl_sz);
+  memcpy(png_no_metadata_blob, png_no_metadata_blob2, png_no_metadata_blob2_sz);
+  assert(add_mol_to_png_blob(
+      &png_no_metadata_blob, &png_no_metadata_blob_sz, colchicine_pkl,
+      colchicine_pkl_sz, NULL));
+  assert(get_mol_from_png_blob(
+      png_no_metadata_blob, png_no_metadata_blob_sz, &mpkl, &mpkl_sz, NULL));
+  assert(mpkl && mpkl_sz);
+  assert(!has_coords(mpkl, mpkl_sz));
+  free(mpkl);
+  // use SMILES
+  memcpy(png_no_metadata_blob, png_no_metadata_blob2, png_no_metadata_blob2_sz);
+  assert(add_mol_to_png_blob(
+      &png_no_metadata_blob, &png_no_metadata_blob_sz, colchicine_pkl,
+      colchicine_pkl_sz, "{\"includePkl\":false}"));
+  assert(get_mol_from_png_blob(
+      png_no_metadata_blob, png_no_metadata_blob_sz, &mpkl, &mpkl_sz, NULL));
+  assert(mpkl && mpkl_sz);
+  assert(!has_coords(mpkl, mpkl_sz));
+  free(mpkl);
+  // use MOL
+  memcpy(png_no_metadata_blob, png_no_metadata_blob2, png_no_metadata_blob2_sz);
+  assert(add_mol_to_png_blob(
+      &png_no_metadata_blob, &png_no_metadata_blob_sz, colchicine_pkl,
+      colchicine_pkl_sz, "{\"includePkl\":false,\"includeSmiles\":false,\"includeMol\":true}"));
+  assert(get_mol_from_png_blob(
+      png_no_metadata_blob, png_no_metadata_blob_sz, &mpkl, &mpkl_sz, NULL));
+  assert(mpkl && mpkl_sz);
+  assert(has_coords(mpkl, mpkl_sz) == 2);
+  free(mpkl);
+  // use PKL
+  set_2d_coords(&colchicine_pkl, &colchicine_pkl_sz);
+  assert(has_coords(colchicine_pkl, colchicine_pkl_sz) == 2);
+  set_prop(&colchicine_pkl, &colchicine_pkl_sz, PROPERTY_NAME, PROPERTY_VALUE, 0);
+  assert(add_mol_to_png_blob(
+      &png_no_metadata_blob, &png_no_metadata_blob_sz, colchicine_pkl,
+      colchicine_pkl_sz, "{\"includePkl\":true,\"includeSmiles\":false,\"includeMol\":false,\"propertyFlags\":{\"NoProps\":true}}"));
+  assert(get_mol_from_png_blob(
+      png_no_metadata_blob, png_no_metadata_blob_sz, &mpkl, &mpkl_sz, NULL));
+  assert(mpkl && mpkl_sz);
+  assert(has_coords(mpkl, mpkl_sz) == 2);
+  assert(!has_prop(mpkl, mpkl_sz, PROPERTY_NAME));
+  free(mpkl);
+  memcpy(png_no_metadata_blob, png_no_metadata_blob2, png_no_metadata_blob2_sz);
+  assert(add_mol_to_png_blob(
+      &png_no_metadata_blob, &png_no_metadata_blob_sz, colchicine_pkl,
+      colchicine_pkl_sz, "{\"includePkl\":true,\"includeSmiles\":false,\"includeMol\":false,\"propertyFlags\":{\"AllProps\":true}}"));
+  assert(get_mol_from_png_blob(
+      png_no_metadata_blob, png_no_metadata_blob_sz, &mpkl, &mpkl_sz, NULL));
+  assert(mpkl && mpkl_sz);
+  assert(has_coords(mpkl, mpkl_sz) == 2);
+  assert(has_prop(mpkl, mpkl_sz, PROPERTY_NAME));
+  prop = get_prop(mpkl, mpkl_sz, PROPERTY_NAME);
+  assert(prop);
+  assert(!strcmp(prop, PROPERTY_VALUE));
+  free(prop);
+  free(mpkl);
+  memcpy(png_no_metadata_blob, png_no_metadata_blob2, png_no_metadata_blob2_sz);
+  assert(add_mol_to_png_blob(
+      &png_no_metadata_blob, &png_no_metadata_blob_sz, colchicine_pkl,
+      colchicine_pkl_sz, "{\"includePkl\":false,\"includeSmiles\":true,\"includeMol\":false,\"propertyFlags\":{\"NoProps\":true},\"CX_ALL_BUT_COORDS\":true}"));
+  assert(get_mol_from_png_blob(
+      png_no_metadata_blob, png_no_metadata_blob_sz, &mpkl, &mpkl_sz, NULL));
+  assert(mpkl && mpkl_sz);
+  assert(!has_coords(mpkl, mpkl_sz));
+  assert(!has_prop(mpkl, mpkl_sz, PROPERTY_NAME));
+  free(mpkl);
+  free(colchicine_pkl);
+  // use original wedging
+  colchicine_pkl = get_mol(COLCHICINE_UNUSUAL_WEDGING, &colchicine_pkl_sz, "");
+  assert(colchicine_pkl);
+  assert(has_coords(colchicine_pkl, colchicine_pkl_sz) == 2);
+  smi = get_cxsmiles(colchicine_pkl, colchicine_pkl_sz, "");
+  assert(smi);
+  assert(strstr(smi, "wU:22.24|"));
+  free(smi);
+  smi = get_cxsmiles(colchicine_pkl, colchicine_pkl_sz, "{\"CX_ALL\":true,\"restoreBondDirOption\":\"RestoreBondDirOptionTrue\"}");
+  assert(smi);
+  assert(strstr(smi, "wU:22.23|"));
+  free(smi);
+  memcpy(png_no_metadata_blob, png_no_metadata_blob2, png_no_metadata_blob2_sz);
+  assert(add_mol_to_png_blob(
+      &png_no_metadata_blob, &png_no_metadata_blob_sz, colchicine_pkl,
+      colchicine_pkl_sz, "{\"includePkl\":true,\"includeSmiles\":true,\"includeMol\":true,\"propertyFlags\":{\"AtomProps\":true,\"BondProps\":true}}"));
+  assert(get_mol_from_png_blob(
+      png_no_metadata_blob, png_no_metadata_blob_sz, &mpkl, &mpkl_sz, NULL));
+  assert(mpkl && mpkl_sz);
+  assert(has_coords(mpkl, mpkl_sz) == 2);
+  smi = get_cxsmiles(mpkl, mpkl_sz, "{\"CX_ALL\":true,\"restoreBondDirOption\":\"RestoreBondDirOptionTrue\"}");
+  assert(smi);
+  assert(strstr(smi, "wU:22.23|"));
+  free(smi);
+  smi = get_cxsmiles(mpkl, mpkl_sz, "{\"CX_ALL\":true,\"restoreBondDirOption\":\"RestoreBondDirOptionClear\"}");
+  assert(smi);
+  assert(strstr(smi, "wU:22.24|"));
+  free(smi);
+  molblock = get_molblock(mpkl, mpkl_sz, "");
+  assert(molblock);
+  assert(strstr(molblock, " 23 24  1  1"));
+  free(molblock);
+  molblock = get_molblock(mpkl, mpkl_sz, "{\"useMolBlockWedging\":true}");
+  assert(molblock);
+  assert(strstr(molblock, " 23 22  1  1"));
+  free(molblock);
+  free(mpkl);
+  // the mol is restored from CXSMILES, so it will not retain
+  // original molblock wedging, as it was not stored in the CXSMILES string
+  memcpy(png_no_metadata_blob, png_no_metadata_blob2, png_no_metadata_blob2_sz);
+  assert(add_mol_to_png_blob(
+      &png_no_metadata_blob, &png_no_metadata_blob_sz, colchicine_pkl,
+      colchicine_pkl_sz, "{\"includePkl\":false,\"includeSmiles\":true,\"includeMol\":true,\"propertyFlags\":{\"AtomProps\":true,\"BondProps\":true}}"));
+  assert(get_mol_from_png_blob(
+      png_no_metadata_blob, png_no_metadata_blob_sz, &mpkl, &mpkl_sz, NULL));
+  assert(mpkl && mpkl_sz);
+  assert(has_coords(mpkl, mpkl_sz) == 2);
+  smi = get_cxsmiles(mpkl, mpkl_sz, "{\"CX_ALL\":true,\"restoreBondDirOption\":\"RestoreBondDirOptionTrue\"}");
+  assert(smi);
+  assert(strstr(smi, "wU:22.24|"));
+  free(smi);
+  smi = get_cxsmiles(mpkl, mpkl_sz, "{\"CX_ALL\":true,\"restoreBondDirOption\":\"RestoreBondDirOptionClear\"}");
+  assert(smi);
+  assert(strstr(smi, "wU:22.24|"));
+  free(smi);
+  molblock = get_molblock(mpkl, mpkl_sz, "");
+  assert(molblock);
+  assert(strstr(molblock, " 23 24  1  1"));
+  free(molblock);
+  molblock = get_molblock(mpkl, mpkl_sz, "{\"useMolBlockWedging\":true}");
+  assert(molblock);
+  assert(strstr(molblock, " 23 24  1  1"));
+  free(molblock);
+  free(mpkl);
+  // the mol is restored from CXSMILES, but restoreBondDirOption was set
+  // to 'RestoreBondDirOptionTrue', so it will not retain
+  // original molblock wedging, as it was stored in the CXSMILES string
+  memcpy(png_no_metadata_blob, png_no_metadata_blob2, png_no_metadata_blob2_sz);
+  assert(add_mol_to_png_blob(
+      &png_no_metadata_blob, &png_no_metadata_blob_sz, colchicine_pkl,
+      colchicine_pkl_sz, "{\"includePkl\":false,\"includeSmiles\":true,\"includeMol\":true,\"propertyFlags\":{\"AtomProps\":true,\"BondProps\":true},\"restoreBondDirOption\":\"RestoreBondDirOptionTrue\"}"));
+  assert(get_mol_from_png_blob(
+      png_no_metadata_blob, png_no_metadata_blob_sz, &mpkl, &mpkl_sz, NULL));
+  assert(mpkl && mpkl_sz);
+  assert(has_coords(mpkl, mpkl_sz) == 2);
+  smi = get_cxsmiles(mpkl, mpkl_sz, "{\"CX_ALL\":true,\"restoreBondDirOption\":\"RestoreBondDirOptionTrue\"}");
+  assert(smi);
+  assert(strstr(smi, "wU:22.23|"));
+  free(smi);
+  smi = get_cxsmiles(mpkl, mpkl_sz, "{\"CX_ALL\":true,\"restoreBondDirOption\":\"RestoreBondDirOptionClear\"}");
+  assert(smi);
+  assert(strstr(smi, "wU:22.24|"));
+  free(smi);
+  molblock = get_molblock(mpkl, mpkl_sz, "");
+  assert(molblock);
+  assert(strstr(molblock, " 23 22  1  1"));
+  free(molblock);
+  molblock = get_molblock(mpkl, mpkl_sz, "{\"useMolBlockWedging\":true}");
+  assert(molblock);
+  assert(strstr(molblock, " 23 22  1  1"));
+  free(molblock);
+  free(mpkl);
+  free(colchicine_pkl);
   free(png_no_metadata_blob);
   free(png_no_metadata_blob2);
-  free(png_with_metadata_blob);
 }
 
 #define PIPE_BUF_SIZE 4096
