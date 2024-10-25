@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <limits>
 #include <RDGeneral/BetterEnums.h>
+
 #include <boost/shared_ptr.hpp>
 
 namespace RDKit {
