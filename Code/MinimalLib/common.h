@@ -1349,54 +1349,48 @@ std::vector<ROMOL_SPTR> get_mols_from_png_blob_internal(
     return res;
   }
   PNGMetadataParams params;
+  params.includePkl = singleMol;
+  params.includeSmiles = singleMol;
+  params.includeMol = singleMol;
   updatePNGMetadataParamsFromJSON(params, details);
-  if (!params.includePkl && !params.includeSmiles && !params.includeMol) {
+  std::string tagToUse;
+  unsigned int numTagsFound = 0;
+  if (params.includePkl) {
+    ++numTagsFound;
+    tagToUse = PNGData::pklTag;
+  }
+  if (params.includeSmiles) {
+    ++numTagsFound;
+    tagToUse = PNGData::smilesTag;
+  }
+  if (params.includeMol) {
+    ++numTagsFound;
+    tagToUse = PNGData::molTag;
+  }
+  if (numTagsFound == 0 || (!singleMol && numTagsFound > 1)) {
     return res;
   }
   auto metadata = PNGStringToMetadata(pngString);
-  unsigned int smiCount = 0;
-  unsigned int molCount = 0;
-  unsigned int pklCount = 0;
   for (const auto &[key, value] : metadata) {
+    if (!singleMol && key.rfind(tagToUse, 0) == std::string::npos) {
+      continue;
+    }
     std::unique_ptr<RWMol> mol;
-    if (key.rfind(PNGData::pklTag, 0) == 0) {
-      ++pklCount;
-      if (params.includePkl) {
-        try {
-          mol.reset(new RWMol(value));
-        } catch (...) {
-          mol.reset();
-        }
-        if (mol && pklCount == 1) {
-          params.includeSmiles = false;
-          params.includeMol = false;
-        }
+    if (params.includePkl && key.rfind(PNGData::pklTag, 0) == 0) {
+      try {
+        mol.reset(new RWMol(value));
+      } catch (...) {
       }
-    } else if (key.rfind(PNGData::smilesTag, 0) == 0) {
-      ++smiCount;
-      if (params.includeSmiles) {
-        mol.reset(MinimalLib::mol_from_input(value, details));
-        if (mol && smiCount == 1) {
-          params.includePkl = false;
-          params.includeMol = false;
-        }
-      }
-    } else if (key.rfind(PNGData::molTag, 0) == 0) {
-      ++molCount;
-      if (params.includeMol) {
-        mol.reset(MinimalLib::mol_from_input(value, details));
-        if (mol && molCount == 1) {
-          params.includePkl = false;
-          params.includeSmiles = false;
-        }
-      }
+    } else if ((params.includeSmiles &&
+                key.rfind(PNGData::smilesTag, 0) == 0) ||
+               (params.includeMol && key.rfind(PNGData::molTag, 0) == 0)) {
+      mol.reset(MinimalLib::mol_from_input(value, details));
     }
     if (mol) {
       res.emplace_back(mol.release());
-    }
-    if (singleMol &&
-        (!res.empty() || smiCount > 1 || molCount > 1 || pklCount > 1)) {
-      break;
+      if (singleMol) {
+        break;
+      }
     }
   }
   return res;
