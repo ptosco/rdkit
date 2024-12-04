@@ -52,31 +52,23 @@ std::unique_ptr<RDGeom::UniformRealValueGrid3D> constructGrid(
 
   const std::vector<RDGeom::Point3D> &ptVect =
       mol.getConformer(confId).getPositions();
-  double minX = ptVect[0].x, maxX = minX, minY = ptVect[0].y, maxY = minY,
-         minZ = ptVect[0].z, maxZ = minZ;
-  for (auto it = ptVect.begin() + 1;
-       it != ptVect.end(); ++it) {
-    minX = std::min((*it).x, minX);
-    maxX = std::max((*it).x, maxX);
+  RDGeom::Point3D originPt(0.0, 0.0, 0.0);
+  RDGeom::Point3D marginPt(margin, margin, margin);
+  const RDGeom::Point3D &firstPoint = (!ptVect.empty() ? ptVect.front() : originPt);
 
-    minY = std::min((*it).y, minY);
-    maxY = std::max((*it).y, maxY);
-
-    minZ = std::min((*it).z, minZ);
-    maxZ = std::max((*it).z, maxZ);
+  auto minPt = firstPoint;
+  auto maxPt = minPt;
+  for (const auto &pt : ptVect) {
+    for (auto i = 0u; i < pt.dimension(); ++i) {
+      minPt[i] = std::min(minPt[i], pt[i]);
+      maxPt[i] = std::max(maxPt[i], pt[i]);
+    }
   }
-
-  minX -= margin;
-  maxX += margin;
-  minY -= margin;
-  maxY += margin;
-  minZ -= margin;
-  maxZ += margin;
-
-  RDGeom::Point3D offset(minX, minY, minZ);
+  minPt -= marginPt;
+  maxPt += marginPt;
 
   auto res = std::make_unique<RDGeom::UniformRealValueGrid3D>(
-      maxX - minX, maxY - minY, maxZ - minZ, spacing, &offset);
+      maxPt.x - minPt.x, maxPt.y - minPt.y, maxPt.z - minPt.z, spacing, &minPt);
 
   return res;
 }
@@ -87,10 +79,10 @@ DistanceToClosestAtom::DistanceToClosestAtom(const RDKit::ROMol &mol,
                "No Conformers available for molecule");
   d_nAtoms = mol.getNumAtoms();
   d_pos.reserve(d_nAtoms);
-  RDKit::Conformer conf = mol.getConformer(confId);
+  const auto &conf = mol.getConformer(confId);
 
-  for (unsigned int i = 0; i < d_nAtoms; i++) {
-    RDGeom::Point3D &pos = conf.getAtomPos(i);
+  for (unsigned int i = 0; i < d_nAtoms; ++i) {
+    const auto &pos = conf.getAtomPos(i);
     d_pos.push_back(pos.x);
     d_pos.push_back(pos.y);
     d_pos.push_back(pos.z);
@@ -710,13 +702,13 @@ HBond::HBond(const RDKit::ROMol &mol, int confId, const std::string &probeType,
     if (fixed) {
       findAcceptors(mol, confId, specialAtoms);
     } else {
-      findAcceptors_unfixed(mol, confId, specialAtoms);
+      findAcceptorsUnfixed(mol, confId, specialAtoms);
     }
   } else if (d_DAprop == 'D') {
     if (fixed) {
       findDonors(mol, confId, specialAtoms);
     } else {
-      findDonors_unfixed(mol, confId, specialAtoms);
+      findDonorsUnfixed(mol, confId, specialAtoms);
     }
   } else {  // this should never be the case
     BOOST_LOG(rdErrorLog) << "HBond: unknown target property d_DAprop: "
@@ -827,8 +819,8 @@ unsigned int HBond::findSpecials(const RDKit::ROMol &mol, int confId,
   return nMatches;
 }
 
-/* General structure of findAcceptors, findAcceptors_unfixed, findDonors,
- * findDonors_unfixed functions: loop over all atoms:
+/* General structure of findAcceptors, findAcceptorsUnfixed, findDonors,
+ * findDonorsUnfixed functions: loop over all atoms:
  * 	- check whether atom was already treated in specialAtoms
  * 	- switch ( atomicNum ): find atoms which are able to donate/accept
  * hydrogen bonds if able:
@@ -1018,7 +1010,7 @@ unsigned int HBond::findAcceptors(const RDKit::ROMol &mol, int confId,
   return interact;
 }
 
-unsigned int HBond::findAcceptors_unfixed(
+unsigned int HBond::findAcceptorsUnfixed(
     const RDKit::ROMol &mol, int confId,
     const std::vector<unsigned int> &specials) {
   using namespace HBondDetail;
@@ -1343,7 +1335,7 @@ unsigned int HBond::findDonors(const RDKit::ROMol &mol, int confId,
   return interact;
 }
 
-unsigned int HBond::findDonors_unfixed(
+unsigned int HBond::findDonorsUnfixed(
     const RDKit::ROMol &mol, int confId,
     const std::vector<unsigned int> &specials) {
   using namespace HBondDetail;

@@ -64,9 +64,12 @@ template <typename T>
 void calculateDescriptors(RDGeom::UniformRealValueGrid3D &grd, T functor,
                           double thres = -1.0) {
   const RDGeom::Point3D &offSet = grd.getOffset();
-  double oX = offSet.x, oY = offSet.y, z = offSet.z;
-  double x = oX, y = oY;
-  double spacing = grd.getSpacing();
+  auto x = offSet.x;
+  auto y = offSet.y
+  auto z = offSet.z;
+  auto oX = x;
+  auto oY = y;
+  auto spacing = grd.getSpacing();
   if (thres < 0) {
     thres = spacing * grd.getSize();
   }
@@ -75,9 +78,9 @@ void calculateDescriptors(RDGeom::UniformRealValueGrid3D &grd, T functor,
   unsigned int id = 0;
   auto &data = grd.getData();
 
-  for (unsigned int idZ = 0; idZ < grd.getNumZ(); idZ++) {
-    for (unsigned int idY = 0; idY < grd.getNumY(); idY++) {
-      for (unsigned int idX = 0; idX < grd.getNumX(); idX++) {
+  for (unsigned int idZ = 0; idZ < grd.getNumZ(); ++idZ) {
+    for (unsigned int idY = 0; idY < grd.getNumY(); ++idY) {
+      for (unsigned int idX = 0; idX < grd.getNumX(); ++idX) {
         data[id++] = functor(x, y, z, thres);
         x += spacing;
       }
@@ -444,9 +447,9 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT HBond {
                              const std::vector<unsigned int> &specials);
   unsigned int findDonors(const RDKit::ROMol &mol, int confId,
                           const std::vector<unsigned int> &specials);
-  unsigned int findAcceptors_unfixed(const RDKit::ROMol &mol, int confId,
+  unsigned int findAcceptorsUnfixed(const RDKit::ROMol &mol, int confId,
                                      const std::vector<unsigned int> &specials);
-  unsigned int findDonors_unfixed(const RDKit::ROMol &mol, int confId,
+  unsigned int findDonorsUnfixed(const RDKit::ROMol &mol, int confId,
                                   const std::vector<unsigned int> &specials);
 
   void addVectElements(atomtype type, double (*funct)(double, double, double),
