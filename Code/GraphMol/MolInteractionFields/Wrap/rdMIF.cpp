@@ -150,31 +150,9 @@ RDKit::ROMol *readCubeFile(RDGeom::UniformRealValueGrid3D &grd,
 struct mif_wrapper {
   static void wrap() {
     std::string docStringClass =
-        "Class for calculation of the closest distance of a point to a molecule.\n\n";
-    std::string docStringConst =
-        "Constructor for DistaceToClosestAtom class.\n\n\
-				ARGUMENTS:\n\
-				    - mol:    the molecule of interest\n\
-				    - confId: the ID of the conformer to be used (defaults to -1)\n";
-    std::string docString =
-        "Calculates the closest distance from a point to a the molecule\n\n\
-				ARGUMENTS:\n\
-				    - pt: Point3D from which the distance to the molecule is calculated\n\
-				RETURNS:\n\
-				    - closest distance in [A]\n";
-    python::class_<DistanceToClosestAtom>(
-        "DistanceToClosestAtom", docStringClass.c_str(),
-        python::init<const RDKit::ROMol, int>(
-            (python::arg("mol"), python::arg("confId") = -1),
-            docStringConst.c_str()))
-        .def("__call__", &DistanceToClosestAtom::operator(),
-             (python::arg("x"), python::arg("y"), python::arg("z")),
-             docString.c_str());
-
-    docStringClass =
         "Class for calculation of electrostatic interaction (Coulomb energy) between probe and molecule in\n\
 						vaccuum (no dielectric).\n\n";
-    docStringConst =
+    std::string docStringConst =
         "Constructor for Coulomb class.\n\n\
 				ARGUMENTS:\n\
 				- mol:           the molecule of interest\n\
@@ -184,7 +162,7 @@ struct mif_wrapper {
 			        - chargeKey	 property key for retrieving partial charges of atoms from molecule (defaults to '_GasteigerCharge')\n\
 			        - softcoreParam  softcore interaction parameter [A^2], if zero, a minimum cutoff distance is used (defaults to 0.0)\n\
 			        - cutoffDist     minimum cutoff distance [A] (defaults to 1.0)\n";
-    docString =
+    std::string docString =
         "Calculates the electrostatic interaction (Coulomb energy) between probe and molecule in\n\
 						vaccuum (no dielectric).\n\n\
 				ARGUMENTS:\n\
@@ -419,10 +397,6 @@ struct mif_wrapper {
 				ARGUMENTS:\n\
 				    - grid: 	   UniformRealValueGrid3D which get the MIF values\n\
 				    - descriptor:  Descriptor class which is used to calculate values\n";
-    python::def(
-        "CalculateDescriptors", calculateDescriptors<DistanceToClosestAtom>,
-        (python::arg("grid"), python::arg("descriptor")), docString.c_str());
-
     python::def("CalculateDescriptors", calculateDescriptors<Coulomb>,
                 (python::arg("grid"), python::arg("descriptor"),
                  python::arg("threshold") = -1.0),

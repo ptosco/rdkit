@@ -65,7 +65,7 @@ void calculateDescriptors(RDGeom::UniformRealValueGrid3D &grd, T functor,
                           double thres = -1.0) {
   const RDGeom::Point3D &offSet = grd.getOffset();
   auto x = offSet.x;
-  auto y = offSet.y
+  auto y = offSet.y;
   auto z = offSet.z;
   auto oX = x;
   auto oY = y;
@@ -91,21 +91,6 @@ void calculateDescriptors(RDGeom::UniformRealValueGrid3D &grd, T functor,
     y = oY;
   }
 }
-
-//! \brief class for calculation of distance to closest atom of \c mol from grid
-//! point \c pt
-class RDKIT_MOLINTERACTIONFIELDS_EXPORT DistanceToClosestAtom {
- public:
-  //! construct a distanceToClosestAtom from a ROMol
-  DistanceToClosestAtom(const RDKit::ROMol &mol, int confId = -1);
-
-  //! Calculates the closest distance, \returns distance in Angstrom
-  double operator()(double x, double y, double z, double thres);
-
- private:
-  unsigned int d_nAtoms;
-  std::vector<double> d_pos;
-};
 
 //! \brief class for calculation of electrostatic interaction (Coulomb energy)
 //! between probe and molecule in vaccuum (no dielectric)
@@ -500,26 +485,28 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT Hydrophilic {
 //! \brief writes the contents of the MIF to a stream
 /*
  The Grid \c grd is written in Gaussian Cube format
- A molecule \c mol has to be specified
+ A molecule \c mol and a \c confId can optionally be provided
  */
 RDKIT_MOLINTERACTIONFIELDS_EXPORT void writeToCubeStream(
-    const RDGeom::UniformRealValueGrid3D &grd, const RDKit::ROMol &mol,
-    std::ostream &outStrm, int confid = -1);
+    const RDGeom::UniformRealValueGrid3D &grd, std::ostream &outStrm,
+    const RDKit::ROMol *mol = nullptr, int confid = -1);
 
 //! \brief writes the contents of the MIF to a file
 /*
  The Grid \c grd is written in Gaussian Cube format
- A molecule \c mol has to be specified
+ A molecule \c mol and a \c confId can optionally be provided
  */
 RDKIT_MOLINTERACTIONFIELDS_EXPORT void writeToCubeFile(
-    const RDGeom::UniformRealValueGrid3D &grd, const RDKit::ROMol &mol,
-    const std::string &filename, int confid = -1);
+    const RDGeom::UniformRealValueGrid3D &grd,
+    const std::string &filename,
+    const RDKit::ROMol *mol = nullptr, int confid = -1);
 
 //! \brief reads the contents of the MIF from a stream in Gaussian cube format
 /*
  The Grid \c grd is modified according to input values
- A pointer to a molecule is returned with all atoms and its positions but NO
- bond information!
+ If a molecule was associated to the grid on write, a non-null pointer to a
+ molecule is returned with atoms and a conformer, but NO bond information.
+ If there is no atom information in the cube file, a null pointer is returned.
  */
 RDKIT_MOLINTERACTIONFIELDS_EXPORT std::unique_ptr<RDKit::RWMol>
 readFromCubeStream(RDGeom::UniformRealValueGrid3D &grd, std::istream &inStrm);
@@ -527,8 +514,9 @@ readFromCubeStream(RDGeom::UniformRealValueGrid3D &grd, std::istream &inStrm);
 //! \brief reads the contents of the MIF from a file in Gaussian cube format
 /*
  The Grid \c grd is modified according to input values
- A pointer to a molecule is returned with all atoms and its positions but NO
- bond information!
+ If a molecule was associated to the grid on write, a non-null pointer to a
+ molecule is returned with atoms and a conformer, but NO bond information.
+ If there is no atom information in the cube file, a null pointer is returned.
  */
 RDKIT_MOLINTERACTIONFIELDS_EXPORT std::unique_ptr<RDKit::RWMol>
 readFromCubeFile(RDGeom::UniformRealValueGrid3D &grd,
