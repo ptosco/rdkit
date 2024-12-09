@@ -275,24 +275,26 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT CoulombDielectric {
   std::vector<double> d_dists;
 };
 
-//! \brief class for calculation of Van der Waals interaction between probe and
+//! \brief Abstract class for calculation of Van der Waals interaction between probe and
 //! molecule at gridpoint \c pt
 /*
- Either the MMFF94 or the UFF VdW term can be calculated with a defined probe
- atom and molecule. d_cutoff:     minimum cutoff distance [A] d_nAtoms:     No
- of atoms in molecule d_R_star_ij   vector of Lennard Jones parameters for every
- interaction (vdW-radii) d_wellDepth   vector of Lennard Jones parameters for
- every interaction (well depths) d_pos	        vector of positions of atoms in
- molecule
+ * Either the MMFF94 or the UFF VdW term can be calculated with a defined probe
+ * atom and molecule.
+ * d_cutoff: minimum cutoff distance [A]
+ * d_nAtoms: No of atoms in molecule
+ * d_R_star_ij: vector of Lennard Jones parameters for every
+ * interaction (vdW-radii)
+ * d_wellDepth: vector of Lennard Jones parameters for
+ * every interaction (well depths)
+ * d_pos: vector of positions of atoms in  molecule
  */
 class RDKIT_MOLINTERACTIONFIELDS_EXPORT VdWaals {
  public:
-  VdWaals() : d_cutoff(1), d_nAtoms(0), d_getEnergy(nullptr) {};
-  VdWaals(RDKit::ROMol &mol, int confId, unsigned int probeAtomTypeMMFF,
-          const std::string &probeAtomTypeUFF, const std::string &FF,
-          bool scaling, double cutoff);
-  ~VdWaals() {};
+  VdWaals() : d_cutoff(1.0), d_nAtoms(0) {};
+  VdWaals(const RDKit::ROMol &mol, int confId = -1, double cutoff = 1.0);
+  virtual ~VdWaals() {};
 
+  virtual double calcEnergy(double, double, double) const = 0;  // energy function
   //! \brief returns the VdW interaction at point \c pt in the molecules field
   //! in [kJ mol^-1]
   /*!
@@ -308,12 +310,22 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT VdWaals {
   unsigned int d_nAtoms;
   std::vector<double> d_R_star_ij, d_wellDepth;
   std::vector<double> d_pos;
+  std::unique_ptr<RDKit::ROMol> d_mol;
+};
 
-  double (*d_getEnergy)(double, double,
-                        double);  // pointer to energy function (MMFF94 or UFF)
-  static double d_calcUFFEnergy(double, double, double);  // UFF energy function
-  static double d_calcMMFFEnergy(double, double,
-                                 double);  // MMFF energy function
+class RDKIT_MOLINTERACTIONFIELDS_EXPORT MMFFVdWaals : public VdWaals {
+ public:
+  MMFFVdWaals(const RDKit::ROMol &mol, unsigned int probeAtomType,
+          const std::string &probeAtomTypeUFF,
+          int confId = -1, double cutoff = 1.0, bool scaling = true);
+  double calcEnergy(double, double, double) const;  // MMFF energy function
+};
+
+class RDKIT_MOLINTERACTIONFIELDS_EXPORT UFFVdWaals : public VdWaals {
+ public:
+  UFFVdWaals(RDKit::ROMol &mol, const std::string &probeAtomType,
+          int confId = -1, double cutoff = 1.0);
+  double calcEnergy(double, double, double) const;  // UFF energy function
 };
 
 // Factory functions for VdWaals

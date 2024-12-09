@@ -73,17 +73,19 @@ std::unique_ptr<RDGeom::UniformRealValueGrid3D> constructGrid(
   return res;
 }
 
-VdWaals::VdWaals(RDKit::ROMol &mol, int confId, unsigned int probeAtomTypeMMFF,
-                 const std::string &probeAtomTypeUFF, const std::string &FF,
-                 bool scaling, double cutoff)
+VdWaals::VdWaals(const RDKit::ROMol &mol, int confId, double cutoff)
     : d_cutoff(cutoff * cutoff) {
-  PRECONDITION((FF == "MMFF94") || (FF == "UFF"), "Force Field not known.");
-
   d_nAtoms = mol.getNumAtoms();
   d_pos.reserve(3 * d_nAtoms);
   d_R_star_ij.reserve(d_nAtoms);
   d_wellDepth.reserve(d_nAtoms);
+  // this will throw a ConformerException if confId does not exist
   RDKit::Conformer conf = mol.getConformer(confId);
+}
+
+MMFFVdWaals::MMFFVdWaals(const RDKit::ROMol &mol, unsigned int probeAtomType,
+          const std::string &probeAtomTypeUFF,
+          int confId, double cutoff, bool scaling)
 
   if (FF == "MMFF94") {
     const ForceFields::MMFF::MMFFVdW *params, *probeparams;
@@ -1856,9 +1858,9 @@ void writeToCubeStream(const RDGeom::UniformRealValueGrid3D &grd,
                        std::ostream &outStrm,
                        const RDKit::ROMol *mol, int confid) {
   const double bohr = 0.529177249;
-  int dimX = (int)grd.getNumX();  //+2;
-  int dimY = (int)grd.getNumY();  //+2;
-  int dimZ = (int)grd.getNumZ();  //+2;
+  int dimX = grd.getNumX();  //+2;
+  int dimY = grd.getNumY();  //+2;
+  int dimZ = grd.getNumZ();  //+2;
   double spacing = grd.getSpacing() / bohr;
   RDGeom::Point3D offSet = grd.getOffset() / bohr;
   auto nAtoms = mol ? mol->getNumAtoms() : 0u;
@@ -1938,37 +1940,38 @@ std::unique_ptr<RDKit::RWMol> readFromCubeStream(
   inStrm >> x >> y >> z;
   const RDGeom::Point3D offSet(x * bohr, y * bohr, z * bohr);
 
-  double dimX, dimY, dimZ;
-  double spacingx, spacingy, spacingz, temp1, temp2;
-  inStrm >> dimX >> spacingx >> temp1 >> temp2;
-  inStrm >> dimY >> temp1 >> spacingy >> temp2;
-  inStrm >> dimZ >> temp1 >> temp2 >> spacingz;
+  int dimX, dimY, dimZ;
+  double spacingX, spacingY, spacingZ, temp1, temp2;
+  inStrm >> dimX >> spacingX >> temp1 >> temp2;
+  inStrm >> dimY >> temp1 >> spacingY >> temp2;
+  inStrm >> dimZ >> temp1 >> temp2 >> spacingZ;
 
-  if ((fabs(spacingx - spacingy) > spacingThreshold) ||
-      (fabs(spacingx - spacingz) > spacingThreshold)) {
+  if ((fabs(spacingX - spacingY) > spacingThreshold) ||
+      (fabs(spacingX - spacingZ) > spacingThreshold)) {
     std::ostringstream errout;
     errout << "Same spacing in all directions needed";
     throw RDKit::FileParseException(errout.str());
   } else {
-    spacingx *= bohr;
-    grd = RDGeom::UniformRealValueGrid3D(spacingx * dimX, spacingx * dimY,
-                                         spacingx * dimZ, spacingx, &offSet);
+    spacingX *= bohr;
+    grd = RDGeom::UniformRealValueGrid3D(spacingX * static_cast<double>(dimX), spacingX * static_cast<double>(dimY),
+                                         spacingX * static_cast<double>(dimZ), spacingX, &offSet);
   }
   std::unique_ptr<RDKit::RWMol> molecule;
   if (nAtoms) {
+    molecule.reset(new RDKit::RWMol());
     std::unique_ptr<RDKit::Conformer> conf(new RDKit::Conformer(nAtoms));
 
     int atomNum;
-    for (auto i = 0; i < nAtoms; i++) {
+    for (auto i = 0; i < nAtoms; ++i) {
       inStrm >> atomNum >> temp1 >> x >> y >> z;
       RDKit::Atom atom(atomNum);
       molecule->addAtom(&atom, true, false);
       RDGeom::Point3D pos(x * bohr, y * bohr, z * bohr);
       conf->setAtomPos(i, pos);
     }
-    for (auto xi = 0; xi < dimX; xi++) {
-      for (auto yi = 0; yi < dimY; yi++) {
-        for (auto zi = 0; zi < dimZ; zi++) {
+    for (auto xi = 0; xi < dimX; ++xi) {
+      for (auto yi = 0; yi < dimY; ++yi) {
+        for (auto zi = 0; zi < dimZ; ++zi) {
           double tempVal;
           inStrm >> tempVal;
           grd.setVal(grd.getGridIndex(xi, yi, zi), tempVal);
