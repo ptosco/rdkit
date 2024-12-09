@@ -275,8 +275,8 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT CoulombDielectric {
   std::vector<double> d_dists;
 };
 
-//! \brief Abstract class for calculation of Van der Waals interaction between probe and
-//! molecule at gridpoint \c pt
+//! \brief Abstract class for calculation of Van der Waals interaction between
+//! probe and molecule at gridpoint \c pt
 /*
  * Either the MMFF94 or the UFF VdW term can be calculated with a defined probe
  * atom and molecule.
@@ -290,9 +290,10 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT CoulombDielectric {
  */
 class RDKIT_MOLINTERACTIONFIELDS_EXPORT VdWaals {
  public:
-  VdWaals() : d_cutoff(1.0), d_nAtoms(0) {};
+  VdWaals() : d_cutoff(1.0), d_nAtoms(0){};
   VdWaals(const RDKit::ROMol &mol, int confId = -1, double cutoff = 1.0);
-  virtual ~VdWaals() {};
+  VdWaals(const VdWaals &other);
+  virtual ~VdWaals(){};
   //! \brief returns the VdW interaction at point \c pt in the molecules field
   //! in [kJ mol^-1]
   /*!
@@ -309,8 +310,9 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT VdWaals {
   virtual void fillVdwParamVectors(unsigned int atomIdx) = 0;
   double d_cutoff;
   unsigned int d_nAtoms;
-  std::vector<double> d_R_star_ij, d_wellDepth;
   std::vector<double> d_pos;
+  std::vector<double> d_R_star_ij;
+  std::vector<double> d_wellDepth;
   std::unique_ptr<RDKit::ROMol> d_mol;
 };
 
@@ -327,8 +329,11 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT MMFFVdWaals : public VdWaals {
   \param scaling       scaling of VdW parameters to take hydrogen bonds into
   account (default=false)
   */
-  MMFFVdWaals(const RDKit::ROMol &mol, int confId = -1, unsigned int probeAtomType = 6,
-          double cutoff = 1.0, bool scaling = false);
+  MMFFVdWaals(const RDKit::ROMol &mol, int confId = -1,
+              unsigned int probeAtomType = 6, bool scaling = false,
+              double cutoff = 1.0);
+  MMFFVdWaals(const MMFFVdWaals &other);
+
  private:
   double calcEnergy(double, double, double) const;  // MMFF energy function
   void fillVdwParamVectors(unsigned int atomIdx);
@@ -349,8 +354,10 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT UFFVdWaals : public VdWaals {
   tetrahedral oxygen)
   \param cutoff        minimum cutoff distance [A] (default:1.0)
   */
-  UFFVdWaals(const RDKit::ROMol &mol, int confId = -1, const std::string &probeAtomType = "O_3",
-          double cutoff = 1.0);
+  UFFVdWaals(const RDKit::ROMol &mol, int confId = -1,
+             const std::string &probeAtomType = "O_3", double cutoff = 1.0);
+  UFFVdWaals(const UFFVdWaals &other);
+
  private:
   double calcEnergy(double, double, double) const;  // UFF energy function
   void fillVdwParamVectors(unsigned int atomIdx);
@@ -381,7 +388,7 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT UFFVdWaals : public VdWaals {
  */
 class RDKIT_MOLINTERACTIONFIELDS_EXPORT HBond {
  public:
-  HBond() : d_cutoff(1.0), d_probetype(O), d_nInteract(0) {};
+  HBond() : d_cutoff(1.0), d_probetype(O), d_nInteract(0){};
 
   //! \brief constructs HBond object from a molecule object
   /*!
@@ -402,7 +409,7 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT HBond {
   HBond(const RDKit::ROMol &mol, int confId = -1,
         const std::string &probeType = "OH", bool fixed = true,
         double cutoff = 1.0);
-  ~HBond() {};
+  ~HBond(){};
 
   //! \brief returns the hydrogen bonding interaction at point \c pt in the
   //! molecules field in [kJ mol^-1]
@@ -443,9 +450,9 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT HBond {
   unsigned int findDonors(const RDKit::ROMol &mol, int confId,
                           const std::vector<unsigned int> &specials);
   unsigned int findAcceptorsUnfixed(const RDKit::ROMol &mol, int confId,
-                                     const std::vector<unsigned int> &specials);
+                                    const std::vector<unsigned int> &specials);
   unsigned int findDonorsUnfixed(const RDKit::ROMol &mol, int confId,
-                                  const std::vector<unsigned int> &specials);
+                                 const std::vector<unsigned int> &specials);
 
   void addVectElements(atomtype type, double (*funct)(double, double, double),
                        const RDGeom::Point3D &pos, const RDGeom::Point3D &dir,
@@ -484,7 +491,7 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT Hydrophilic {
    */
   Hydrophilic(const RDKit::ROMol &mol, int confId = -1, bool fixed = true,
               double cutoff = 1.0);
-  ~Hydrophilic() {};
+  ~Hydrophilic(){};
 
   double operator()(double x, double y, double z, double thres);
 
@@ -507,8 +514,7 @@ RDKIT_MOLINTERACTIONFIELDS_EXPORT void writeToCubeStream(
  A molecule \c mol and a \c confId can optionally be provided
  */
 RDKIT_MOLINTERACTIONFIELDS_EXPORT void writeToCubeFile(
-    const RDGeom::UniformRealValueGrid3D &grd,
-    const std::string &filename,
+    const RDGeom::UniformRealValueGrid3D &grd, const std::string &filename,
     const RDKit::ROMol *mol = nullptr, int confid = -1);
 
 //! \brief reads the contents of the MIF from a stream in Gaussian cube format

@@ -102,7 +102,7 @@ class TestCase(unittest.TestCase):
     coul = rdMIF.Coulomb(mol)
 
     rdMIF.CalculateDescriptors(grd, coul)
-    coul1 = rdMIF.Coulomb_(charges, pos)
+    coul1 = rdMIF.Coulomb(charges, pos)
     pt = geom.Point3D(3.0, 3.0, 3.0)
     rdMIF.CalculateDescriptors(grd2, coul1)
     self.assertTrue(grd.CompareParams(grd2))
@@ -148,11 +148,11 @@ class TestCase(unittest.TestCase):
     grd2 = rdMIF.ConstructGrid(mol, confId=0)
 
     couldiele = rdMIF.CoulombDielectric(mol, confId=0)
-    couldiele1 = rdMIF.CoulombDielectric_(charges, pos)
+    couldiele1 = rdMIF.CoulombDielectric(charges, pos)
     pt = geom.Point3D(3.0, 3.0, 3.0)
 
     rdMIF.CalculateDescriptors(grd, couldiele)
-    rdMIF.CalculateDescriptors(grd2, rdMIF.CoulombDielectric_(charges, pos))
+    rdMIF.CalculateDescriptors(grd2, rdMIF.CoulombDielectric(charges, pos))
 
     self.assertTrue(grd.CompareGrids(grd2))
     self.assertTrue(feq(couldiele(0.0, 0.0, 0.0, 1000), 0.0))
@@ -200,7 +200,7 @@ class TestCase(unittest.TestCase):
     mol = AllChem.MolFromMolFile(
       os.path.join(RDConfig.RDBaseDir, 'Code/GraphMol/MolInteractionFields/Wrap/testData/HCN.mol'),
       removeHs=False)
-    vdw = rdMIF.ConstructVdWaalsMMFF(mol, confId=0, probeType=6, scaling=False, cutoffDist=1.0)
+    vdw = rdMIF.MMFFVdWaals(mol, confId=0, probeType=6, scaling=False, cutoffDist=1.0)
 
     self.assertTrue(vdw(-5.0, 0, 0, 1000) < 0)
     self.assertTrue(vdw(-1.68, 0, 0, 1000) > vdw(-5.0, 0, 0, 1000))
@@ -209,12 +209,12 @@ class TestCase(unittest.TestCase):
     mol2 = AllChem.MolFromMolFile(
       os.path.join(RDConfig.RDBaseDir, 'Code/GraphMol/MolInteractionFields/Wrap/testData/h2o.mol'),
       removeHs=False)
-    vdw = rdMIF.ConstructVdWaalsMMFF(mol2, scaling=False)
-    vdw2 = rdMIF.ConstructVdWaalsMMFF(mol2, scaling=True)
+    vdw = rdMIF.MMFFVdWaals(mol2, scaling=False)
+    vdw2 = rdMIF.MMFFVdWaals(mol2, scaling=True)
 
     self.assertTrue(abs(vdw2(-3.0, 0, 0, 1000) - vdw(-3.0, 0, 0, 1000)) > 0.0001)
 
-    vdw3 = rdMIF.ConstructVdWaalsUFF(mol, confId=0, probeType="O_3", cutoffDist=1.0)
+    vdw3 = rdMIF.UFFVdWaals(mol, confId=0, probeType="O_3", cutoffDist=1.0)
 
     self.assertTrue(vdw3(-5.0, 0, 0, 1000) < 0)
     self.assertTrue(vdw3(-1.68, 0, 0, 1000) > vdw3(-5.0, 0, 0, 1000))

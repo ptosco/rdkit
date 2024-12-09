@@ -29,10 +29,12 @@ boost::int32_t ci_RealValueGrid3DPICKLE_VERSION = 0x1;
 UniformRealValueGrid3D::UniformRealValueGrid3D(
     const UniformRealValueGrid3D &other) {
   PRECONDITION(other.dp_storage, UNINITIALIZED_GRID);
-  std::unique_ptr<RDKit::RealValueVect> data(new RDKit::RealValueVect(*other.dp_storage));
-  UniformRealValueGrid3D::initGrid(
-      other.d_numX * other.d_spacing, other.d_numY * other.d_spacing,
-      other.d_numZ * other.d_spacing, other.d_spacing, other.d_offSet, data.get());
+  std::unique_ptr<RDKit::RealValueVect> data(
+      new RDKit::RealValueVect(*other.dp_storage));
+  UniformRealValueGrid3D::initGrid(other.d_numX * other.d_spacing,
+                                   other.d_numY * other.d_spacing,
+                                   other.d_numZ * other.d_spacing,
+                                   other.d_spacing, other.d_offSet, data.get());
   data.release();
 }
 
@@ -311,25 +313,29 @@ void UniformRealValueGrid3D::initFromText(const char *pkl,
   dp_storage = new RDKit::RealValueVect(buff.data(), pklSz);
 }
 
-UniformRealValueGrid3D operator&(const UniformRealValueGrid3D &grd1, const UniformRealValueGrid3D &grd2) {
+UniformRealValueGrid3D operator&(const UniformRealValueGrid3D &grd1,
+                                 const UniformRealValueGrid3D &grd2) {
   UniformRealValueGrid3D ans(grd1);
   ans &= grd2;
   return ans;
 };
 
-UniformRealValueGrid3D operator|(const UniformRealValueGrid3D &grd1, const UniformRealValueGrid3D &grd2) {
+UniformRealValueGrid3D operator|(const UniformRealValueGrid3D &grd1,
+                                 const UniformRealValueGrid3D &grd2) {
   UniformRealValueGrid3D ans(grd1);
   ans |= grd2;
   return ans;
 };
 
-UniformRealValueGrid3D operator+(const UniformRealValueGrid3D &grd1, const UniformRealValueGrid3D &grd2) {
+UniformRealValueGrid3D operator+(const UniformRealValueGrid3D &grd1,
+                                 const UniformRealValueGrid3D &grd2) {
   UniformRealValueGrid3D ans(grd1);
   ans += grd2;
   return ans;
 };
 
-UniformRealValueGrid3D operator-(const UniformRealValueGrid3D &grd1, const UniformRealValueGrid3D &grd2) {
+UniformRealValueGrid3D operator-(const UniformRealValueGrid3D &grd1,
+                                 const UniformRealValueGrid3D &grd2) {
   UniformRealValueGrid3D ans(grd1);
   ans -= grd2;
   return ans;

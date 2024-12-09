@@ -40,7 +40,7 @@ constexpr double M_110D = 1.91986217719376253461;
 
 constexpr double CUTOFF = 0.001;
 constexpr double MIN_CUTOFF_VAL = CUTOFF * CUTOFF;
-} // end anonymouse namespace
+}  // namespace
 
 namespace RDMIF {
 
@@ -52,7 +52,8 @@ std::unique_ptr<RDGeom::UniformRealValueGrid3D> constructGrid(
       mol.getConformer(confId).getPositions();
   RDGeom::Point3D originPt(0.0, 0.0, 0.0);
   RDGeom::Point3D marginPt(margin, margin, margin);
-  const RDGeom::Point3D &firstPoint = (!ptVect.empty() ? ptVect.front() : originPt);
+  const RDGeom::Point3D &firstPoint =
+      (!ptVect.empty() ? ptVect.front() : originPt);
 
   auto minPt = firstPoint;
   auto maxPt = minPt;
@@ -82,6 +83,14 @@ VdWaals::VdWaals(const RDKit::ROMol &mol, int confId, double cutoff) {
   d_mol.reset(new RDKit::ROMol(mol, false, conf.getId()));
 }
 
+VdWaals::VdWaals(const VdWaals &other)
+    : d_cutoff(other.d_cutoff),
+      d_nAtoms(other.d_nAtoms),
+      d_pos(other.d_pos),
+      d_R_star_ij(other.d_R_star_ij),
+      d_wellDepth(other.d_wellDepth),
+      d_mol(new RDKit::ROMol(*other.d_mol)) {}
+
 void VdWaals::fillVectors() {
   const auto &conf = d_mol->getConformer();
   for (unsigned int i = 0; i < d_nAtoms; i++) {
@@ -94,9 +103,9 @@ void VdWaals::fillVectors() {
 }
 
 MMFFVdWaals::MMFFVdWaals(const RDKit::ROMol &mol, int confId,
-          unsigned int probeAtomType, double cutoff, bool scaling) :
-    VdWaals::VdWaals(mol, confId, cutoff),
-    d_scaling(scaling) {
+                         unsigned int probeAtomType, bool scaling,
+                         double cutoff)
+    : VdWaals::VdWaals(mol, confId, cutoff), d_scaling(scaling) {
   d_props.reset(new RDKit::MMFF::MMFFMolProperties(*d_mol));
   if (!d_props->isValid()) {
     throw ValueErrorException(
@@ -106,6 +115,13 @@ MMFFVdWaals::MMFFVdWaals(const RDKit::ROMol &mol, int confId,
   d_probeParams = (*d_mmffVdW)(probeAtomType);
   fillVectors();
 }
+
+MMFFVdWaals::MMFFVdWaals(const MMFFVdWaals &other)
+    : VdWaals::VdWaals(other),
+      d_scaling(other.d_scaling),
+      d_props(new RDKit::MMFF::MMFFMolProperties(*other.d_props)),
+      d_mmffVdW(other.d_mmffVdW),
+      d_probeParams(other.d_probeParams) {}
 
 void MMFFVdWaals::fillVdwParamVectors(unsigned int atomIdx) {
   PRECONDITION(atomIdx < d_mol->getNumAtoms(), "atomIdx out of bounds");
@@ -118,14 +134,15 @@ void MMFFVdWaals::fillVdwParamVectors(unsigned int atomIdx) {
       rStarIJ, params, d_probeParams));
   // scaling for taking undirected H-Bonds into account
   if (d_scaling) {
-    ForceFields::MMFF::Utils::scaleVdWParams(d_R_star_ij[atomIdx], d_wellDepth[atomIdx],
-                                              d_mmffVdW, params, d_probeParams);
+    ForceFields::MMFF::Utils::scaleVdWParams(d_R_star_ij[atomIdx],
+                                             d_wellDepth[atomIdx], d_mmffVdW,
+                                             params, d_probeParams);
   }
 }
 
 UFFVdWaals::UFFVdWaals(const RDKit::ROMol &mol, int confId,
-    const std::string &probeAtomType, double cutoff) :
-    VdWaals::VdWaals(mol, confId, cutoff) {
+                       const std::string &probeAtomType, double cutoff)
+    : VdWaals::VdWaals(mol, confId, cutoff) {
   d_uffParamColl = ForceFields::UFF::ParamCollection::getParams();
   d_probeParams = (*d_uffParamColl)(probeAtomType);
   const auto [params, haveParams] = RDKit::UFF::getAtomTypes(mol);
@@ -137,6 +154,12 @@ UFFVdWaals::UFFVdWaals(const RDKit::ROMol &mol, int confId,
   fillVectors();
 }
 
+UFFVdWaals::UFFVdWaals(const UFFVdWaals &other)
+    : VdWaals::VdWaals(other),
+      d_uffParamColl(other.d_uffParamColl),
+      d_probeParams(other.d_probeParams),
+      d_params(other.d_params) {}
+
 void UFFVdWaals::fillVdwParamVectors(unsigned int atomIdx) {
   PRECONDITION(atomIdx < d_mol->getNumAtoms(), "atomIdx out of bounds");
   d_R_star_ij.push_back(d_probeParams->x1 * d_params[atomIdx]->x1);
@@ -146,7 +169,7 @@ void UFFVdWaals::fillVdwParamVectors(unsigned int atomIdx) {
 
 double VdWaals::operator()(double x, double y, double z, double thres) {
   double res = 0.0, dist2, temp;
-  for (unsigned int i = 0, j = 0; i < d_nAtoms; i++) {
+  for (unsigned int i = 0, j = 0; i < d_nAtoms; ++i) {
     temp = x - d_pos[j++];
     dist2 = temp * temp;
     temp = y - d_pos[j++];
@@ -161,32 +184,22 @@ double VdWaals::operator()(double x, double y, double z, double thres) {
   return res;
 }
 
-double VdWaals::calcEnergy(double dist2, double x_ij, double wellDepth) const {
+double UFFVdWaals::calcEnergy(double dist2, double x_ij,
+                              double wellDepth) const {
   double r6 = x_ij / dist2;
   r6 *= r6 * r6;
   double r12 = r6 * r6;
   return wellDepth * (r12 - 2.0 * r6);
 }
 
-double VdWaals::calcEnergy(double dist2, double R_star_ij,
-                                 double wellDepth) const {
-  double const vdw1 = 1.07;
-  double const vdw1m1 = vdw1 - 1.0;
-  double const vdw2 = 1.12;
-  double const vdw2m1 = vdw2 - 1.0;
-  double dist = sqrt(dist2);
-  double dist7 = dist2 * dist2 * dist2 * dist;
-  double aTerm = vdw1 * R_star_ij / (dist + vdw1m1 * R_star_ij);
-  double aTerm2 = aTerm * aTerm;
-  double aTerm7 = aTerm2 * aTerm2 * aTerm2 * aTerm;
-  double R_star_ij2 = R_star_ij * R_star_ij;
-  double R_star_ij7 = R_star_ij2 * R_star_ij2 * R_star_ij2 * R_star_ij;
-  double bTerm = vdw2 * R_star_ij7 / (dist7 + vdw2m1 * R_star_ij7) - 2.0;
-  return wellDepth * aTerm7 * bTerm;
+double MMFFVdWaals::calcEnergy(double dist2, double R_star_ij,
+                               double wellDepth) const {
+  return ForceFields::MMFF::Utils::calcVdWEnergy(sqrt(dist2), R_star_ij,
+                                                 wellDepth);
 }
 
 namespace CoulombDetail {
-const double prefactor =
+constexpr double prefactor =
     1 / (4.0 * 3.141592 * 8.854188) * 1.602 * 1.602 * 6.02214129 * 10000;
 }
 
@@ -202,7 +215,7 @@ Coulomb::Coulomb(const std::vector<double> &charges,
   PRECONDITION(d_charges.size() == positions.size(),
                "Lengths of positions and charges vectors do not match.");
   d_pos.reserve(3 * d_nAtoms);
-  for (const auto & position : positions) {
+  for (const auto &position : positions) {
     d_pos.push_back(position.x);
     d_pos.push_back(position.y);
     d_pos.push_back(position.z);
@@ -294,22 +307,22 @@ CoulombDielectric::CoulombDielectric(
       d_alpha(alpha),
       d_charges(charges) {
   PRECONDITION(d_charges.size() == positions.size(),
-               "Lengths of positions and charges vectors do not match.");
+               "Lengths of position and charge vectors do not match.");
   d_dielectric = (d_xi - d_epsilon) / (d_xi + d_epsilon);
   std::vector<unsigned int> neighbors(positions.size(), 0);
 
   d_dists.resize(d_nAtoms);
   d_sp.reserve(d_nAtoms);
   d_pos.reserve(3 * d_nAtoms);
-  for (unsigned int i = 0; i < positions.size(); i++) {
+  for (unsigned int i = 0; i < positions.size(); ++i) {
     d_pos.push_back(positions[i].x);
     d_pos.push_back(positions[i].y);
     d_pos.push_back(positions[i].z);
-    for (unsigned int j = i + 1; j < positions.size(); j++) {
+    for (unsigned int j = i + 1; j < positions.size(); ++j) {
       double dis = (positions[j] - positions[i]).length();
       if (dis < 4.0) {
-        neighbors[i]++;
-        neighbors[j]++;
+        ++neighbors[i];
+        ++neighbors[j];
       }
     }
   }
@@ -710,7 +723,7 @@ unsigned int HBond::findSpecials(const RDKit::ROMol &mol, int confId,
   match = RDKit::SubstructMatch(mol, *ser, matches);
   nMatches += match;
 
-  for (auto & matche : matches) {
+  for (auto &matche : matches) {
     const RDKit::Atom *atom = mol.getAtomWithIdx(matche.second);
     if (atom->getAtomicNum() == 8) {
       boost::tie(nbrIdx, endNbrs) = mol.getAtomNeighbors(atom);
@@ -1824,7 +1837,7 @@ double HBond::angle(double x1, double y1, double z1, double x2, double y2,
     dotProd = -1.0;
   } else if (dotProd > 1.0) {
     dotProd = 1.0;
-}
+  }
   return acos(dotProd);
 }
 
@@ -1842,8 +1855,8 @@ double Hydrophilic::operator()(double x, double y, double z, double thres) {
 }
 
 void writeToCubeStream(const RDGeom::UniformRealValueGrid3D &grd,
-                       std::ostream &outStrm,
-                       const RDKit::ROMol *mol, int confid) {
+                       std::ostream &outStrm, const RDKit::ROMol *mol,
+                       int confid) {
   const double bohr = 0.529177249;
   int dimX = grd.getNumX();  //+2;
   int dimY = grd.getNumY();  //+2;
@@ -1854,8 +1867,8 @@ void writeToCubeStream(const RDGeom::UniformRealValueGrid3D &grd,
   outStrm.setf(std::ios::left);
   outStrm
       << "Gaussian cube format generated by RDKit\n*************************\n";
-  outStrm << std::setw(20) << std::setprecision(6) << nAtoms
-          << std::setw(20) << std::setprecision(6) << offSet.x << std::setw(20)
+  outStrm << std::setw(20) << std::setprecision(6) << nAtoms << std::setw(20)
+          << std::setprecision(6) << offSet.x << std::setw(20)
           << std::setprecision(6) << offSet.y << std::setw(20)
           << std::setprecision(6) << offSet.z << std::endl;
   outStrm << std::setw(20) << std::setprecision(6) << dimX << std::setw(20)
@@ -1877,12 +1890,11 @@ void writeToCubeStream(const RDGeom::UniformRealValueGrid3D &grd,
     for (const auto &atom : mol->atoms()) {
       const auto &pt = conf.getAtomPos(atom->getIdx()) / bohr;
       outStrm << std::setw(20) << std::setprecision(6) << std::left
-              << atom->getAtomicNum() << std::setw(20)
-              << std::setprecision(6) << atom->getAtomicNum()
-              << std::setw(20) << std::setprecision(6) << pt.x << std::setw(20)
-              << std::setprecision(6) << std::setw(20) << std::setprecision(6)
-              << pt.y << std::setw(20) << std::setprecision(6) << pt.z
-              << std::endl;
+              << atom->getAtomicNum() << std::setw(20) << std::setprecision(6)
+              << atom->getAtomicNum() << std::setw(20) << std::setprecision(6)
+              << pt.x << std::setw(20) << std::setprecision(6) << std::setw(20)
+              << std::setprecision(6) << pt.y << std::setw(20)
+              << std::setprecision(6) << pt.z << std::endl;
     }
   }
 
@@ -1904,8 +1916,8 @@ void writeToCubeStream(const RDGeom::UniformRealValueGrid3D &grd,
 }
 
 void writeToCubeFile(const RDGeom::UniformRealValueGrid3D &grd,
-                     const std::string &filename,
-                     const RDKit::ROMol *mol, int confid) {
+                     const std::string &filename, const RDKit::ROMol *mol,
+                     int confid) {
   std::ofstream ofStrm(filename.c_str());
   writeToCubeStream(grd, ofStrm, mol, confid);
 }
@@ -1940,8 +1952,10 @@ std::unique_ptr<RDKit::RWMol> readFromCubeStream(
     throw RDKit::FileParseException(errout.str());
   } else {
     spacingX *= bohr;
-    grd = RDGeom::UniformRealValueGrid3D(spacingX * static_cast<double>(dimX), spacingX * static_cast<double>(dimY),
-                                         spacingX * static_cast<double>(dimZ), spacingX, &offSet);
+    grd = RDGeom::UniformRealValueGrid3D(spacingX * static_cast<double>(dimX),
+                                         spacingX * static_cast<double>(dimY),
+                                         spacingX * static_cast<double>(dimZ),
+                                         spacingX, &offSet);
   }
   std::unique_ptr<RDKit::RWMol> molecule;
   if (nAtoms) {

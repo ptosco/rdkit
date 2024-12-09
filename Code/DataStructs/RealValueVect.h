@@ -106,24 +106,24 @@ RDKIT_DATASTRUCTS_EXPORT RealValueVect operator+(const RealValueVect &p1,
 RDKIT_DATASTRUCTS_EXPORT RealValueVect operator-(const RealValueVect &p1,
                                                  const RealValueVect &p2);
 
-  //! support rvv3 = rvv1|rvv2
-  /*!
+//! support rvv3 = rvv1|rvv2
+/*!
 
-     operator| returns the maximum value for each element.
-     e.g.:
-       [0,1,2,0] | [0,1,1,1] -> [0,1,2,1]
+   operator| returns the maximum value for each element.
+   e.g.:
+     [0,1,2,0] | [0,1,1,1] -> [0,1,2,1]
 
-   */
+ */
 RDKIT_DATASTRUCTS_EXPORT RealValueVect operator|(const RealValueVect &p1,
                                                  const RealValueVect &p2);
 
-  //! support rvv3 = rvv1&rvv2
-  /*!
-     operator& returns the minimum value for each element.
-     e.g.:
-       [0,1,2,0] & [0,1,1,1] -> [0,1,1,0]
+//! support rvv3 = rvv1&rvv2
+/*!
+   operator& returns the minimum value for each element.
+   e.g.:
+     [0,1,2,0] & [0,1,1,1] -> [0,1,1,0]
 
-   */
+ */
 RDKIT_DATASTRUCTS_EXPORT RealValueVect operator&(const RealValueVect &p1,
                                                  const RealValueVect &p2);
 

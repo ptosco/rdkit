@@ -120,12 +120,14 @@ RealValueVect &RealValueVect::applyBinaryOp(const RealValueVect &other, O op) {
 }
 
 RealValueVect &RealValueVect::operator&=(const RealValueVect &other) {
-  static const double&(*minOp)(const double&, const double&) = std::min<double>;
+  static const double &(*minOp)(const double &, const double &) =
+      std::min<double>;
   return applyBinaryOp(other, minOp);
 }
 
 RealValueVect &RealValueVect::operator|=(const RealValueVect &other) {
-  static const double&(*maxOp)(const double&, const double&) = std::max<double>;
+  static const double &(*maxOp)(const double &, const double &) =
+      std::max<double>;
   return applyBinaryOp(other, maxOp);
 }
 

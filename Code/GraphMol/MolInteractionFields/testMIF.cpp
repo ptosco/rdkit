@@ -207,8 +207,8 @@ TEST_CASE("CoulombDielectric") {
   CHECK(couldiele(2.0, 0.0, 0.0, 1000) < 0);
   CHECK(couldiele(-2.0, 0.0, 0.0, 1000) > 0);
 
-  calculateDescriptors<CoulombDielectric>(grd,
-                                          CoulombDielectric(*mol, 0, 1.0, true));
+  calculateDescriptors<CoulombDielectric>(
+      grd, CoulombDielectric(*mol, 0, 1.0, true));
   for (unsigned int i = 0; i < grd.getSize(); i++) {
     CHECK(grd.getVal(i) <= 0.0);
   }
@@ -217,8 +217,8 @@ TEST_CASE("CoulombDielectric") {
   CHECK(couldiele(2.0, 0.0, 0.0, 1000) < 0);
   CHECK(couldiele(-2.0, 0.0, 0.0, 1000) > 0);
 
-  calculateDescriptors<CoulombDielectric>(grd,
-                                          CoulombDielectric(*mol, 0, 1.0, true));
+  calculateDescriptors<CoulombDielectric>(
+      grd, CoulombDielectric(*mol, 0, 1.0, true));
   for (unsigned int i = 0; i < grd.getSize(); i++) {
     CHECK(grd.getVal(i) <= 0.0);
   }
@@ -261,31 +261,33 @@ TEST_CASE("VdWaals") {
   auto mol = v2::FileParsers::MolFromMolFile(path + "HCl.mol", fopts);
   REQUIRE(mol);
   try {
-    VdWaals vdw = constructVdWaalsMMFF(*mol, 0, 6, false, 1.0);
+    MMFFVdWaals vdw(*mol, 0, 6, false, 1.0);
   } catch (ValueErrorException &dexp) {
     BOOST_LOG(rdInfoLog) << "Expected failure: " << dexp.what() << "\n";
   }
 
   mol = v2::FileParsers::MolFromMolFile(path + "HCN.mol", fopts);
   REQUIRE(mol);
-  VdWaals vdw = constructVdWaalsMMFF(*mol, 0, 6, false, 1.0);
+  {
+    MMFFVdWaals vdw(*mol, 0, 6, false, 1.0);
 
-  CHECK(vdw(-5.0, 0, 0, 1000) < 0);
-  CHECK(vdw(-1.68, 0, 0, 1000) > vdw(-5.0, 0, 0, 1000));
-  CHECK(vdw(-5.0, 0, 0, 1000) < vdw(-10.0, 0, 0, 1000));
+    CHECK(vdw(-5.0, 0, 0, 1000) < 0);
+    CHECK(vdw(-1.68, 0, 0, 1000) > vdw(-5.0, 0, 0, 1000));
+    CHECK(vdw(-5.0, 0, 0, 1000) < vdw(-10.0, 0, 0, 1000));
+  }
 
   auto mol2 = v2::FileParsers::MolFromMolFile(path + "h2o.mol", fopts);
   REQUIRE(mol2);
-  vdw = constructVdWaalsMMFF(*mol2, 0, 6, false, 1.0);
-  VdWaals vdw2 = constructVdWaalsMMFF(*mol2, 0, 6, true, 1.0);
+  MMFFVdWaals vdw(*mol2, 0, 6, false, 1.0);
+  MMFFVdWaals vdw2(*mol2, 0, 6, true, 1.0);
   CHECK(fabs(vdw2(-3.0, 0, 0, 1000) - vdw(-3.0, 0, 0, 1000)) > 0.0001);
 
-  VdWaals vdw3 = constructVdWaalsUFF(*mol, 0, "O_3", 1.0);
+  UFFVdWaals vdw3(*mol, 0, "O_3", 1.0);
   CHECK(vdw3(-5.0, 0, 0, 1000) < 0);
   CHECK(vdw3(-1.68, 0, 0, 1000) > vdw3(-5.0, 0, 0, 1000));
   CHECK(vdw3(-5.0, 0, 0, 1000) < vdw3(-10.0, 0, 0, 1000));
 
-  std::string names[] = {
+  std::vector<std::string> names{
       "acetone",       "aceticacid",    "phenol",       "phenolate",
       "serine",        "threonine",     "ethanol",      "diethylether",
       "h2o",           "ammonia",       "ethylamine",   "imine",
@@ -295,10 +297,10 @@ TEST_CASE("VdWaals") {
   for (const auto &name : names) {
     mol = v2::FileParsers::MolFromMolFile(path + name + ".mol", fopts);
     REQUIRE(mol);
-    vdw = constructVdWaalsMMFF(*mol);
-    CHECK(vdw(0.0, 0.0, 0.0, 1000));
-    vdw = constructVdWaalsUFF(*mol);
-    CHECK(vdw(0.0, 0.0, 0.0, 1000));
+    MMFFVdWaals mmffVdw(*mol);
+    CHECK(mmffVdw(0.0, 0.0, 0.0, 1000));
+    UFFVdWaals uffVdw(*mol);
+    CHECK(uffVdw(0.0, 0.0, 0.0, 1000));
   }
 }
 
@@ -339,7 +341,7 @@ TEST_CASE("HBond") {
   CHECK((unsigned int)fabs(((*vect1 - *vect).getTotalVal())));
 
   mol = v2::FileParsers::MolFromMolFile(path + "aceticacid.mol",
-                                         fopts);  // Acetic Acid
+                                        fopts);  // Acetic Acid
   REQUIRE(mol);
   grd = *constructGrid(*mol, 0, 5.0, 1);
   hbonddes = HBond(*mol, 0, "OH", true, 0.001);
@@ -369,7 +371,7 @@ TEST_CASE("HBond") {
   calculateDescriptors<HBond>(grd, hbonddes);
 
   mol = v2::FileParsers::MolFromMolFile(path + "diethylether.mol",
-                                         fopts);  // Et2O
+                                        fopts);  // Et2O
   REQUIRE(mol);
   grd = *constructGrid(*mol, 0, 5.0, 1);
   hbonddes = HBond(*mol, 0, "OH", true, 0.001);
@@ -411,7 +413,7 @@ TEST_CASE("HBond") {
   calculateDescriptors<HBond>(grd, hbonddes);
 
   mol = v2::FileParsers::MolFromMolFile(path + "methylammonium.mol",
-                                         fopts);  // methylammonium
+                                        fopts);  // methylammonium
   REQUIRE(mol);
   grd = *constructGrid(*mol, 0, 5.0, 1);
   hbonddes = HBond(*mol, 0, "OH", true, 0.001);
@@ -422,7 +424,7 @@ TEST_CASE("HBond") {
   calculateDescriptors<HBond>(grd, hbonddes);
 
   mol = v2::FileParsers::MolFromMolFile(path + "chloromethane.mol",
-                                         fopts);  // Chloromethane
+                                        fopts);  // Chloromethane
   REQUIRE(mol);
   grd = *constructGrid(*mol, 0, 5.0, 1);
   hbonddes = HBond(*mol, 0, "OH", true, 0.001);
@@ -433,7 +435,7 @@ TEST_CASE("HBond") {
   calculateDescriptors<HBond>(grd, hbonddes);
 
   mol = v2::FileParsers::MolFromMolFile(path + "phosphonate.mol",
-                                         fopts);  // Phosphonate
+                                        fopts);  // Phosphonate
   REQUIRE(mol);
   grd = *constructGrid(*mol, 0, 5.0, 1);
   hbonddes = HBond(*mol, 0, "OH", true, 0.001);
@@ -444,7 +446,7 @@ TEST_CASE("HBond") {
   calculateDescriptors<HBond>(grd, hbonddes);
 
   mol = v2::FileParsers::MolFromMolFile(path + "phosphatediester.mol",
-                                         fopts);  // Phosphatediester
+                                        fopts);  // Phosphatediester
   REQUIRE(mol);
   grd = *constructGrid(*mol, 0, 5.0, 1);
   hbonddes = HBond(*mol, 0, "OH", true, 0.001);
@@ -455,7 +457,7 @@ TEST_CASE("HBond") {
   calculateDescriptors<HBond>(grd, hbonddes);
 
   mol = v2::FileParsers::MolFromMolFile(path + "hydrogenphosphatediester.mol",
-                                         fopts);  // Hydrogenphosphatediester
+                                        fopts);  // Hydrogenphosphatediester
   REQUIRE(mol);
   grd = *constructGrid(*mol, 0, 5.0, 1);
   hbonddes = HBond(*mol, 0, "OH", true, 0.001);
@@ -466,7 +468,7 @@ TEST_CASE("HBond") {
   calculateDescriptors<HBond>(grd, hbonddes);
 
   mol = v2::FileParsers::MolFromMolFile(path + "mustardgas.mol",
-                                         fopts);  // mustard gas
+                                        fopts);  // mustard gas
   REQUIRE(mol);
   grd = *constructGrid(*mol, 0, 5.0, 1);
   hbonddes = HBond(*mol, 0, "OH", true, 0.001);
@@ -487,7 +489,7 @@ TEST_CASE("HBond") {
   calculateDescriptors<HBond>(grd, hbonddes);
 
   mol = v2::FileParsers::MolFromMolFile(path + "sulfanilamide.mol",
-                                         fopts);  // Sulfanilamide
+                                        fopts);  // Sulfanilamide
   REQUIRE(mol);
   grd = *constructGrid(*mol, 0, 5.0, 1);
   hbonddes = HBond(*mol, 0, "OH", true, 0.001);
