@@ -114,7 +114,7 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT Coulomb {
   /*!
    \param charges     vector of charges [e]
    \param pos         vector of postions [A]
-   \param probecharge charge of probe [e] (default: 1.0)
+   \param probeCharge charge of probe [e] (default: 1.0)
    \param absVal      if true, negative (favored) values of interactions are
    calculated (default: false)
    \param alpha       softcore interaction parameter
@@ -125,7 +125,7 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT Coulomb {
    */
   Coulomb(const std::vector<double> &charges,
           const std::vector<RDGeom::Point3D> &positions,
-          double probecharge = 1.0, bool absVal = false, double alpha = 0.0,
+          double probeCharge = 1.0, bool absVal = false, double alpha = 0.0,
           double cutoff = 1.0);
 
   //! \brief constructs Coulomb object from a molecule object
@@ -137,7 +137,7 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT Coulomb {
    (default=-1)
    \param absVal      if true, absolute values of interactions are
    calculated (default: false)
-   \param probecharge charge of probe [e]
+   \param probeCharge charge of probe [e]
    (default: 1.0)
    \param prop	     property key for retrieving partial charges
    of atoms (default="_GasteigerCharge")
@@ -146,7 +146,7 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT Coulomb {
    \param cutoff      minimum cutoff distance [A] (default:1.0)
 
    */
-  Coulomb(const RDKit::ROMol &mol, int confId = -1, double probecharge = 1.0,
+  Coulomb(const RDKit::ROMol &mol, int confId = -1, double probeCharge = 1.0,
           bool absVal = false, const std::string &prop = "_GasteigerCharge",
           double alpha = 0.0, double cutoff = 1.0);
 
@@ -214,7 +214,7 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT CoulombDielectric {
   /*!
    \param charges     vector of charges [e]
    \param pos         vector of postions [A]
-   \param probecharge charge of probe [e] (default: 1.0)
+   \param probeCharge charge of probe [e] (default: 1.0)
    \param absVal      if true, negative (favored) values of interactions are
    calculated (default: false)
    \param alpha     softcore interaction parameter
@@ -226,7 +226,7 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT CoulombDielectric {
    */
   CoulombDielectric(const std::vector<double> &charges,
                     const std::vector<RDGeom::Point3D> &positions,
-                    double probecharge = 1.0, bool absVal = false,
+                    double probeCharge = 1.0, bool absVal = false,
                     double alpha = 0.0, double cutoff = 1.0,
                     double epsilon = 80.0, double xi = 4.0);
 
@@ -237,7 +237,7 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT CoulombDielectric {
    \param mol         molecule object
    \param confId      conformation id which is used to get positions of atoms
    (default=-1)
-   \param probecharge charge of probe [e] (default: 1.0)
+   \param probeCharge charge of probe [e] (default: 1.0)
    \param absVal      if true, negative (favored) values of interactions are
    calculated (default: false)
    \param prop	       property key for retrieving partial charges of atoms
@@ -249,7 +249,7 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT CoulombDielectric {
    \param xi          relative permittivity of solute (default=4.0)
    */
   CoulombDielectric(const RDKit::ROMol &mol, int confId = -1,
-                    double probecharge = 1.0, bool absVal = false,
+                    double probeCharge = 1.0, bool absVal = false,
                     const std::string &prop = "_GasteigerCharge",
                     double alpha = 0.0, double cutoff = 1.0,
                     double epsilon = 80.0, double xi = 4.0);
@@ -293,8 +293,6 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT VdWaals {
   VdWaals() : d_cutoff(1.0), d_nAtoms(0) {};
   VdWaals(const RDKit::ROMol &mol, int confId = -1, double cutoff = 1.0);
   virtual ~VdWaals() {};
-
-  virtual double calcEnergy(double, double, double) const = 0;  // energy function
   //! \brief returns the VdW interaction at point \c pt in the molecules field
   //! in [kJ mol^-1]
   /*!
@@ -305,7 +303,10 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT VdWaals {
    */
   double operator()(double x, double y, double z, double thres);
 
- private:
+ protected:
+  void fillVectors();
+  virtual double calcEnergy(double, double, double) const = 0;
+  virtual void fillVdwParamVectors(unsigned int atomIdx) = 0;
   double d_cutoff;
   unsigned int d_nAtoms;
   std::vector<double> d_R_star_ij, d_wellDepth;
@@ -315,51 +316,48 @@ class RDKIT_MOLINTERACTIONFIELDS_EXPORT VdWaals {
 
 class RDKIT_MOLINTERACTIONFIELDS_EXPORT MMFFVdWaals : public VdWaals {
  public:
-  MMFFVdWaals(const RDKit::ROMol &mol, unsigned int probeAtomType,
-          const std::string &probeAtomTypeUFF,
-          int confId = -1, double cutoff = 1.0, bool scaling = true);
+  //! \brief constructs VdWaals object which uses MMFF94 from a molecule object
+  /*!
+  \param mol           molecule object
+  \param confId        conformation id which is used to get positions of atoms
+  (default=-1)
+  \param probeAtomType MMFF94 atom type for the probe atom
+  (default=6, sp3 oxygen)
+  \param cutoff        minimum cutoff distance [A] (default:1.0)
+  \param scaling       scaling of VdW parameters to take hydrogen bonds into
+  account (default=false)
+  */
+  MMFFVdWaals(const RDKit::ROMol &mol, int confId = -1, unsigned int probeAtomType = 6,
+          double cutoff = 1.0, bool scaling = false);
+ private:
   double calcEnergy(double, double, double) const;  // MMFF energy function
+  void fillVdwParamVectors(unsigned int atomIdx);
+  bool d_scaling;
+  std::unique_ptr<RDKit::MMFF::MMFFMolProperties> d_props;
+  const ForceFields::MMFF::MMFFVdWCollection *d_mmffVdW;
+  const ForceFields::MMFF::MMFFVdW *d_probeParams;
 };
 
 class RDKIT_MOLINTERACTIONFIELDS_EXPORT UFFVdWaals : public VdWaals {
  public:
-  UFFVdWaals(RDKit::ROMol &mol, const std::string &probeAtomType,
-          int confId = -1, double cutoff = 1.0);
+  //! \brief constructs VdWaals object which uses UFF from a molecule object
+  /*!
+  \param mol           molecule object
+  \param confId        conformation id which is used to get positions of atoms
+  (default=-1)
+  \param probeAtomType UFF atom type for the probe atom (eg. "O_3", i.e. a
+  tetrahedral oxygen)
+  \param cutoff        minimum cutoff distance [A] (default:1.0)
+  */
+  UFFVdWaals(const RDKit::ROMol &mol, int confId = -1, const std::string &probeAtomType = "O_3",
+          double cutoff = 1.0);
+ private:
   double calcEnergy(double, double, double) const;  // UFF energy function
+  void fillVdwParamVectors(unsigned int atomIdx);
+  const ForceFields::UFF::ParamCollection *d_uffParamColl;
+  const ForceFields::UFF::AtomicParams *d_probeParams;
+  RDKit::UFF::AtomicParamVect d_params;
 };
-
-// Factory functions for VdWaals
-
-//! \brief constructs VdWaals object which uses MMFF94 from a molecule object
-/*!
- The molecule \c mol needs to have partial charges set as property of atoms.
- \param mol           molecule object
- \param confId        conformation id which is used to get positions of atoms
- (default=-1)
- \param probeAtomType MMFF94 atom type for the probe atom
- (default=6, sp3 oxygen)
- \param scaling       scaling of VdW parameters to take hydrogen bonds into
- account (default=false)
- \param cutoff        minimum cutoff distance [A] (default:1.0)
- */
-RDKIT_MOLINTERACTIONFIELDS_EXPORT VdWaals constructVdWaalsMMFF(
-    RDKit::ROMol &mol, int confId = -1, unsigned int probeAtomType = 6,
-    bool scaling = false, double cutoff = 1.0);
-
-//! \brief constructs VdWaals object which uses UFF from a molecule object
-/*!
- The molecule \c mol needs to have partial charges set as property of atoms.
- \param mol           molecule object
- \param confId        conformation id which is used to get positions of atoms
- (default=-1)
- \param probeAtomType UFF atom type for the probe atom (eg. "O_3", i.e. a
- tetrahedral oxygen)
- \param cutoff        minimum cutoff distance [A] (default:1.0)
- */
-RDKIT_MOLINTERACTIONFIELDS_EXPORT VdWaals
-constructVdWaalsUFF(RDKit::ROMol &mol, int confId = -1,
-                    const std::string &probeAtomType = "O_3",
-                    double cutoff = 1.0);  // constructor for UFF LJ interaction
 
 //! \brief class for calculation of hydrogen bond potential between probe and
 //! molecule
