@@ -288,9 +288,8 @@ void UniformRealValueGrid3D::initFromText(const char *pkl,
   ss.write(pkl, length);
   boost::int32_t tVers;
   streamRead(ss, tVers);
-  tVers = -tVers;
-  if (tVers == 0x1) {
-  } else {
+  tVers *= -1;
+  if (!(tVers == 0x1)) {
     throw ValueErrorException("bad version in UniformRealValueGrid3D pickle");
   }
   boost::uint32_t tInt;

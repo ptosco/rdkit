@@ -88,7 +88,7 @@ void RealValueVect::initFromText(const char *pkl, const unsigned int len) {
   ss.write(pkl, len);
   boost::int32_t tVers;
   streamRead(ss, tVers);
-  tVers = -tVers;
+  tVers *= -1;
   if (!(tVers == 0x1)) {
     throw ValueErrorException("bad version in RealValueVect pickle");
   }
