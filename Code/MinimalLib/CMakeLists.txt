@@ -6,7 +6,7 @@ if(RDK_BUILD_MINIMAL_LIB)
         "CIPLabeler_static;MolDraw2D_static;Depictor_static;"
         "Descriptors_static;SubstructMatch_static;FileParsers_static;"
         "SmilesParse_static;GraphMol_static;RDGeometryLib_static;"
-        "RDGeneral_static;RGroupDecomposition_static")
+        "RDGeneral_static;RGroupDecomposition_static;Fingerprints_static")
     if(RDK_BUILD_INCHI_SUPPORT)
         add_definitions(-DRDK_BUILD_INCHI_SUPPORT)
         set(MINIMAL_LIB_LIBRARIES "${MINIMAL_LIB_LIBRARIES};RDInchiLib_static")
@@ -23,14 +23,14 @@ if(RDK_BUILD_MINIMAL_LIB)
         add_definitions(-DRDK_BUILD_MINIMAL_LIB_MCS)
         set(MINIMAL_LIB_LIBRARIES "${MINIMAL_LIB_LIBRARIES};FMCS_static")
     endif()
-    if(RDK_BUILD_MINIMAL_LIB_RGROUPDECOMP)
-        add_definitions(-DRDK_BUILD_MINIMAL_LIB_RGROUPDECOMP)
-        set(MINIMAL_LIB_LIBRARIES "${MINIMAL_LIB_LIBRARIES};RGroupDecomposition")
-    endif()
     if(RDK_BUILD_MINIMAL_LIB_MMPA)
         add_definitions(-DRDK_BUILD_MINIMAL_LIB_MMPA)
         set(MINIMAL_LIB_LIBRARIES "${MINIMAL_LIB_LIBRARIES};MMPA_static")
-     endif()
+    endif()
+    if(RDK_BUILD_MINIMAL_LIB_MOLZIP)
+        add_definitions(-DRDK_BUILD_MINIMAL_LIB_MOLZIP)
+        set(MINIMAL_LIB_LIBRARIES "${MINIMAL_LIB_LIBRARIES};ChemTransforms_static")
+    endif()
     if(RDK_BUILD_FREETYPE_SUPPORT)
         if( ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
             set(USE_FLAGS "-s USE_FREETYPE=1")
@@ -52,8 +52,8 @@ if(RDK_BUILD_CFFI_LIB)
         ForceField Alignment
         MolInterchange Abbreviations CIPLabeler 
         MolDraw2D Depictor Descriptors
-        SubstructMatch FileParsers 
-        SmilesParse GraphMol RDGeometryLib RDGeneral RGroupDecomposition)
+        SubstructMatch FileParsers SmilesParse GraphMol
+        RDGeometryLib RDGeneral RGroupDecomposition Fingerprints)
     if(RDK_BUILD_INCHI_SUPPORT)
         add_definitions(-DRDK_BUILD_INCHI_SUPPORT)
         list(APPEND LIBS_TO_USE RDInchiLib)
