@@ -15,13 +15,20 @@ if(RDK_BUILD_MAEPARSER_SUPPORT OR RDK_BUILD_COORDGEN_SUPPORT)
 
     if(NOT EXISTS "${MAEPARSER_DIR}/MaeParser.hpp")
         set(RELEASE_NO "1.3.1")
-        set(MD5 "cfa40e29366f4b413e4ec15f959ee139")
-        downloadAndCheckMD5("https://github.com/schrodinger/maeparser/archive/v${RELEASE_NO}.tar.gz"
-              "${CMAKE_CURRENT_SOURCE_DIR}/maeparser-v${RELEASE_NO}.tar.gz" ${MD5})
+        #set(MD5 "cfa40e29366f4b413e4ec15f959ee139")
+        #downloadAndCheckMD5("https://github.com/schrodinger/maeparser/archive/v${RELEASE_NO}.tar.gz"
+        # "${CMAKE_CURRENT_SOURCE_DIR}/maeparser-v${RELEASE_NO}.tar.gz" ${MD5})
+        set(MD5 "072b81d9c914e95a450102eae237b1a9")
+        downloadAndCheckMD5("https://github.com/ptosco/maeparser/archive/refs/heads/maeparser-use-boost-iostreams.tar.gz"
+          "${CMAKE_CURRENT_SOURCE_DIR}/maeparser-use-boost-iostreams.tar.gz" ${MD5})
+        #execute_process(COMMAND ${CMAKE_COMMAND} -E tar zxf
+        #  ${CMAKE_CURRENT_SOURCE_DIR}/maeparser-v${RELEASE_NO}.tar.gz
+        #  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+        #file(RENAME "maeparser-${RELEASE_NO}" "${MAEPARSER_DIR}")
         execute_process(COMMAND ${CMAKE_COMMAND} -E tar zxf
-          ${CMAKE_CURRENT_SOURCE_DIR}/maeparser-v${RELEASE_NO}.tar.gz
+          ${CMAKE_CURRENT_SOURCE_DIR}/maeparser-use-boost-iostreams.tar.gz
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-        file(RENAME "maeparser-${RELEASE_NO}" "${MAEPARSER_DIR}")
+        file(RENAME "maeparser-maeparser-use-boost-iostreams" "${MAEPARSER_DIR}")
         patchCoordGenMaeExportHeaders("MAEPARSER" "${MAEPARSER_DIR}/MaeParserConfig.hpp")
 
     else()
@@ -36,6 +43,7 @@ if(RDK_BUILD_MAEPARSER_SUPPORT OR RDK_BUILD_COORDGEN_SUPPORT)
       set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-copy")
      endif()
 
+    message("MAESOURCES ${MAESOURCES}")
     rdkit_library(maeparser ${MAESOURCES} SHARED)
     install(TARGETS maeparser DESTINATION ${RDKit_LibDir})
     set(maeparser_LIBRARIES maeparser)
