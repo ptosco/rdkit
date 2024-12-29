@@ -3251,9 +3251,9 @@ void test_png_metadata() {
 #define char_type_len wcslen
   typedef wchar_t char_type;
   const char_type *PNG_COLCHICINE_NO_METADATA =
-      L"\\Code\\MinimalLib\\test_data\\bilastine_no_metadata.png";
+      L"\\Code\\GraphMol\\FileParsers\\test_data\\colchicine.no_metadata.png";
   const char_type *PNG_COLCHICINE_WITH_METADATA =
-      L"\\Code\\MinimalLib\\test_data\\bilastine_with_metadata.png";
+      L"\\Code\\GraphMol\\FileParsers\\test_data\\colchicine.png";
   const char_type *PNG_PENICILLIN_METADATA = L"penicillin_metadata.png";
 #else
 #define char_type_len strlen
@@ -3407,9 +3407,9 @@ M  END\n";
       (char_type *)malloc(png_with_metadata_abspath_maxlen * sizeof(char_type));
   assert(png_with_metadata_abspath);
 #ifdef WIN32
-  _snwprintf(png_no_metadata_abspath, png_no_metadata_abspath_maxlen - 1,
+  _snwprintf(png_no_metadata_abspath, png_no_metadata_abspath_maxlen,
              L"%s%s", rdbase, PNG_COLCHICINE_NO_METADATA);
-  _snwprintf(png_with_metadata_abspath, png_with_metadata_abspath_maxlen - 1,
+  _snwprintf(png_with_metadata_abspath, png_with_metadata_abspath_maxlen,
              L"%s%s", rdbase, PNG_COLCHICINE_WITH_METADATA);
   hnd_no_metadata = _wfopen(png_no_metadata_abspath, L"rb");
   hnd_with_metadata = _wfopen(png_with_metadata_abspath, L"rb");
