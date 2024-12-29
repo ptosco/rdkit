@@ -80,7 +80,7 @@ char *str_to_c(const std::string &str, size_t *len = nullptr) {
       *len = str.size();
     }
     memcpy(res, str.c_str(), str.size());
-    res[str.size()] = 0;
+    res[str.size()] = '\0';
   }
   return res;
 }
