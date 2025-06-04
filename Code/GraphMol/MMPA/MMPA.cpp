@@ -31,35 +31,31 @@ typedef std::vector<std::pair<unsigned, unsigned>>
 namespace detail {
 unsigned long long computeMorganCodeHash(const ROMol &mol) {
   size_t nv = mol.getNumAtoms();
-  size_t ne = mol.getNumBonds();
-  std::vector<unsigned long> currCodes(nv);
-  std::vector<unsigned long> prevCodes(nv);
+  std::vector<unsigned long> currCodes;
+  currCodes.reserve(nv);
+  std::vector<unsigned long> prevCodes;
   size_t nIterations = mol.getNumBonds();
   if (nIterations > 5) {
     nIterations = 5;
   }
 
-  for (unsigned ai = 0; ai < nv; ai++) {
-    const Atom &a = *mol.getAtomWithIdx(ai);
-    unsigned atomCode = a.getAtomicNum();
-    atomCode |= a.getIsotope() << 8;
+  for (const auto a : mol.atoms()) {
+    unsigned atomCode = a->getAtomicNum();
+    atomCode |= a->getIsotope() << 8;
 
-    auto charge = a.getFormalCharge();
+    auto charge = a->getFormalCharge();
     atomCode |= std::abs(charge) << 16;
     if (charge < 0) {
       atomCode |= 1 << 29;
     }
-    atomCode |= (a.getIsAromatic() ? 1 : 0) << 30;
-    currCodes[ai] = atomCode;
+    atomCode |= (a->getIsAromatic() ? 1 : 0) << 30;
+    currCodes.push_back(atomCode);
   }
 
   for (size_t iter = 0; iter < nIterations; iter++) {
-    for (size_t i = 0; i < nv; i++) {
-      prevCodes[i] = currCodes[i];
-    }
+    prevCodes = currCodes;
 
-    for (size_t bi = 0; bi < ne; bi++) {
-      const Bond *bond = mol.getBondWithIdx(bi);
+    for (const auto bond : mol.bonds()) {
       unsigned order = bond->getBondType();
       unsigned atom1 = bond->getBeginAtomIdx();
       unsigned atom2 = bond->getEndAtomIdx();
@@ -71,12 +67,61 @@ unsigned long long computeMorganCodeHash(const ROMol &mol) {
     }
   }
 
-  unsigned long long result = 0;
-  for (unsigned ai = 0; ai < nv; ai++) {
-    unsigned long code = currCodes[ai];
-    result += code * (code + 6849) + 29;
+  return std::accumulate(currCodes.begin(), currCodes.end(), 0ULL,
+                         [](unsigned long long acc, unsigned long code) {
+                           return acc + code * (code + 6849) + 29;
+                         });
+}
+
+unsigned int addBondPreservingStereo(RWMol &em, unsigned int commonIdx,
+                                     unsigned int oldIdx, unsigned int newIdx,
+                                     Bond::BondDir oldBondDir) {
+  static const std::map<Bond::BondDir, Bond::BondDir> invertedBondDirMap = {
+      {Bond::ENDUPRIGHT, Bond::ENDDOWNRIGHT},
+      {Bond::ENDDOWNRIGHT, Bond::ENDUPRIGHT}};
+  auto newBondIdx = em.addBond(commonIdx, newIdx, Bond::SINGLE) - 1;
+  auto newBond = em.getBondWithIdx(newBondIdx);
+  const auto commonAtom = em.getAtomWithIdx(commonIdx);
+  for (const auto &nbri :
+       boost::make_iterator_range(em.getAtomBonds(commonAtom))) {
+    auto nbrBond = em[nbri];
+    if (nbrBond->getBondType() == Bond::DOUBLE) {
+      auto &stereoAtoms = nbrBond->getStereoAtoms();
+      if (stereoAtoms.size() == 2) {
+        auto it = invertedBondDirMap.find(oldBondDir);
+        if (stereoAtoms[0] == static_cast<int>(oldIdx)) {
+          stereoAtoms[0] = newIdx;
+          if (it != invertedBondDirMap.end()) {
+            newBond->setBondDir(it->first);
+          }
+        } else if (stereoAtoms[1] == static_cast<int>(oldIdx)) {
+          stereoAtoms[1] = newIdx;
+          if (it != invertedBondDirMap.end()) {
+            newBond->setBondDir(it->second);
+          }
+        }
+      }
+    }
   }
-  return result;
+  return newBondIdx;
+}
+
+unsigned int addBondFromTemplate(
+    RWMol &em, const Bond &templateBond,
+    const std::map<unsigned, unsigned> &newAtomMap) {
+  unsigned ai1 = newAtomMap.at(templateBond.getBeginAtomIdx());
+  unsigned ai2 = newAtomMap.at(templateBond.getEndAtomIdx());
+  unsigned newBondIdx = em.addBond(ai1, ai2, templateBond.getBondType()) - 1;
+  auto newBond = em.getBondWithIdx(newBondIdx);
+  newBond->setBondDir(templateBond.getBondDir());
+  if (templateBond.getBondType() == Bond::DOUBLE) {
+    const auto &stereoAtoms = templateBond.getStereoAtoms();
+    if (stereoAtoms.size() == 2) {
+      newBond->setStereoAtoms(newAtomMap.at(stereoAtoms[0]),
+                              newAtomMap.at(stereoAtoms[1]));
+    }
+  }
+  return newBondIdx;
 }
 }  // namespace detail
 
@@ -131,19 +176,23 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
                 << bonds_selected[bi].second << a2 << ") ";
     }
 #endif
-    isotope += 1;
+    ++isotope;
+    const auto oldBond = em.getBondBetweenAtoms(bi.first, bi.second);
+    CHECK_INVARIANT(oldBond, "bond not found");
+    const auto oldBondDir = oldBond->getBondDir();
     // remove the bond
     em.removeBond(bi.first, bi.second);
-
-    // now add attachment points and set attachment point labels
+    // add attachment points and set attachment point labels
     auto *a = new Atom(0);
-    a->setProp(common_properties::molAtomMapNumber, (int)isotope);
+    a->setProp(common_properties::molAtomMapNumber, static_cast<int>(isotope));
     unsigned newAtomA = em.addAtom(a, true, true);
-    em.addBond(bi.first, newAtomA, Bond::SINGLE);
+    detail::addBondPreservingStereo(em, bi.first, bi.second, newAtomA,
+                                    oldBondDir);
     a = new Atom(0);
-    a->setProp(common_properties::molAtomMapNumber, (int)isotope);
+    a->setProp(common_properties::molAtomMapNumber, static_cast<int>(isotope));
     unsigned newAtomB = em.addAtom(a, true, true);
-    em.addBond(bi.second, newAtomB, Bond::SINGLE);
+    detail::addBondPreservingStereo(em, bi.second, bi.first, newAtomB,
+                                    oldBondDir);
 
     // keep track of where to put isotopes
     isotope_track[newAtomA] = isotope;
@@ -196,8 +245,8 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
 
     size_t iCore = std::numeric_limits<size_t>::max();
     side_chains = RWMOL_SPTR(new RWMol);
-    std::map<unsigned, unsigned>
-        visitedBonds;  // key is bond index in source molecule
+    boost::dynamic_bitset<> visitedBonds(
+        em.getNumBonds());  // bond index in source molecule
     unsigned maxAttachments = 0;
     for (size_t i = 0; i < frags.size(); i++) {
       unsigned nAttachments = 0;
@@ -215,24 +264,22 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
         std::map<unsigned, unsigned>
             newAtomMap;  // key is atom index in source molecule
         for (int ai : frags[i]) {
-          Atom *a = em.getAtomWithIdx(ai);
+          auto a = em.getAtomWithIdx(ai);
           newAtomMap[ai] = side_chains->addAtom(a->copy(), true, true);
         }
         // add all bonds from this fragment
         for (int ai : frags[i]) {
-          Atom *a = em.getAtomWithIdx(ai);
-          ROMol::OEDGE_ITER beg, end;
-          for (boost::tie(beg, end) = em.getAtomBonds(a); beg != end; ++beg) {
-            const Bond *bond = em[*beg];
+          auto a = em.getAtomWithIdx(ai);
+          for (const auto &nbri :
+               boost::make_iterator_range(em.getAtomBonds(a))) {
+            const auto bond = em[nbri];
             if (newAtomMap.end() == newAtomMap.find(bond->getBeginAtomIdx()) ||
                 newAtomMap.end() == newAtomMap.find(bond->getEndAtomIdx()) ||
-                visitedBonds.end() != visitedBonds.find(bond->getIdx())) {
+                visitedBonds.test(bond->getIdx())) {
               continue;
             }
-            unsigned ai1 = newAtomMap[bond->getBeginAtomIdx()];
-            unsigned ai2 = newAtomMap[bond->getEndAtomIdx()];
-            unsigned bi = side_chains->addBond(ai1, ai2, bond->getBondType());
-            visitedBonds[bond->getIdx()] = bi;
+            detail::addBondFromTemplate(*side_chains, *bond, newAtomMap);
+            visitedBonds.set(bond->getIdx());
           }
         }
       } else {  // select the core fragment
@@ -252,28 +299,26 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
     // build core molecule from selected fragment
     if (iCore != std::numeric_limits<size_t>::max()) {
       core = RWMOL_SPTR(new RWMol);
-      visitedBonds.clear();
+      visitedBonds.reset();
       std::map<unsigned, unsigned>
           newAtomMap;  // key is atom index in source molecule
       for (int ai : frags[iCore]) {
-        Atom *a = em.getAtomWithIdx(ai);
+        auto a = em.getAtomWithIdx(ai);
         newAtomMap[ai] = core->addAtom(a->copy(), true, true);
       }
       // add all bonds from this fragment
       for (int ai : frags[iCore]) {
-        Atom *a = em.getAtomWithIdx(ai);
-        ROMol::OEDGE_ITER beg, end;
-        for (boost::tie(beg, end) = em.getAtomBonds(a); beg != end; ++beg) {
-          const Bond *bond = em[*beg];
+        auto a = em.getAtomWithIdx(ai);
+        for (const auto &nbri :
+             boost::make_iterator_range(em.getAtomBonds(a))) {
+          const auto bond = em[nbri];
           if (newAtomMap.end() == newAtomMap.find(bond->getBeginAtomIdx()) ||
               newAtomMap.end() == newAtomMap.find(bond->getEndAtomIdx()) ||
-              visitedBonds.end() != visitedBonds.find(bond->getIdx())) {
+              visitedBonds.test(bond->getIdx())) {
             continue;
           }
-          unsigned ai1 = newAtomMap[bond->getBeginAtomIdx()];
-          unsigned ai2 = newAtomMap[bond->getEndAtomIdx()];
-          unsigned bi = core->addBond(ai1, ai2, bond->getBondType());
-          visitedBonds[bond->getIdx()] = bi;
+          detail::addBondFromTemplate(*core, *bond, newAtomMap);
+          visitedBonds.set(bond->getIdx());
         }
       }
 // DEBUG PRINT
@@ -287,7 +332,7 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
   bool resFound = false;
   size_t ri = 0;
   for (ri = 0; ri < res.size(); ri++) {
-    const std::pair<ROMOL_SPTR, ROMOL_SPTR> &r = res[ri];
+    const auto &r = res[ri];
     if (side_chains->getNumAtoms() == r.second->getNumAtoms() &&
         side_chains->getNumBonds() == r.second->getNumBonds() &&
         ((nullptr == core.get() && nullptr == r.first.get()) ||
@@ -322,26 +367,23 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
 
       // clear atom labels (they are used in canonicalization)
       //  and move them to dummy storage
-      for (ROMol::AtomIterator at = tmp_side_chain.beginAtoms();
-           at != tmp_side_chain.endAtoms(); ++at) {
+      for (auto at : tmp_side_chain.atoms()) {
         int label = 0;
-        if ((*at)->getPropIfPresent(common_properties::molAtomMapNumber,
-                                    label)) {
-          (*at)->clearProp(common_properties::molAtomMapNumber);
-          oldMaps[(*at)->getIdx()] = label;
+        if (at->getPropIfPresent(common_properties::molAtomMapNumber, label)) {
+          at->clearProp(common_properties::molAtomMapNumber);
+          oldMaps[at->getIdx()] = label;
         }
       }
 
       const bool doIsomericSmiles = true;  // should this be false???
-      std::string smiles = MolToSmiles(tmp_side_chain, doIsomericSmiles);
+      auto smiles = MolToSmiles(tmp_side_chain, doIsomericSmiles);
       // std::cerr << "smiles: " << smiles << std::endl;
 
       // Get the canonical output order and use it to remap
       //  the atom maps int the side chains
       //  these will get reapplied to the core (if there is a core)
-      const std::vector<unsigned int> &ranks =
-          tmp_side_chain.getProp<std::vector<unsigned int>>(
-              common_properties::_smilesAtomOutputOrder);
+      const auto &ranks = tmp_side_chain.getProp<std::vector<unsigned int>>(
+          common_properties::_smilesAtomOutputOrder);
 
       std::vector<std::pair<unsigned int, int>> rankedAtoms;
 
@@ -370,29 +412,26 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
 
     // std::cerr << "======== Remap core " << std::endl;
     if (core.get()) {  // remap core if it exists
-      for (ROMol::AtomIterator at = core->beginAtoms(); at != core->endAtoms();
-           ++at) {
+      for (auto at : core->atoms()) {
         int label = 0;
-        if ((*at)->getPropIfPresent(common_properties::molAtomMapNumber,
-                                    label)) {
+        if (at->getPropIfPresent(common_properties::molAtomMapNumber, label)) {
           // std::cerr << "remapping core: " << label << " :" <<
           // canonicalAtomMaps[label] <<
           //    std::endl;
-          (*at)->setProp(common_properties::molAtomMapNumber,
-                         canonicalAtomMaps[label]);
+          at->setProp(common_properties::molAtomMapNumber,
+                      canonicalAtomMaps[label]);
         }
       }
     }
 
     // std::cerr << "======== Remap side-chain " << std::endl;
-    for (ROMol::AtomIterator at = side_chains->beginAtoms();
-         at != side_chains->endAtoms(); ++at) {
+    for (auto at : side_chains->atoms()) {
       int label = 0;
-      if ((*at)->getPropIfPresent(common_properties::molAtomMapNumber, label)) {
+      if (at->getPropIfPresent(common_properties::molAtomMapNumber, label)) {
         // std::cerr << "remapping side chain: " << label << " :" <<
         // canonicalAtomMaps[label] << std::endl;
-        (*at)->setProp(common_properties::molAtomMapNumber,
-                       canonicalAtomMaps[label]);
+        at->setProp(common_properties::molAtomMapNumber,
+                    canonicalAtomMaps[label]);
       }
     }
 
@@ -531,12 +570,12 @@ bool fragmentMol(const ROMol &mol,
   std::vector<BondVector_t> matching_bonds;  // List of matched query's bonds
 
   for (auto i : bondsToCut) {
-    const Bond *bond = mol.getBondWithIdx(i);
+    const auto bond = mol.getBondWithIdx(i);
     BondVector_t bonds;
     unsigned int a1 = bond->getBeginAtomIdx();
     unsigned int a2 = bond->getEndAtomIdx();
-    bonds.push_back(std::make_pair(a1, a2));
-    matching_bonds.push_back(bonds);
+    bonds.emplace_back(a1, a2);
+    matching_bonds.push_back(std::move(bonds));
   }
 
   // loop to generate every cut in the molecule
