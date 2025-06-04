@@ -132,9 +132,9 @@ static inline void convertMatchingToBondVect(
     matching_bonds.emplace_back();
     BondVector_t &mb = matching_bonds.back();  // current match
     // assume pattern is only one bond pattern
-    auto a1 = (unsigned)matching_atom[0].second;  // mol atom 1 index
-    auto a2 = (unsigned)matching_atom[1].second;  // mol atom 2 index
-    mb.push_back(std::pair<unsigned, unsigned>(a1, a2));
+    auto a1 = static_cast<unsigned>(matching_atom[0].second);  // mol atom 1 index
+    auto a2 = static_cast<unsigned>(matching_atom[1].second);  // mol atom 2 index
+    mb.emplace_back(a1, a2);
   }
 }
 
