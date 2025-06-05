@@ -17,7 +17,7 @@
 #include "../SmilesParse/SmilesWrite.h"
 #include "../Substruct/SubstructMatch.h"
 #include <GraphMol/new_canon.h>
-#include <GraphMol/MolOps.h>
+#include <GraphMol/ChemTransforms/MolFragmenter.h>
 #include "MMPA.h"
 
 // #define MMPA_DEBUG // enable debug info output
@@ -30,17 +30,17 @@ typedef std::vector<std::pair<unsigned, unsigned>>
 
 namespace detail {
 unsigned long long computeMorganCodeHash(const ROMol &mol) {
-  size_t nv = mol.getNumAtoms();
+  auto nv = mol.getNumAtoms();
   std::vector<unsigned long> currCodes;
   currCodes.reserve(nv);
   std::vector<unsigned long> prevCodes;
-  size_t nIterations = mol.getNumBonds();
+  auto nIterations = mol.getNumBonds();
   if (nIterations > 5) {
     nIterations = 5;
   }
 
   for (const auto a : mol.atoms()) {
-    unsigned atomCode = a->getAtomicNum();
+    auto atomCode = a->getAtomicNum();
     atomCode |= a->getIsotope() << 8;
 
     auto charge = a->getFormalCharge();
@@ -73,55 +73,50 @@ unsigned long long computeMorganCodeHash(const ROMol &mol) {
                          });
 }
 
-unsigned int addBondPreservingStereo(RWMol &em, unsigned int commonIdx,
-                                     unsigned int oldIdx, unsigned int newIdx,
-                                     Bond::BondDir oldBondDir) {
-  static const std::map<Bond::BondDir, Bond::BondDir> invertedBondDirMap = {
-      {Bond::ENDUPRIGHT, Bond::ENDDOWNRIGHT},
-      {Bond::ENDDOWNRIGHT, Bond::ENDUPRIGHT}};
-  auto newBondIdx = em.addBond(commonIdx, newIdx, Bond::SINGLE) - 1;
-  auto newBond = em.getBondWithIdx(newBondIdx);
-  const auto commonAtom = em.getAtomWithIdx(commonIdx);
-  for (const auto &nbri :
-       boost::make_iterator_range(em.getAtomBonds(commonAtom))) {
-    auto nbrBond = em[nbri];
-    if (nbrBond->getBondType() == Bond::DOUBLE) {
-      auto &stereoAtoms = nbrBond->getStereoAtoms();
+// if skipDoubleBonds is true, double bonds are skipped
+// if doubleBondFlag is false, non-double bonds are skipped
+void addBondsFromTemplate(const RWMol &templateMol, RWMol &newMol,
+                          const std::map<unsigned, unsigned> &newAtomMap,
+                          const boost::dynamic_bitset<> &isAtomInFragment,
+                          bool skipDoubleBonds) {
+  for (const auto templateBond : templateMol.bonds()) {
+    bool isDoubleBond = (templateBond->getBondType() == Bond::DOUBLE);
+    bool shouldProcessBond = (isDoubleBond ^ skipDoubleBonds);
+    if (!shouldProcessBond ||
+        !isAtomInFragment.test(templateBond->getBeginAtomIdx()) ||
+        !isAtomInFragment.test(templateBond->getEndAtomIdx())) {
+      continue;
+    }
+    auto ai1 = newAtomMap.at(templateBond->getBeginAtomIdx());
+    auto ai2 = newAtomMap.at(templateBond->getEndAtomIdx());
+    auto newBondIdx = newMol.addBond(ai1, ai2, templateBond->getBondType()) - 1;
+    auto newBond = newMol.getBondWithIdx(newBondIdx);
+    newBond->setBondDir(templateBond->getBondDir());
+    if (isDoubleBond) {
+      const auto &stereoAtoms = templateBond->getStereoAtoms();
       if (stereoAtoms.size() == 2) {
-        auto it = invertedBondDirMap.find(oldBondDir);
-        if (stereoAtoms[0] == static_cast<int>(oldIdx)) {
-          stereoAtoms[0] = newIdx;
-          if (it != invertedBondDirMap.end()) {
-            newBond->setBondDir(it->first);
-          }
-        } else if (stereoAtoms[1] == static_cast<int>(oldIdx)) {
-          stereoAtoms[1] = newIdx;
-          if (it != invertedBondDirMap.end()) {
-            newBond->setBondDir(it->second);
-          }
-        }
+        newBond->setStereoAtoms(newAtomMap.at(stereoAtoms[0]),
+                                newAtomMap.at(stereoAtoms[1]));
       }
     }
   }
-  return newBondIdx;
 }
 
-unsigned int addBondFromTemplate(
-    RWMol &em, const Bond &templateBond,
-    const std::map<unsigned, unsigned> &newAtomMap) {
-  unsigned ai1 = newAtomMap.at(templateBond.getBeginAtomIdx());
-  unsigned ai2 = newAtomMap.at(templateBond.getEndAtomIdx());
-  unsigned newBondIdx = em.addBond(ai1, ai2, templateBond.getBondType()) - 1;
-  auto newBond = em.getBondWithIdx(newBondIdx);
-  newBond->setBondDir(templateBond.getBondDir());
-  if (templateBond.getBondType() == Bond::DOUBLE) {
-    const auto &stereoAtoms = templateBond.getStereoAtoms();
-    if (stereoAtoms.size() == 2) {
-      newBond->setStereoAtoms(newAtomMap.at(stereoAtoms[0]),
-                              newAtomMap.at(stereoAtoms[1]));
-    }
+void extractAtoms(const RWMol &templateMol, RWMol &newMol,
+                  const INT_VECT &atomIndices) {
+  boost::dynamic_bitset<> isAtomInFragment(templateMol.getNumAtoms());
+  // key is atom index in template molecule
+  std::map<unsigned int, unsigned int> newAtomMap;
+  for (int ai : atomIndices) {
+    isAtomInFragment.set(ai);
+    auto a = templateMol.getAtomWithIdx(ai);
+    newAtomMap[ai] = newMol.addAtom(a->copy(), true, true);
   }
-  return newBondIdx;
+  // add bonds from this fragment skipping double bonds
+  addBondsFromTemplate(templateMol, newMol, newAtomMap, isAtomInFragment, true);
+  // add bonds from this fragment skipping non-double bonds
+  addBondsFromTemplate(templateMol, newMol, newAtomMap, isAtomInFragment,
+                       false);
 }
 }  // namespace detail
 
@@ -130,7 +125,7 @@ static inline void convertMatchingToBondVect(
     const std::vector<MatchVectType> &matching_atoms) {
   for (const auto &matching_atom : matching_atoms) {
     matching_bonds.emplace_back();
-    BondVector_t &mb = matching_bonds.back();  // current match
+    auto &mb = matching_bonds.back();  // current match
     // assume pattern is only one bond pattern
     auto a1 = static_cast<unsigned>(matching_atom[0].second);  // mol atom 1 index
     auto a2 = static_cast<unsigned>(matching_atom[1].second);  // mol atom 2 index
@@ -145,26 +140,29 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
 #ifdef MMPA_DEBUG
   std::cout << res.size() + 1 << ": ";
 #endif
-  RWMol em(mol);
   // loop through the bonds to delete. == deleteBonds()
   unsigned isotope = 0;
   std::map<unsigned, unsigned> isotope_track;
+  std::vector<unsigned int> bondIndices;
+  bondIndices.reserve(bonds_selected.size());
+  std::vector<std::pair<unsigned int, unsigned int>> dummyLabels;
+  dummyLabels.reserve(bonds_selected.size());
   for (const auto &bi : bonds_selected) {
 #ifdef MMPA_DEBUG
     {
       std::string symbol =
-          em.getAtomWithIdx(bonds_selected[bi].first)->getSymbol();
+          mol.getAtomWithIdx(bonds_selected[bi].first)->getSymbol();
       int label = 0;
-      em.getAtomWithIdx(bonds_selected[bi].first)
+      mol.getAtomWithIdx(bonds_selected[bi].first)
           ->getPropIfPresent(common_properties::molAtomMapNumber, label);
       char a1[32];
       if (0 == label)
         sprintf(a1, "\'%s\'", symbol.c_str(), label);
       else
         sprintf(a1, "\'%s:%u\'", symbol.c_str(), label);
-      symbol = em.getAtomWithIdx(bonds_selected[bi].second)->getSymbol();
+      symbol = mol.getAtomWithIdx(bonds_selected[bi].second)->getSymbol();
       label = 0;
-      em.getAtomWithIdx(bonds_selected[bi].second)
+      mol.getAtomWithIdx(bonds_selected[bi].second)
           ->getPropIfPresent(common_properties::molAtomMapNumber, label);
       char a2[32];
       if (0 == label)
@@ -177,42 +175,37 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
     }
 #endif
     ++isotope;
-    const auto oldBond = em.getBondBetweenAtoms(bi.first, bi.second);
+    const auto oldBond = mol.getBondBetweenAtoms(bi.first, bi.second);
     CHECK_INVARIANT(oldBond, "bond not found");
-    const auto oldBondDir = oldBond->getBondDir();
-    // remove the bond
-    em.removeBond(bi.first, bi.second);
-    // add attachment points and set attachment point labels
-    auto *a = new Atom(0);
+    bondIndices.push_back(oldBond->getIdx());
+    dummyLabels.emplace_back(isotope, isotope);
+  }
+  std::unique_ptr<ROMol> fragmentedMol(
+      MolFragmenter::fragmentOnBonds(mol, bondIndices, true, &dummyLabels));
+  for (auto ai = mol.getNumAtoms(); ai < fragmentedMol->getNumAtoms(); ++ai) {
+    auto a = fragmentedMol->getAtomWithIdx(ai);
+    isotope = a->getIsotope();
+    CHECK_INVARIANT(isotope, "isotope should be >0");
     a->setProp(common_properties::molAtomMapNumber, static_cast<int>(isotope));
-    unsigned newAtomA = em.addAtom(a, true, true);
-    detail::addBondPreservingStereo(em, bi.first, bi.second, newAtomA,
-                                    oldBondDir);
-    a = new Atom(0);
-    a->setProp(common_properties::molAtomMapNumber, static_cast<int>(isotope));
-    unsigned newAtomB = em.addAtom(a, true, true);
-    detail::addBondPreservingStereo(em, bi.second, bi.first, newAtomB,
-                                    oldBondDir);
-
-    // keep track of where to put isotopes
-    isotope_track[newAtomA] = isotope;
-    isotope_track[newAtomB] = isotope;
+    a->setIsotope(0);
+    isotope_track[ai] = isotope;
   }
 #ifdef MMPA_DEBUG
   std::cout << "\n";
 #endif
   RWMOL_SPTR core, side_chains;  // core & side_chains output molecules
 
-  if (isotope == 1) {
-    side_chains = RWMOL_SPTR(new RWMol(em));  // output = '%s,%s,,%s.%s'
+  if (bondIndices.size() == 1) {
+    side_chains =
+        RWMOL_SPTR(new RWMol(*fragmentedMol));  // output = '%s,%s,,%s.%s'
 // DEBUG PRINT
 #ifdef MMPA_DEBUG
 // OK: std::cout<<res.size()+1<<" isotope="<< isotope <<","<<
 // MolToSmiles(*side_chains, true) <<"\n";
 #endif
-  } else if (isotope >= 2) {
-    std::vector<std::vector<int>> frags;
-    unsigned int nFrags = MolOps::getMolFrags(em, frags);
+  } else if (bondIndices.size() >= 2) {
+    VECT_INT_VECT frags;
+    unsigned int nFrags = MolOps::getMolFrags(*fragmentedMol, frags);
 
     // #check if its a valid triple or bigger cut.  matchObj = re.search(
     //'\*.*\*.*\*', f)
@@ -221,7 +214,7 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
       bool valid = false;
       for (size_t i = 0; i < nFrags; i++) {
         unsigned nLabels = 0;
-        for (int ai : frags[i]) {
+        for (auto ai : frags[i]) {
           if (isotope_track.end() !=
               isotope_track.find(ai)) {  // new added atom
             ++nLabels;                   // found connection point
@@ -243,10 +236,8 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
       }
     }
 
-    size_t iCore = std::numeric_limits<size_t>::max();
+    auto iCore = std::numeric_limits<size_t>::max();
     side_chains = RWMOL_SPTR(new RWMol);
-    boost::dynamic_bitset<> visitedBonds(
-        em.getNumBonds());  // bond index in source molecule
     unsigned maxAttachments = 0;
     for (size_t i = 0; i < frags.size(); i++) {
       unsigned nAttachments = 0;
@@ -261,27 +252,7 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
       }
       if (1 == nAttachments) {  // build side-chain set of molecules from
                                 // selected fragment
-        std::map<unsigned, unsigned>
-            newAtomMap;  // key is atom index in source molecule
-        for (int ai : frags[i]) {
-          auto a = em.getAtomWithIdx(ai);
-          newAtomMap[ai] = side_chains->addAtom(a->copy(), true, true);
-        }
-        // add all bonds from this fragment
-        for (int ai : frags[i]) {
-          auto a = em.getAtomWithIdx(ai);
-          for (const auto &nbri :
-               boost::make_iterator_range(em.getAtomBonds(a))) {
-            const auto bond = em[nbri];
-            if (newAtomMap.end() == newAtomMap.find(bond->getBeginAtomIdx()) ||
-                newAtomMap.end() == newAtomMap.find(bond->getEndAtomIdx()) ||
-                visitedBonds.test(bond->getIdx())) {
-              continue;
-            }
-            detail::addBondFromTemplate(*side_chains, *bond, newAtomMap);
-            visitedBonds.set(bond->getIdx());
-          }
-        }
+        detail::extractAtoms(*fragmentedMol, *side_chains, frags[i]);
       } else {  // select the core fragment
 // DEBUG PRINT
 #ifdef MMPA_DEBUG
@@ -299,28 +270,7 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
     // build core molecule from selected fragment
     if (iCore != std::numeric_limits<size_t>::max()) {
       core = RWMOL_SPTR(new RWMol);
-      visitedBonds.reset();
-      std::map<unsigned, unsigned>
-          newAtomMap;  // key is atom index in source molecule
-      for (int ai : frags[iCore]) {
-        auto a = em.getAtomWithIdx(ai);
-        newAtomMap[ai] = core->addAtom(a->copy(), true, true);
-      }
-      // add all bonds from this fragment
-      for (int ai : frags[iCore]) {
-        auto a = em.getAtomWithIdx(ai);
-        for (const auto &nbri :
-             boost::make_iterator_range(em.getAtomBonds(a))) {
-          const auto bond = em[nbri];
-          if (newAtomMap.end() == newAtomMap.find(bond->getBeginAtomIdx()) ||
-              newAtomMap.end() == newAtomMap.find(bond->getEndAtomIdx()) ||
-              visitedBonds.test(bond->getIdx())) {
-            continue;
-          }
-          detail::addBondFromTemplate(*core, *bond, newAtomMap);
-          visitedBonds.set(bond->getIdx());
-        }
-      }
+      detail::extractAtoms(*fragmentedMol, *core, frags[iCore]);
 // DEBUG PRINT
 #ifdef MMPA_DEBUG
 // std::cout<<res.size()+1<<" isotope="<< isotope <<" "<< MolToSmiles(*core,
@@ -330,9 +280,7 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
   }
   // check for duplicates:
   bool resFound = false;
-  size_t ri = 0;
-  for (ri = 0; ri < res.size(); ri++) {
-    const auto &r = res[ri];
+  for (const auto &r : res) {
     if (side_chains->getNumAtoms() == r.second->getNumAtoms() &&
         side_chains->getNumBonds() == r.second->getNumBonds() &&
         ((nullptr == core.get() && nullptr == r.first.get()) ||
@@ -447,9 +395,8 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
 //=====================================================================
 static inline void appendBonds(BondVector_t &bonds,
                                const BondVector_t &matching_bonds) {
-  for (const auto &matching_bond : matching_bonds) {
-    bonds.push_back(matching_bond);
-  }
+  bonds.reserve(bonds.size() + matching_bonds.size());
+  bonds.insert(bonds.end(), matching_bonds.begin(), matching_bonds.end());
 }
 
 static inline void processCuts(
@@ -510,10 +457,11 @@ bool fragmentMol(const ROMol &mol,
 #endif
 
   res.clear();
-  std::unique_ptr<const ROMol> smarts((const ROMol *)SmartsToMol(pattern));
+  std::unique_ptr<const ROMol> smarts(
+      static_cast<ROMol *>(SmartsToMol(pattern)));
   std::vector<MatchVectType>
       matching_atoms;  // one bond per match ! with default pattern
-  unsigned int total = SubstructMatch(mol, *smarts, matching_atoms);
+  auto total = SubstructMatch(mol, *smarts, matching_atoms);
 #ifdef MMPA_DEBUG
   std::cout << "total substructs =" << total
             << "\nmatching bonds (atom1, atom2):\n";
@@ -572,8 +520,8 @@ bool fragmentMol(const ROMol &mol,
   for (auto i : bondsToCut) {
     const auto bond = mol.getBondWithIdx(i);
     BondVector_t bonds;
-    unsigned int a1 = bond->getBeginAtomIdx();
-    unsigned int a2 = bond->getEndAtomIdx();
+    auto a1 = bond->getBeginAtomIdx();
+    auto a2 = bond->getEndAtomIdx();
     bonds.emplace_back(a1, a2);
     matching_bonds.push_back(std::move(bonds));
   }
