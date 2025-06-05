@@ -52,7 +52,7 @@ unsigned long long computeMorganCodeHash(const ROMol &mol) {
     currCodes.push_back(atomCode);
   }
 
-  for (size_t iter = 0; iter < nIterations; iter++) {
+  for (std::size_t iter = 0; iter < nIterations; iter++) {
     prevCodes = currCodes;
 
     for (const auto bond : mol.bonds()) {
@@ -136,7 +136,7 @@ static inline void convertMatchingToBondVect(
 static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
                           &res,  // const SignatureVector& resSignature,
                       const ROMol &mol, const BondVector_t &bonds_selected,
-                      size_t maxCuts) {
+                      std::size_t maxCuts) {
 #ifdef MMPA_DEBUG
   std::cout << res.size() + 1 << ": ";
 #endif
@@ -212,7 +212,7 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
     //  check if exists a fragment with maxCut connection points (*.. *.. *)
     if (isotope >= 3) {
       bool valid = false;
-      for (size_t i = 0; i < nFrags; i++) {
+      for (std::size_t i = 0; i < nFrags; i++) {
         unsigned nLabels = 0;
         for (auto ai : frags[i]) {
           if (isotope_track.end() !=
@@ -236,10 +236,10 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
       }
     }
 
-    auto iCore = std::numeric_limits<size_t>::max();
+    auto iCore = std::numeric_limits<std::size_t>::max();
     side_chains = RWMOL_SPTR(new RWMol);
     unsigned maxAttachments = 0;
-    for (size_t i = 0; i < frags.size(); i++) {
+    for (std::size_t i = 0; i < frags.size(); i++) {
       unsigned nAttachments = 0;
       for (int ai : frags[i]) {
         if (isotope_track.end() !=
@@ -268,7 +268,7 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
       }
     }
     // build core molecule from selected fragment
-    if (iCore != std::numeric_limits<size_t>::max()) {
+    if (iCore != std::numeric_limits<std::size_t>::max()) {
       core = RWMOL_SPTR(new RWMol);
       detail::extractAtoms(*fragmentedMol, *core, frags[iCore]);
 // DEBUG PRINT
@@ -335,7 +335,7 @@ static void addResult(std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>>
 
       std::vector<std::pair<unsigned int, int>> rankedAtoms;
 
-      for (size_t idx = 0; idx < ranks.size(); ++idx) {
+      for (std::size_t idx = 0; idx < ranks.size(); ++idx) {
         unsigned int atom_idx = ranks[idx];
         if (oldMaps[atom_idx] > 0) {
           const int label = oldMaps[atom_idx];
@@ -400,7 +400,8 @@ static inline void appendBonds(BondVector_t &bonds,
 }
 
 static inline void processCuts(
-    size_t i, size_t minCuts, size_t maxCuts, BondVector_t &bonds_selected,
+    std::size_t i, std::size_t minCuts, std::size_t maxCuts,
+    BondVector_t &bonds_selected,
     const std::vector<BondVector_t> &matching_bonds, const ROMol &mol,
     std::vector<std::pair<ROMOL_SPTR, ROMOL_SPTR>> &res) {
   if (maxCuts < minCuts) {
@@ -411,7 +412,7 @@ static inline void processCuts(
     throw ValueErrorException("minCuts must be greater than 0");
   }
 
-  for (size_t x = i; x < matching_bonds.size(); x++) {
+  for (std::size_t x = i; x < matching_bonds.size(); x++) {
     appendBonds(bonds_selected, matching_bonds[x]);
     if (bonds_selected.size() >= minCuts) {
       addResult(res, mol, bonds_selected, maxCuts);
@@ -441,7 +442,7 @@ bool fragmentMol(const ROMol &mol,
                  unsigned int minCuts, unsigned int maxCuts,
                  unsigned int maxCutBonds, const std::string &pattern) {
 #ifdef MMPA_DEBUG
-  for (size_t i = 0; i < mol.getNumAtoms(); i++) {
+  for (std::size_t i = 0; i < mol.getNumAtoms(); i++) {
     std::string symbol = mol.getAtomWithIdx(i)->getSymbol();
     int label = 0;
     mol.getAtomWithIdx(i)->getPropIfPresent(common_properties::molAtomMapNumber,
@@ -470,7 +471,7 @@ bool fragmentMol(const ROMol &mol,
     return false;
   }
 #ifdef MMPA_DEBUG
-  for (size_t i = 0; i < matching_atoms.size(); i++) {
+  for (std::size_t i = 0; i < matching_atoms.size(); i++) {
     std::string symbol =
         mol.getAtomWithIdx(matching_atoms[i][0].second)->getSymbol();
     int label = 0;
