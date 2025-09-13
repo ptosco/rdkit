@@ -15,6 +15,9 @@
 #include <RDGeneral/versions.h>
 #include <RDGeneral/Invariant.h>
 #include <cstdlib>
+#include <chrono>
+#include <thread>
+#include <RDGeneral/ControlCHandler.h>
 
 #include <RDGeneral/RDLog.h>
 
@@ -235,6 +238,17 @@ struct python_ostream_wrapper {
 };
 
 void seedRNG(unsigned int seed) { std::srand(seed); }
+void testCtrlC() {
+  using namespace std::chrono_literals;
+  RDKit::ControlCHandler::reset();
+  for (;;) {
+    if (RDKit::ControlCHandler::getGotSignal()) {
+      std::cerr << "CTRL+C was pressed" << std::endl;
+      break;
+    }
+    std::this_thread::sleep_for(10ms);
+  }
+}
 }  // namespace
 
 BOOST_PYTHON_MODULE(rdBase) {
@@ -334,6 +348,8 @@ BOOST_PYTHON_MODULE(rdBase) {
               "This does not affect pure Python code, but is relevant to some "
               "of the RDKit C++ components.",
               (python::arg("seed")));
+
+  python::def("TestCtrlC", testCtrlC, "Test CTRL+C handler");
 
   python_streambuf_wrapper::wrap();
   python_ostream_wrapper::wrap();
